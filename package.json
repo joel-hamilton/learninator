@@ -1,0 +1,38 @@
+{
+  "name": "learninator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@hono/node-server": "^1.13.7",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "connect-sqlite3": "^0.9.15",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.38.2",
+    "express-session": "^1.18.1",
+    "hono": "^4.6.14",
+    "passport": "^0.7.0",
+    "passport-local": "^1.0.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express-session": "^1.18.1",
+    "@types/passport": "^1.0.17",
+    "@types/passport-local": "^1.0.38",
+    "drizzle-kit": "^0.30.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,18 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Learninator" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - text: test@learninator.dev
+      - link "Log out" [ref=e5] [cursor=pointer]:
+        - /url: /logout
+  - generic [ref=e7]:
+    - heading "What do you want to learn?" [level=2] [ref=e8]
+    - paragraph [ref=e9]: Start a new mission and your AI teacher will guide you.
+    - generic [ref=e10]:
+      - textbox "e.g., Guitar, Rust, Quantum Physics..." [active] [ref=e11]
+      - button "Start Learning" [ref=e12] [cursor=pointer]
+    - generic [ref=e13]:
+      - button "Guitar fretboard" [ref=e14] [cursor=pointer]
+      - button "Rust" [ref=e15] [cursor=pointer]
+      - button "Cooking" [ref=e16] [cursor=pointer]
+      - button "Drawing" [ref=e17] [cursor=pointer]

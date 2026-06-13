@@ -1,0 +1,161 @@
+import { Hono } from "hono";
+import type { Context } from "hono";
+import { auth } from "../auth/index.js";
+import { db, schema } from "../db/index.js";
+import { eq, and, asc } from "drizzle-orm";
+import { ai } from "../ai/index.js";
+import { AIError } from "../ai/index.js";
+import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
+import { executeToolCalls } from "../ai/tools.js";
+import type Anthropic from "@anthropic-ai/sdk";
+import type { AppVariables } from "../types.js";
+
+// re-eval marker
+
+type Ctx = Context<{ Variables: AppVariables }>;
+export const chatRoutes = new Hono<{ Variables: AppVariables }>();
+
+/** Extract display text from stored message content (JSON). */
+function contentToText(content: string): string {
+  try {
+    const parsed = JSON.parse(content);
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((b: { type: string }) => b.type === "text")
+        .map((b: { text: string }) => b.text)
+        .join("\n");
+    }
+    return String(parsed);
+  } catch {
+    return content;
+  }
+}
+
+/** Escape HTML entities in user-provided text. */
+function esc(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Save a single message to the chat history. */
+async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown) {
+  await db.insert(schema.chatMessages).values({
+    missionId,
+    role,
+    content: JSON.stringify(content),
+  });
+}
+
+chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const body = await c.req.parseBody();
+  const message = String(body.message || "").trim();
+  const context = String(body.context || "");
+  const existingMessages = String(body.messages || "");
+
+  if (!message) {
+    return c.html(`<div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;">I didn't catch that — what would you like to work on?</div>`);
+  }
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const systemPrompt = TEACHER_SYSTEM_PROMPT + `
+The current mission ID is ${missionId}.
+Mission title: ${mission.title}
+Mission status: ${mission.status}
+
+Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
+
+  const messages: Anthropic.MessageParam[] = [];
+  if (existingMessages) {
+    try {
+      const parsed = JSON.parse(existingMessages);
+      messages.push(...parsed);
+    } catch {}
+  }
+
+  let userContent = message;
+  if (context) {
+    userContent = `[Context: ${context}]\n\n${message}`;
+  }
+  messages.push({ role: "user", content: userContent });
+
+  try {
+    // Save user message to DB
+    await saveMessage(missionId, "user", userContent);
+
+    const response = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
+
+    const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+    const textParts: string[] = [];
+
+    for (const block of response.content) {
+      if (block.type === "text") {
+        textParts.push(block.text);
+      } else if (block.type === "tool_use") {
+        toolUseBlocks.push(block);
+      }
+    }
+
+    if (response.stop_reason === "max_tokens" && toolUseBlocks.length === 0) {
+      textParts.push("\n\n[My response was cut short. Could you ask again?]");
+    }
+
+    let updatedMessages: Anthropic.MessageParam[];
+
+    if (toolUseBlocks.length > 0) {
+      const results = await executeToolCalls(missionId, toolUseBlocks);
+      const followup = await ai.continueWithToolResults(messages, { role: "assistant", content: response.content }, results, systemPrompt, TEACHER_TOOLS);
+      for (const block of followup.content) {
+        if (block.type === "text") {
+          textParts.push(block.text);
+        }
+      }
+
+      // Full chain: original msgs → assistant (with tool_use) → tool results → followup text
+      const followupText = (followup.content
+        .filter((b) => b.type === "text") as Anthropic.TextBlock[])
+        .map((b) => b.text)
+        .join("\n");
+      updatedMessages = [
+        ...messages,
+        { role: "assistant" as const, content: response.content },
+        { role: "user" as const, content: results },
+        { role: "assistant" as const, content: followupText || "Done." },
+      ];
+
+      // Save assistant message with tool_use blocks to DB
+      await saveMessage(missionId, "assistant", response.content);
+      // Save tool results as a pseudo-message for reconstruction
+      await saveMessage(missionId, "user", results);
+      // Save followup text
+      await saveMessage(missionId, "assistant", followupText || "Done.");
+    } else {
+      updatedMessages = [
+        ...messages,
+        { role: "assistant" as const, content: response.content },
+      ];
+
+      await saveMessage(missionId, "assistant", response.content);
+    }
+
+    const text = textParts.join("\n") || "Done! Anything else you'd like to work on?";
+
+    return c.html(`
+      <div class="msg user" style="background:#f0ebe0;align-self:flex-end;padding:0.75rem 1rem;border-radius:8px;max-width:85%;">${esc(message)}</div>
+      <div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${text.replace(/\n/g, "<br>")}</div>
+      <input type="hidden" name="messages" value="${JSON.stringify(updatedMessages).replace(/"/g, "&quot;")}">
+    `);
+  } catch (err: unknown) {
+    const msg = err instanceof AIError
+      ? `<strong>${err.message}</strong>${err.recoverable ? " It may help to wait a moment and retry." : ""}`
+      : "Something went wrong. Please try again.";
+    return c.html(`<div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;color:#8b2e2e;">${msg}</div>`);
+  }
+});

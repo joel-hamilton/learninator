@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "← Dashboard" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - heading "Guitar fretboard mastery" [level=1] [ref=e5]
+    - generic [ref=e6]:
+      - text: test@learninator.dev
+      - link "Log out" [ref=e7] [cursor=pointer]:
+        - /url: /logout
+  - generic [ref=e8]:
+    - complementary [ref=e9]:
+      - heading "Workspace" [level=2] [ref=e10]
+      - navigation [ref=e11]:
+        - link "Lessons" [ref=e12] [cursor=pointer]:
+          - /url: /missions/4
+        - link "Reference" [ref=e13] [cursor=pointer]:
+          - /url: /missions/4/reference
+        - link "Learning Records" [ref=e14] [cursor=pointer]:
+          - /url: /missions/4/records
+        - link "Resources" [ref=e15] [cursor=pointer]:
+          - /url: /missions/4/resources
+      - generic [ref=e16]:
+        - generic [ref=e17]: Mission
+        - generic [ref=e18]: Guitar fretboard mastery · onboarding
+    - main [ref=e19]:
+      - generic [ref=e20]:
+        - paragraph [ref=e21]: No lessons yet. Your AI teacher will create them as you go.
+        - paragraph [ref=e22]:
+          - text: Go to the
+          - link "chat" [ref=e23] [cursor=pointer]:
+            - /url: /missions/4/chat
+          - text: to ask for your first lesson.

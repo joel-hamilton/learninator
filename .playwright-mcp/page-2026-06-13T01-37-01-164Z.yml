@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Learninator" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - text: test@learninator.dev
+      - link "Log out" [ref=e5] [cursor=pointer]:
+        - /url: /logout
+  - generic [ref=e6]:
+    - link "+ Start a new mission" [ref=e8] [cursor=pointer]:
+      - /url: /missions/new
+    - generic [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - heading "Guitar fretboard basics" [level=3] [ref=e12]
+          - generic [ref=e13]: Setting up... · Last updated 2026-06-12
+        - generic [ref=e14]:
+          - link "Continue" [ref=e15] [cursor=pointer]:
+            - /url: /missions/4
+          - button "Delete" [ref=e17] [cursor=pointer]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - heading "I want to memorize all the notes on the fretboard so I can improvise better with my band." [level=3] [ref=e20]
+          - generic [ref=e21]: Setting up... · Last updated 2026-06-12
+        - generic [ref=e22]:
+          - link "Continue" [ref=e23] [cursor=pointer]:
+            - /url: /missions/5
+          - button "Delete" [ref=e25] [cursor=pointer]

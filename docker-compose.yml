@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-5555}:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
