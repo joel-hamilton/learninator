@@ -229,7 +229,7 @@ authApp.post("/signup", async (c) => {
   if (existing) {
     return c.html(`<form hx-post="/signup" hx-target="this" hx-swap="outerHTML">
       <label for="email">Email</label>
-      <input type="email" name="email" id="email" value="" required>
+      <input type="email" name="email" id="email" value="${email}" required>
       <label for="password">Password</label>
       <input type="password" name="password" id="password" required minlength="6">
       <label for="confirm">Confirm password</label>
