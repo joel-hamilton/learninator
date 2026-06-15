@@ -1,5 +1,16 @@
 /** HTMX fragments used in route handler responses */
 
+// ── Helpers ──
+
+function lessonIdStr(number: number, subNumber: number | null): string {
+  return subNumber !== null ? `${number}.${subNumber}` : `${number}`;
+}
+
+function formatLessonNumber(num: number, sub: number | null): string {
+  const base = String(num).padStart(4, "0");
+  return sub !== null ? `${base}.${sub}` : base;
+}
+
 // ── Chat ──
 
 export function chatMessageBubble(role: "user" | "assistant", content: string): string {
@@ -11,28 +22,31 @@ export function chatMessageBubble(role: "user" | "assistant", content: string): 
 
 // ── Lesson feedback ──
 
-export function feedbackBar(missionId: number, number: number): string {
+export function feedbackBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
     <span class="label">How was this lesson?</span>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>Too easy</button>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>Just right</button>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>Too hard</button>
-    <form hx-post="/missions/${missionId}/lessons/${number}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
+    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>Too easy</button>
+    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>Just right</button>
+    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>Too hard</button>
+    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
       <button type="submit" class="done-btn">Mark Complete</button>
     </form>
   </div>`;
 }
 
-export function feedbackThanksBar(rating: string, missionId: number, number: number): string {
+export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
     <span class="label">Thanks! You rated this: <strong>${rating.replace("_", " ")}</strong></span>
-    <form hx-post="/missions/${missionId}/lessons/${number}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
+    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
       <button type="submit" class="done-btn">Mark Complete</button>
     </form>
   </div>`;
 }
 
-export function completeBar(alreadyCompleted: boolean, missionId: number, number: number): string {
+export function completeBar(alreadyCompleted: boolean, missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
     <span class="label">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
     <div style="display:flex;flex-direction:column;gap:0.5rem;">
@@ -40,7 +54,7 @@ export function completeBar(alreadyCompleted: boolean, missionId: number, number
       <textarea name="notes" placeholder="What should the next lesson cover? Anything to change? e.g. &quot;More hands-on examples&quot; or &quot;Go deeper into X&quot;" rows="3" style="padding:0.7rem;border:1px solid #e8e4dc;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;width:100%;"></textarea>
     </div>
     <div style="display:flex;gap:0.5rem;align-items:center;">
-      <button hx-post="/missions/${missionId}/lessons/${number}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" style="padding:0.5rem 1.25rem;background:#2d2d2d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">
+      <button hx-post="/missions/${missionId}/lessons/${lid}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" style="padding:0.5rem 1.25rem;background:#2d2d2d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">
         <span class="htmx-indicator-inline">Generating<span style="display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;margin-left:0.3rem;"></span></span>
         <span class="btn-label">Create Next Lesson</span>
       </button>
@@ -49,11 +63,23 @@ export function completeBar(alreadyCompleted: boolean, missionId: number, number
   </div>`;
 }
 
+export function completedLessonBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar" id="feedback-bar">
+    <span class="label">Completed</span>
+    <span style="font-size:0.85rem;color:#888;margin-left:0.5rem;">Marked complete. Want to revisit?</span>
+    <form hx-post="/missions/${missionId}/lessons/${lid}/incomplete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
+      <button type="submit" class="done-btn" style="background:#888;">Mark Incomplete</button>
+    </form>
+  </div>`;
+}
+
 // ── Lesson generation ──
 
-export function generationPollingBar(missionId: number, number: number): string {
+export function generationPollingBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-       hx-get="/missions/${missionId}/lessons/${number}/generate-next/status"
+       hx-get="/missions/${missionId}/lessons/${lid}/generate-next/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
@@ -65,9 +91,10 @@ export function generationPollingBar(missionId: number, number: number): string 
   </div>`;
 }
 
-export function generationRunningBar(missionId: number, number: number, latestMsg: string): string {
+export function generationRunningBar(missionId: number, number: number, subNumber: number | null, latestMsg: string): string {
+  const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-       hx-get="/missions/${missionId}/lessons/${number}/generate-next/status"
+       hx-get="/missions/${missionId}/lessons/${lid}/generate-next/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
@@ -79,9 +106,11 @@ export function generationRunningBar(missionId: number, number: number, latestMs
   </div>`;
 }
 
-export function generationDoneBar(missionId: number, number: number, lessonTitle: string): string {
+export function generationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
+  const lid = lessonIdStr(number, subNumber);
+  const displayNum = formatLessonNumber(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Lesson created! <a href="/missions/${missionId}/lessons/${number}" style="color:#2d2d2d;font-weight:500;">Start Lesson ${String(number).padStart(4, "0")}: ${lessonTitle} &rarr;</a></span>
+    <span class="label">Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:#2d2d2d;font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
@@ -115,13 +144,16 @@ export function emptyRecordsMessage(): string {
 
 // ── Cards ──
 
-export function lessonCard(missionId: number, lesson: { number: number; title: string; status: string }): string {
+export function lessonCard(missionId: number, lesson: { number: number; subNumber: number | null; title: string; status: string }): string {
+  const isSub = lesson.subNumber !== null;
+  const displayNum = formatLessonNumber(lesson.number, lesson.subNumber);
+  const lid = lessonIdStr(lesson.number, lesson.subNumber);
   const statusLabel = lesson.status === "completed" ? "Completed" : lesson.status === "in_progress" ? "In Progress" : "";
   const statusClass = lesson.status === "completed" ? "status-completed" : lesson.status === "in_progress" ? "status-in-progress" : "status-active";
   return `
-    <a href="/missions/${missionId}/lessons/${lesson.number}" class="lesson-card">
+    <a href="/missions/${missionId}/lessons/${lid}" class="lesson-card ${isSub ? "lesson-card--sub" : ""}">
       <div class="info">
-        <span class="num">${String(lesson.number).padStart(4, "0")}</span>
+        <span class="num">${displayNum}</span>
         <h3>${lesson.title}</h3>
       </div>
       ${statusLabel ? `<span class="status ${statusClass}">${statusLabel}</span>` : ""}

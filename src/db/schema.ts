@@ -60,6 +60,8 @@ export const lessons = sqliteTable("lessons", {
   status: text("status", { enum: ["active", "in_progress", "completed"] })
     .notNull()
     .default("active"),
+  parentLessonId: integer("parent_lesson_id"),
+  subNumber: integer("sub_number"),
   feedbackRating: text("feedback_rating", {
     enum: ["too_easy", "just_right", "too_hard"],
   }),

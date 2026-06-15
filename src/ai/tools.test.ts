@@ -49,6 +49,8 @@ describe("tool handlers", () => {
         slug TEXT NOT NULL,
         html_content TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'active',
+        parent_lesson_id INTEGER REFERENCES lessons(id),
+        sub_number INTEGER,
         feedback_rating TEXT,
         feedback_text TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -159,6 +161,7 @@ describe("tool handlers", () => {
     expect(parsed.title).toBe("First Lesson")
     expect(parsed.slug).toBe("first-lesson")
     expect(parsed.html_content).toBe("<p>Hello</p>")
+    expect(parsed.sub_number).toBeNull()
   })
 
   it("list_lessons returns created lessons", async () => {
@@ -167,6 +170,110 @@ describe("tool handlers", () => {
     expect(parsed.length).toBe(1)
     expect(parsed[0].title).toBe("First Lesson")
   })
+
+  // ── Sub-lesson tests ──
+
+  it("create_sub_lesson creates a sub-lesson under a main lesson", async () => {
+    const result = await executor.executeTool(1, "create_sub_lesson", {
+      parent_lesson_number: 1,
+      title: "Deeper Dive",
+      slug: "deeper-dive",
+      html_content: "<p>More depth</p>",
+    })
+    expect(result).toContain('Created sub-lesson 0001.1: "Deeper Dive"')
+  })
+
+  it("create_sub_lesson auto-increments sub_number", async () => {
+    const result = await executor.executeTool(1, "create_sub_lesson", {
+      parent_lesson_number: 1,
+      title: "Even Deeper",
+      slug: "even-deeper",
+      html_content: "<p>Even more depth</p>",
+    })
+    expect(result).toContain('Created sub-lesson 0001.2: "Even Deeper"')
+  })
+
+  it("create_sub_lesson fails for non-existent parent", async () => {
+    const result = await executor.executeTool(1, "create_sub_lesson", {
+      parent_lesson_number: 999,
+      title: "Orphan",
+      slug: "orphan",
+      html_content: "<p>no parent</p>",
+    })
+    expect(result).toBe("Parent lesson 999 not found.")
+  })
+
+  it("create_sub_lesson always creates under main lesson (even when number matches sub-lessons)", async () => {
+    // Passing parent_lesson_number: 1 still finds the main lesson 0001
+    // (the handler checks isNull(parentLessonId) on the parent)
+    const result = await executor.executeTool(1, "create_sub_lesson", {
+      parent_lesson_number: 1,
+      title: "Another Sub",
+      slug: "another-sub",
+      html_content: "<p>sub 3</p>",
+    })
+    expect(result).toContain("Created sub-lesson 0001.3")
+  })
+
+  it("read_lesson with sub_number returns sub-lesson", async () => {
+    const result = await executor.executeTool(1, "read_lesson", {
+      number: 1,
+      sub_number: 1,
+    })
+    const parsed = JSON.parse(result)
+    expect(parsed.title).toBe("Deeper Dive")
+    expect(parsed.sub_number).toBe(1)
+  })
+
+  it("read_lesson without sub_number returns main lesson only", async () => {
+    const result = await executor.executeTool(1, "read_lesson", {
+      number: 1,
+    })
+    const parsed = JSON.parse(result)
+    expect(parsed.title).toBe("First Lesson")
+    expect(parsed.sub_number).toBeNull()
+  })
+
+  it("list_lessons returns lessons in correct order (main first, then subs)", async () => {
+    const result = await executor.executeTool(1, "list_lessons", {})
+    const parsed = JSON.parse(result)
+    expect(parsed.length).toBe(4)
+    // 0001 main, 0001.1 sub, 0001.2 sub, 0001.3 sub
+    expect(parsed[0].number).toBe(1)
+    expect(parsed[0].subNumber).toBeNull()
+    expect(parsed[0].title).toBe("First Lesson")
+    expect(parsed[1].number).toBe(1)
+    expect(parsed[1].subNumber).toBe(1)
+    expect(parsed[2].number).toBe(1)
+    expect(parsed[2].subNumber).toBe(2)
+    expect(parsed[3].number).toBe(1)
+    expect(parsed[3].subNumber).toBe(3)
+  })
+
+  it("create_lesson counts only main lessons for numbering", async () => {
+    // Currently: main lesson 0001, sub-lessons 0001.1 and 0001.2
+    // So count of main lessons = 1, next should be 0002
+    const result = await executor.executeTool(1, "create_lesson", {
+      title: "Second Lesson",
+      slug: "second-lesson",
+      html_content: "<p>Second</p>",
+    })
+    expect(result).toContain('Created lesson 0002: "Second Lesson"')
+  })
+
+  it("list_lessons orders main lessons and sub-lessons interleaved correctly", async () => {
+    // Now: 0001, 0001.1, 0001.2, 0001.3, 0002
+    const result = await executor.executeTool(1, "list_lessons", {})
+    const parsed = JSON.parse(result)
+    expect(parsed.length).toBe(5)
+    expect([parsed[0].number, parsed[0].subNumber]).toEqual([1, null])
+    expect([parsed[1].number, parsed[1].subNumber]).toEqual([1, 1])
+    expect([parsed[2].number, parsed[2].subNumber]).toEqual([1, 2])
+    expect([parsed[3].number, parsed[3].subNumber]).toEqual([1, 3])
+    expect([parsed[4].number, parsed[4].subNumber]).toEqual([2, null])
+  })
+
+  // ── Existing tests (unchanged expectations) ──
 
   it("mark_mission_active updates mission status", async () => {
     const result = await executor.executeTool(1, "mark_mission_active", {})

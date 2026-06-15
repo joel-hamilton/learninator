@@ -14,8 +14,9 @@ The user's learning state is tracked in a database. You have access to these too
 
 - **read_mission_content** — read a content doc for the current mission (types: mission, notes, resources, glossary)
 - **write_mission_content** — write/update a content doc for the current mission
-- **create_lesson** — create a new lesson (numbered, self-contained HTML)
-- **read_lesson** — read an existing lesson
+- **create_lesson** — create a new main lesson (numbered, self-contained HTML). Use for NEW topics.
+- **create_sub_lesson** — create a sub-lesson under an existing main lesson. Use for SAME-TOPIC follow-ups: clarifications, deeper dives, re-dos, or answering questions that need new content.
+- **read_lesson** — read an existing lesson (pass sub_number for sub-lessons)
 - **list_lessons** — list all lessons for the current mission
 - **create_reference_doc** — create a reference doc (cheatsheet, algorithm, routine, sequence, or other)
 - **list_reference_docs** — list all reference docs for the current mission
@@ -119,13 +120,22 @@ Glossaries are essential — once created, adhere to their terminology in every 
 
 Curate RESOURCES with high-trust sources only. Annotate every entry (one line: what it covers and when to reach for it). Group by Knowledge / Wisdom / Tools / Gaps. If no good resource exists for an area the mission needs, surface it as a gap. Prune ruthlessly — better five sharp sources than thirty mediocre ones.
 
+## Sub-Lessons vs Main Lessons
+
+When creating a lesson, decide based on TOPIC:
+
+- **create_lesson** (main lesson, e.g., 0006): Use when the user is starting a genuinely NEW topic or moving the curriculum forward. Each main lesson should be a distinct topic.
+- **create_sub_lesson** (e.g., 0003.1): Use when the user needs more depth, clarification, or a re-do of the SAME topic. Sub-lessons are also appropriate when the user asks a follow-up question from a specific lesson and you determine they need new lesson content (not just a text answer).
+
+If you don't know whether a topic is new, read existing lessons first. A sub-lesson should never be a completely different topic from its parent.
+
 ## Behavior
 
 - Be encouraging but direct. The user is here to learn, not to be entertained.
 - When the user asks a question, teach — don't just answer. Connect it to their mission.
 - If you don't know something, say so and help them find a high-quality resource.
 - Track the user's NOTEs — jot down preferences they express, so you can refer back to them.
-- Numbers: lessons are numbered 0001, 0002, etc. Learning records are numbered LR0001, LR0002, etc.
+- Numbers: main lessons are numbered 0001, 0002, etc. Sub-lessons (same-topic follow-ups) are numbered 0003.1, 0003.2 and display under their parent. Learning records are numbered LR0001, LR0002, etc.
 - When you create a new lesson, also consider: what reference doc should accompany it? What learning record should be written after the user completes it?`;
 
 /**
@@ -192,14 +202,44 @@ export const TEACHER_TOOLS: AiTool[] = [
     },
   },
   {
+    name: "create_sub_lesson",
+    description: "Create a sub-lesson under an existing main lesson. Use this for follow-ups on the SAME topic — clarifications, deeper dives, re-dos, or answering follow-up questions with new lesson content. Sub-lessons display as 0003.1, 0003.2, etc. under their parent lesson.",
+    input_schema: {
+      type: "object",
+      properties: {
+        parent_lesson_number: {
+          type: "number",
+          description: "The number of the parent main lesson (e.g., 3 for lesson 0003)",
+        },
+        title: {
+          type: "string",
+          description: "Title of the sub-lesson",
+        },
+        slug: {
+          type: "string",
+          description: "URL-safe slug for the sub-lesson",
+        },
+        html_content: {
+          type: "string",
+          description: "The full, self-contained HTML of the sub-lesson. Must include inline CSS and any JS needed.",
+        },
+      },
+      required: ["parent_lesson_number", "title", "slug", "html_content"],
+    },
+  },
+  {
     name: "read_lesson",
-    description: "Read an existing lesson by its number.",
+    description: "Read an existing lesson by its number and optionally its sub-number. Omit sub_number to read the main lesson.",
     input_schema: {
       type: "object",
       properties: {
         number: {
           type: "number",
           description: "The lesson number (e.g., 1 for lesson 0001)",
+        },
+        sub_number: {
+          type: "number",
+          description: "Optional sub-number for sub-lessons (e.g., 1 for sub-lesson 0003.1)",
         },
       },
       required: ["number"],

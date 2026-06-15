@@ -49,6 +49,8 @@ ${HTMX_HEAD}
   .lesson-card .info { display: flex; align-items: center; gap: 0.75rem; }
   .lesson-card h3 { font-size: 0.95rem; }
   .lesson-card .status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
+  .lesson-card--sub { margin-left: 2rem; border-left: 3px solid #e8e4dc; border-radius: 8px 0 0 8px; }
+  .lesson-card--sub .num { font-size: 0.75rem; }
   .status-active { background: #faf7f0; color: #888; }
   .status-in-progress { background: #fef5e7; color: #8b6914; }
   .status-completed { background: #e8f0e4; color: #2d5a27; }

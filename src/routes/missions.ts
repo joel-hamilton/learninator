@@ -146,10 +146,15 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
 
   // ── Active / archived: show tabbed layout ──
   const lessonRows = await db
-    .select()
+    .select({
+      number: schema.lessons.number,
+      subNumber: schema.lessons.subNumber,
+      title: schema.lessons.title,
+      status: schema.lessons.status,
+    })
     .from(schema.lessons)
     .where(eq(schema.lessons.missionId, id))
-    .orderBy(asc(schema.lessons.number));
+    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber));
 
   if (lessonRows.length === 0) {
     return c.html(missionLayout(user, mission, emptyLessonsMessage(id), "lessons"));

@@ -1,18 +1,31 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
-import { feedbackBar } from "./fragments.js";
+import { feedbackBar, completedLessonBar } from "./fragments.js";
+
+function formatLessonNumber(num: number, sub: number | null): string {
+  const base = String(num).padStart(4, "0");
+  return sub !== null ? `${base}.${sub}` : base;
+}
+
+function lessonIdStr(number: number, subNumber: number | null): string {
+  return subNumber !== null ? `${number}.${subNumber}` : `${number}`;
+}
 
 export function lessonPage(params: {
   missionId: number;
   missionTitle: string;
   lessonNumber: number;
+  lessonSubNumber: number | null;
   lessonTitle: string;
+  lessonStatus: string;
   lessonHtmlContent: string;
   feedbackRating: string | null;
   feedbackText: string | null;
-  prevLesson: { number: number } | undefined;
-  nextLesson: { number: number } | undefined;
+  prevLesson: { number: number; subNumber: number | null } | undefined;
+  nextLesson: { number: number; subNumber: number | null } | undefined;
 }): string {
-  const { missionId, missionTitle, lessonNumber, lessonTitle, lessonHtmlContent, feedbackRating, feedbackText, prevLesson, nextLesson } = params;
+  const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, feedbackRating, feedbackText, prevLesson, nextLesson } = params;
+
+  const displayNum = formatLessonNumber(lessonNumber, lessonSubNumber);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -60,17 +73,24 @@ ${HTMX_LOADING_BAR}
 <div class="toolbar">
   <div class="left">
     <a href="/missions/${missionId}">&larr; ${missionTitle}</a>
-    <h1>${String(lessonNumber).padStart(4, "0")} — ${lessonTitle}</h1>
+    <h1>${displayNum} — ${lessonTitle}</h1>
   </div>
   <div class="nav">
-    ${prevLesson ? `<a href="/missions/${missionId}/lessons/${lessonNumber - 1}">&larr; Previous</a>` : `<span class="disabled">&larr; Previous</span>`}
-    ${nextLesson ? `<a href="/missions/${missionId}/lessons/${lessonNumber + 1}">Next &rarr;</a>` : `<span class="disabled">Next &rarr;</span>`}
+    ${prevLesson
+      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(prevLesson.number, prevLesson.subNumber)}">&larr; Previous</a>`
+      : `<span class="disabled">&larr; Previous</span>`}
+    ${nextLesson
+      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(nextLesson.number, nextLesson.subNumber)}">Next &rarr;</a>`
+      : `<span class="disabled">Next &rarr;</span>`}
   </div>
 </div>
 <div class="lesson-container">
   <iframe id="lesson-frame" scrolling="no" srcdoc="${lessonHtmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
 
-  ${feedbackBar(missionId, lessonNumber)}
+  ${lessonStatus === "completed"
+    ? completedLessonBar(missionId, lessonNumber, lessonSubNumber)
+    : feedbackBar(missionId, lessonNumber, lessonSubNumber)
+  }
 
   ${feedbackRating ? `
     <div class="feedback-bar">
@@ -83,7 +103,7 @@ ${HTMX_LOADING_BAR}
     <h3>Questions about this lesson?</h3>
     <div id="followup-messages"></div>
     <form class="chat-form" hx-post="/missions/${missionId}/chat" hx-target="#followup-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-      <input type="hidden" name="context" value="Lesson ${lessonNumber}: ${lessonTitle}">
+      <input type="hidden" name="context" value="Lesson ${displayNum}: ${lessonTitle}">
       <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" oninput="autoResize(this)"></textarea>
       <button type="submit">Ask</button>
     </form>

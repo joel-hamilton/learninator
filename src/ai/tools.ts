@@ -1,5 +1,5 @@
 import { schema, db } from "../db/index.js"
-import { eq, and, asc, count } from "drizzle-orm"
+import { eq, and, asc, count, isNull, max } from "drizzle-orm"
 import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam } from "./types.js"
 
 // ── Individual tool handlers ──────────────────────────────────────────
@@ -58,12 +58,17 @@ async function writeMissionContent(ctx: ToolHandlerContext): Promise<string> {
 
 async function createLesson(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [lastLesson] = await db
+  const [lastMain] = await db
     .select({ count: count() })
     .from(schema.lessons)
-    .where(eq(schema.lessons.missionId, missionId))
+    .where(
+      and(
+        eq(schema.lessons.missionId, missionId),
+        isNull(schema.lessons.parentLessonId),
+      )
+    )
 
-  const num = (lastLesson?.count || 0) + 1
+  const num = (lastMain?.count || 0) + 1
 
   await db.insert(schema.lessons).values({
     missionId,
@@ -76,22 +81,69 @@ async function createLesson(ctx: ToolHandlerContext): Promise<string> {
   return `Created lesson ${String(num).padStart(4, "0")}: "${input.title}". The user can now view it.`
 }
 
-async function readLesson(ctx: ToolHandlerContext): Promise<string> {
+async function createSubLesson(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [lesson] = await db
+  const parentNumber = input.parent_lesson_number as number
+
+  const [parent] = await db
     .select()
     .from(schema.lessons)
     .where(
       and(
         eq(schema.lessons.missionId, missionId),
-        eq(schema.lessons.number, input.number as number)
+        eq(schema.lessons.number, parentNumber),
+        isNull(schema.lessons.parentLessonId),
       )
     )
+    .limit(1)
+  if (!parent) return `Parent lesson ${parentNumber} not found.`
+
+  const [lastSub] = await db
+    .select({ max: max(schema.lessons.subNumber) })
+    .from(schema.lessons)
+    .where(eq(schema.lessons.parentLessonId, parent.id))
+
+  const subNum = (lastSub?.max || 0) + 1
+
+  await db.insert(schema.lessons).values({
+    missionId,
+    number: parentNumber,
+    subNumber: subNum,
+    parentLessonId: parent.id,
+    title: input.title as string,
+    slug: input.slug as string,
+    htmlContent: input.html_content as string,
+  })
+
+  const displayNum = `${String(parentNumber).padStart(4, "0")}.${subNum}`
+  return `Created sub-lesson ${displayNum}: "${input.title}". The user can now view it.`
+}
+
+async function readLesson(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId, input } = ctx
+  const lessonNumber = input.number as number
+  const subNumber = input.sub_number as number | undefined
+
+  const conditions = [
+    eq(schema.lessons.missionId, missionId),
+    eq(schema.lessons.number, lessonNumber),
+  ]
+  if (subNumber !== undefined) {
+    conditions.push(eq(schema.lessons.subNumber, subNumber))
+  } else {
+    conditions.push(isNull(schema.lessons.parentLessonId))
+  }
+
+  const [lesson] = await db
+    .select()
+    .from(schema.lessons)
+    .where(and(...conditions))
     .limit(1)
 
   if (!lesson) return "Lesson not found."
   return JSON.stringify({
     number: lesson.number,
+    sub_number: lesson.subNumber,
     title: lesson.title,
     slug: lesson.slug,
     status: lesson.status,
@@ -104,6 +156,7 @@ async function listLessons(ctx: ToolHandlerContext): Promise<string> {
   const rows = await db
     .select({
       number: schema.lessons.number,
+      subNumber: schema.lessons.subNumber,
       title: schema.lessons.title,
       slug: schema.lessons.slug,
       status: schema.lessons.status,
@@ -111,7 +164,7 @@ async function listLessons(ctx: ToolHandlerContext): Promise<string> {
     })
     .from(schema.lessons)
     .where(eq(schema.lessons.missionId, missionId))
-    .orderBy(asc(schema.lessons.number))
+    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber))
 
   return JSON.stringify(rows)
 }
@@ -219,6 +272,7 @@ function buildHandlerMap(): Map<string, ToolHandler> {
     ["read_mission_content", readMissionContent],
     ["write_mission_content", writeMissionContent],
     ["create_lesson", createLesson],
+    ["create_sub_lesson", createSubLesson],
     ["read_lesson", readLesson],
     ["list_lessons", listLessons],
     ["create_reference_doc", createReferenceDoc],
