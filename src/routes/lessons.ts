@@ -105,7 +105,7 @@ ${HTMX_LOADING_BAR}
   </div>
 </div>
 <div class="lesson-container">
-  <iframe id="lesson-frame" scrolling="no" srcdoc="${lesson.htmlContent.replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
+  <iframe id="lesson-frame" scrolling="no" srcdoc="${lesson.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
 
   <div class="feedback-bar" id="feedback-bar">
     <span class="label">How was this lesson?</span>

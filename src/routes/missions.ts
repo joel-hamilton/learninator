@@ -519,7 +519,7 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
       <h2 style="font-size:1.2rem;">${ref.title}</h2>
       <span style="font-size:0.8rem;color:#888;">${ref.docType}</span>
     </div>
-    <iframe srcdoc="${ref.htmlContent.replace(/"/g, '&quot;')}" style="width:100%;height:calc(100vh - 200px);border:1px solid #e8e4dc;border-radius:8px;background:#fff;"></iframe>
+    <iframe srcdoc="${ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" style="width:100%;height:calc(100vh - 200px);border:1px solid #e8e4dc;border-radius:8px;background:#fff;"></iframe>
   `, "reference"));
 });
 
