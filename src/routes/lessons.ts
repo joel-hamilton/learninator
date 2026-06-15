@@ -100,8 +100,8 @@ ${HTMX_LOADING_BAR}
     <h1>${String(number).padStart(4, "0")} — ${lesson.title}</h1>
   </div>
   <div class="nav">
-    <a href="/missions/${missionId}/lessons/${number - 1}" class="${prevLesson ? "" : "disabled"}">&larr; Previous</a>
-    <a href="/missions/${missionId}/lessons/${number + 1}" class="${nextLesson ? "" : "disabled"}">Next &rarr;</a>
+    ${prevLesson ? `<a href="/missions/${missionId}/lessons/${number - 1}">&larr; Previous</a>` : `<span class="disabled">&larr; Previous</span>`}
+    ${nextLesson ? `<a href="/missions/${missionId}/lessons/${number + 1}">Next &rarr;</a>` : `<span class="disabled">Next &rarr;</span>`}
   </div>
 </div>
 <div class="lesson-container">
