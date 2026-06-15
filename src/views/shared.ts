@@ -1,6 +1,6 @@
 /** Shared HTML snippets for all pages. */
 
-export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></script>
 <style>
   /* htmx loading indicator */
   .htmx-indicator {
@@ -139,7 +139,7 @@ function optimisticChat(form) {
   const div = document.createElement("div");
   div.className = "msg user";
   div.style.cssText = "background:#f0ebe0;align-self:flex-end;padding:0.75rem 1rem;border-radius:8px;max-width:85%;";
-  div.innerHTML = msg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+  div.innerHTML = msg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\\n/g, "<br>");
   container.appendChild(div);
   // Add thinking bubble
   const thinking = document.createElement("div");
