@@ -65,6 +65,7 @@ export const missionRoutes = new Hono<{ Variables: AppVariables }>();
 function missionLayout(user: { email: string }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons") {
   const tabs = [
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
+    { key: "chat", label: "Chat", href: `/missions/${mission.id}/chat` },
     { key: "reference", label: "Reference", href: `/missions/${mission.id}/reference` },
     { key: "records", label: "Learning Records", href: `/missions/${mission.id}/records` },
     { key: "resources", label: "Resources", href: `/missions/${mission.id}/resources` },
@@ -607,8 +608,43 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
 });
 
 // ── Chat page (for active missions) ──
-// Chat GET redirects to mission — per-lesson chat uses POST only
-missionRoutes.get("/:missionId/chat", auth.requireAuth, (c: Ctx) => {
-  const id = c.req.param("missionId")!;
-  return c.redirect(`/missions/${id}`);
+missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const id = parseInt(c.req.param("missionId")!);
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const chatRows = await db
+    .select()
+    .from(schema.chatMessages)
+    .where(eq(schema.chatMessages.missionId, id))
+    .orderBy(asc(schema.chatMessages.createdAt));
+
+  let messagesHtml = "";
+  if (chatRows.length === 0) {
+    messagesHtml = `<div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;">Hi! I'm your teacher for <strong>${mission.title}</strong>. What would you like to discuss?</div>`;
+  } else {
+    for (const row of chatRows) {
+      const text = storedContentToText(row.content);
+      if (row.role === "user") {
+        messagesHtml += `<div class="msg user">${formatMarkdown(text)}</div>`;
+      } else {
+        messagesHtml += `<div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;">${formatMarkdown(text)}</div>`;
+      }
+    }
+  }
+
+  return c.html(missionLayout(user, mission, `
+    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Chat</h2>
+    <div id="chat-messages">${messagesHtml}</div>
+    <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
+      <textarea name="message" placeholder="Ask your teacher something..." rows="2" oninput="autoResize(this)"></textarea>
+      <button type="submit">Send</button>
+    </form>
+  `, "chat"));
 });
