@@ -119,7 +119,7 @@ ${HTMX_HEAD}
       <summary>Ask a follow-up question about this lesson</summary>
       <form hx-post="/missions/${missionId}/chat" hx-target="this" hx-swap="afterend">
         <input type="hidden" name="context" value="Lesson ${number}: ${lesson.title}">
-        <input type="text" name="message" placeholder="What's unclear about this lesson?">
+        <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" style="width:100%;padding:0.7rem 1rem;border:1px solid #e8e4dc;border-radius:8px;font-size:1rem;font-family:inherit;resize:none;" oninput="autoResize(this)"></textarea>
         <button type="submit">Ask</button>
       </form>
       <div class="response"></div>

@@ -31,8 +31,8 @@ ${HTMX_HEAD}
   .empty-state h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
   .empty-state p { color: #888; margin-bottom: 2rem; }
   .empty-state form { display: flex; gap: 0.5rem; justify-content: center; }
-  .empty-state input { padding: 0.7rem 1rem; border: 1px solid #e8e4dc; border-radius: 8px; font-size: 1rem; width: 360px; }
-  .empty-state input:focus { outline: none; border-color: #b8a88a; }
+  .empty-state textarea { padding: 0.7rem 1rem; border: 1px solid #e8e4dc; border-radius: 8px; font-size: 1rem; width: 360px; font-family: inherit; resize: none; }
+  .empty-state textarea:focus { outline: none; border-color: #b8a88a; }
   .empty-state button { padding: 0.7rem 1.5rem; background: #2d2d2d; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
   .empty-state button:hover { background: #444; }
   .examples { display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap; }
@@ -80,8 +80,8 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
       <div class="empty-state">
         <h2>What do you want to learn?</h2>
         <p>Start a new mission and your AI teacher will guide you.</p>
-        <form hx-post="/missions/new" hx-target="body">
-          <input type="text" name="topic" placeholder="e.g., Guitar, Rust, Quantum Physics..." required autofocus>
+        <form hx-post="/missions" hx-target="body">
+          <textarea name="message" placeholder="e.g., Guitar, Rust, Quantum Physics..." required autofocus rows="2" style="width:360px;padding:0.7rem 1rem;border:1px solid #e8e4dc;border-radius:8px;font-size:1rem;font-family:inherit;resize:none;" oninput="autoResize(this)"></textarea>
           <button type="submit">Start Learning</button>
         </form>
         <div class="examples">

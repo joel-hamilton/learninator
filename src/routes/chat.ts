@@ -7,6 +7,7 @@ import { ai } from "../ai/index.js";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
+import { marked } from "marked";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { AppVariables } from "../types.js";
 
@@ -37,6 +38,11 @@ function esc(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Convert markdown to HTML for display. */
+function formatMarkdown(text: string): string {
+  return marked.parse(text, { async: false }) as string;
+}
+
 /** Save a single message to the chat history. */
 async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown) {
   await db.insert(schema.chatMessages).values({
@@ -46,13 +52,26 @@ async function saveMessage(missionId: number, role: "user" | "assistant", conten
   });
 }
 
+/** Load chat messages from DB and convert to Anthropic format. */
+async function loadMessages(missionId: number): Promise<Anthropic.MessageParam[]> {
+  const rows = await db
+    .select()
+    .from(schema.chatMessages)
+    .where(eq(schema.chatMessages.missionId, missionId))
+    .orderBy(asc(schema.chatMessages.createdAt));
+
+  return rows.map((row) => ({
+    role: row.role as "user" | "assistant",
+    content: JSON.parse(row.content),
+  }));
+}
+
 chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const message = String(body.message || "").trim();
   const context = String(body.context || "");
-  const existingMessages = String(body.messages || "");
 
   if (!message) {
     return c.html(`<div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;">I didn't catch that — what would you like to work on?</div>`);
@@ -72,13 +91,7 @@ Mission status: ${mission.status}
 
 Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
 
-  const messages: Anthropic.MessageParam[] = [];
-  if (existingMessages) {
-    try {
-      const parsed = JSON.parse(existingMessages);
-      messages.push(...parsed);
-    } catch {}
-  }
+  const messages = await loadMessages(missionId);
 
   let userContent = message;
   if (context) {
@@ -87,7 +100,6 @@ Remember: read existing content before creating new material. Use list_lessons a
   messages.push({ role: "user", content: userContent });
 
   try {
-    // Save user message to DB
     await saveMessage(missionId, "user", userContent);
 
     const response = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
@@ -107,8 +119,6 @@ Remember: read existing content before creating new material. Use list_lessons a
       textParts.push("\n\n[My response was cut short. Could you ask again?]");
     }
 
-    let updatedMessages: Anthropic.MessageParam[];
-
     if (toolUseBlocks.length > 0) {
       const results = await executeToolCalls(missionId, toolUseBlocks);
       const followup = await ai.continueWithToolResults(messages, { role: "assistant", content: response.content }, results, systemPrompt, TEACHER_TOOLS);
@@ -118,39 +128,21 @@ Remember: read existing content before creating new material. Use list_lessons a
         }
       }
 
-      // Full chain: original msgs → assistant (with tool_use) → tool results → followup text
+      await saveMessage(missionId, "assistant", response.content);
+      await saveMessage(missionId, "user", results);
       const followupText = (followup.content
         .filter((b) => b.type === "text") as Anthropic.TextBlock[])
         .map((b) => b.text)
         .join("\n");
-      updatedMessages = [
-        ...messages,
-        { role: "assistant" as const, content: response.content },
-        { role: "user" as const, content: results },
-        { role: "assistant" as const, content: followupText || "Done." },
-      ];
-
-      // Save assistant message with tool_use blocks to DB
-      await saveMessage(missionId, "assistant", response.content);
-      // Save tool results as a pseudo-message for reconstruction
-      await saveMessage(missionId, "user", results);
-      // Save followup text
       await saveMessage(missionId, "assistant", followupText || "Done.");
     } else {
-      updatedMessages = [
-        ...messages,
-        { role: "assistant" as const, content: response.content },
-      ];
-
       await saveMessage(missionId, "assistant", response.content);
     }
 
     const text = textParts.join("\n") || "Done! Anything else you'd like to work on?";
 
     return c.html(`
-      <div class="msg user" style="background:#f0ebe0;align-self:flex-end;padding:0.75rem 1rem;border-radius:8px;max-width:85%;">${esc(message)}</div>
-      <div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${text.replace(/\n/g, "<br>")}</div>
-      <input type="hidden" name="messages" value="${JSON.stringify(updatedMessages).replace(/"/g, "&quot;")}">
+      <div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${formatMarkdown(text)}</div>
     `);
   } catch (err: unknown) {
     const msg = err instanceof AIError
