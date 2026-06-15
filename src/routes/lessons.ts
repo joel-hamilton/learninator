@@ -37,6 +37,18 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
     .limit(1);
   if (!lesson) return c.text("Lesson not found", 404);
 
+  if (lesson.status === "active") {
+    await db
+      .update(schema.lessons)
+      .set({ status: "in_progress" })
+      .where(
+        and(
+          eq(schema.lessons.missionId, missionId),
+          eq(schema.lessons.number, number)
+        )
+      );
+  }
+
   const allLessons = await db
     .select({
       number: schema.lessons.number,

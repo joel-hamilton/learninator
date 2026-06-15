@@ -105,13 +105,14 @@ ${HTMX_HEAD}
   .mission-info .text { font-size: 0.85rem; color: #555; margin-top: 0.25rem; line-height: 1.5; }
   .main { padding: 2rem; overflow: auto; }
   .lesson-list { display: grid; gap: 0.5rem; }
-  .lesson-card { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; }
+  .lesson-card { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; text-decoration: none; color: inherit; cursor: pointer; transition: border-color 0.15s; }
   .lesson-card:hover { border-color: #b8a88a; }
   .lesson-card .num { font-size: 0.8rem; color: #aaa; font-family: monospace; margin-right: 0.75rem; }
   .lesson-card .info { display: flex; align-items: center; gap: 0.75rem; }
   .lesson-card h3 { font-size: 0.95rem; }
   .lesson-card .status { font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; }
   .status-active { background: #faf7f0; color: #888; }
+  .status-in-progress { background: #fef5e7; color: #8b6914; }
   .status-completed { background: #e8f0e4; color: #2d5a27; }
   .empty { text-align: center; color: #888; padding: 3rem; }
   .ref-list { display: grid; gap: 0.5rem; }
@@ -441,16 +442,18 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
     `, "lessons"));
   }
 
-  const lessonCards = lessonRows.map((l) => `
-    <div class="lesson-card">
+  const lessonCards = lessonRows.map((l) => {
+    const statusLabel = l.status === "completed" ? "Completed" : l.status === "in_progress" ? "In Progress" : "";
+    const statusClass = l.status === "completed" ? "status-completed" : l.status === "in_progress" ? "status-in-progress" : "status-active";
+    return `
+    <a href="/missions/${id}/lessons/${l.number}" class="lesson-card">
       <div class="info">
         <span class="num">${String(l.number).padStart(4, "0")}</span>
         <h3>${l.title}</h3>
-        <span class="status ${l.status === "completed" ? "status-completed" : "status-active"}">${l.status === "completed" ? "Completed" : "Active"}</span>
       </div>
-      <a href="/missions/${id}/lessons/${l.number}" class="btn-primary" style="font-size:0.85rem;text-decoration:none;padding:0.4rem 0.9rem;border-radius:6px;">${l.status === "completed" ? "Review" : "Start"}</a>
-    </div>
-  `).join("");
+      ${statusLabel ? `<span class="status ${statusClass}">${statusLabel}</span>` : ""}
+    </a>
+  `}).join("");
 
   return c.html(missionLayout(user, mission, `
     <h2 style="font-size:1.2rem;margin-bottom:1rem;">Lessons</h2>

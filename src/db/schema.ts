@@ -57,7 +57,7 @@ export const lessons = sqliteTable("lessons", {
   title: text("title").notNull(),
   slug: text("slug").notNull(),
   htmlContent: text("html_content").notNull(),
-  status: text("status", { enum: ["active", "completed"] })
+  status: text("status", { enum: ["active", "in_progress", "completed"] })
     .notNull()
     .default("active"),
   feedbackRating: text("feedback_rating", {
