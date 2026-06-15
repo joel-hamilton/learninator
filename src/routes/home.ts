@@ -86,10 +86,10 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
           <button type="submit">Start Learning</button>
         </form>
         <div class="examples">
-          <button class="example-btn" onclick="this.closest('form').querySelector('input').value='Guitar fretboard fluency'; this.closest('form').querySelector('input').focus()">Guitar fretboard</button>
-          <button class="example-btn" onclick="this.closest('form').querySelector('input').value='Rust programming'; this.closest('form').querySelector('input').focus()">Rust</button>
-          <button class="example-btn" onclick="this.closest('form').querySelector('input').value='Cooking fundamentals'; this.closest('form').querySelector('input').focus()">Cooking</button>
-          <button class="example-btn" onclick="this.closest('form').querySelector('input').value='Drawing and sketching'; this.closest('form').querySelector('input').focus()">Drawing</button>
+          <button class="example-btn" onclick="this.closest('form').querySelector('textarea').value='Guitar fretboard fluency'; this.closest('form').querySelector('textarea').focus()">Guitar fretboard</button>
+          <button class="example-btn" onclick="this.closest('form').querySelector('textarea').value='Rust programming'; this.closest('form').querySelector('textarea').focus()">Rust</button>
+          <button class="example-btn" onclick="this.closest('form').querySelector('textarea').value='Cooking fundamentals'; this.closest('form').querySelector('textarea').focus()">Cooking</button>
+          <button class="example-btn" onclick="this.closest('form').querySelector('textarea').value='Drawing and sketching'; this.closest('form').querySelector('textarea').focus()">Drawing</button>
         </div>
       </div>
     `));
