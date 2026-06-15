@@ -28,6 +28,12 @@ app.use("*", async (c, next) => {
   c.get("logger").info(`${c.req.method} ${c.req.path} — ${c.res.status} (${ms}ms)`);
 });
 
+app.get("/favicon.ico", (c) => {
+  c.header("Content-Type", "image/svg+xml");
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#2d2d2d"/><text x="16" y="22" text-anchor="middle" font-size="18" font-family="system-ui" fill="#fff">L</text></svg>`);
+});
+
 app.use("*", auth.sessionMiddleware);
 app.route("/", auth.authApp);
 app.route("/", homeRoutes);
