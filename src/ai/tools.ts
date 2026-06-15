@@ -1,4 +1,4 @@
-import { schema } from "../db/index.js"
+import { schema, db } from "../db/index.js"
 import { eq, and, asc, count } from "drizzle-orm"
 import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam } from "./types.js"
 
