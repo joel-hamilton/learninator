@@ -1,4 +1,4 @@
-import { db, schema } from "../db/index.js"
+import { schema } from "../db/index.js"
 import { eq, and, asc, count } from "drizzle-orm"
 import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam } from "./types.js"
 
@@ -266,23 +266,4 @@ export function createToolExecutor(database: typeof db): ToolExecutor {
       return results
     },
   }
-}
-
-// ── LEGACY exports (backward compatibility for routes) ────────────────
-
-const _defaultExecutor = createToolExecutor(db)
-
-export async function executeTool(
-  missionId: number,
-  toolName: string,
-  input: Record<string, unknown>
-): Promise<string> {
-  return _defaultExecutor.executeTool(missionId, toolName, input)
-}
-
-export async function executeToolCalls(
-  missionId: number,
-  toolUseBlocks: any[]
-): Promise<any[]> {
-  return _defaultExecutor.executeToolCalls(missionId, toolUseBlocks)
 }
