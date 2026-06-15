@@ -3,11 +3,9 @@ import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc } from "drizzle-orm";
-import { ai } from "../ai/index.js";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { executeToolCalls } from "../ai/tools.js";
-import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
+import { conversationLoop } from "../ai/conversation.js";
 import type { AppVariables } from "../types.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
@@ -53,60 +51,28 @@ Remember: read existing content before creating new material. Use list_lessons a
   try {
     await saveMessage(missionId, "user", userContent);
 
-    let currentResponse = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
-    const textParts: string[] = [];
-    let priorMessages = messages; // grows as we accumulate tool rounds
+    const result = await conversationLoop({
+      client: c.get("ai"),
+      toolExecutor: c.get("toolExecutor"),
+      missionId,
+      systemPrompt,
+      initialMessages: messages,
+      tools: TEACHER_TOOLS,
+      logger: log,
+      hooks: {
+        onAssistantMessage: async (content) => {
+          await saveMessage(missionId, "assistant", content);
+        },
+        onBeforeToolExecution: async (toolUseBlocks) => {
+          log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+        },
+        onAfterToolExecution: async (results) => {
+          await saveMessage(missionId, "user", results);
+        },
+      },
+    });
 
-    // Loop until the AI stops asking for tools
-    while (true) {
-      const assistantContent = currentResponse.content;
-      const toolUseBlocks: AiToolUseBlock[] = [];
-      for (const block of assistantContent) {
-        if (block.type === "text") {
-          textParts.push(block.text);
-        } else if (block.type === "tool_use") {
-          toolUseBlocks.push(block);
-        }
-      }
-
-      if (toolUseBlocks.length === 0) {
-        // Final response — save it and stop
-        if (currentResponse.stop_reason === "max_tokens") {
-          textParts.push("\n\n[My response was cut short. Could you ask again?]");
-        }
-        await saveMessage(missionId, "assistant", assistantContent);
-        break;
-      }
-
-      log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
-
-      // Save assistant message with tool calls
-      await saveMessage(missionId, "assistant", assistantContent);
-
-      // Execute tools and save results
-      const results = await executeToolCalls(missionId, toolUseBlocks);
-      await saveMessage(missionId, "user", results);
-
-      // Continue with tool results
-      currentResponse = await ai.continueWithToolResults(
-        priorMessages,
-        { role: "assistant", content: assistantContent },
-        results,
-        systemPrompt,
-        TEACHER_TOOLS
-      );
-
-      // Extend conversation for any subsequent tool rounds
-      priorMessages = [
-        ...priorMessages,
-        { role: "assistant" as const, content: assistantContent },
-        { role: "user" as const, content: results },
-      ];
-
-      log.debug("Tool round complete, stop_reason:", currentResponse.stop_reason);
-    }
-
-    const text = textParts.join("\n") || "Done! Anything else you'd like to work on?";
+    const text = result.text || "Done! Anything else you'd like to work on?";
 
     return c.html(`
       <div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${formatMarkdown(text)}</div>

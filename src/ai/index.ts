@@ -18,7 +18,3 @@ export type {
 export { AnthropicAiClient } from "./anthropic.js"
 export { FakeAiClient } from "./fake.js"
 export { AIError } from "./errors.js"
-
-// Legacy singleton for backward compat (routes still import this)
-import { AnthropicAiClient } from "./anthropic.js"
-export const ai = new AnthropicAiClient()

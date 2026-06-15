@@ -3,12 +3,11 @@ import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc } from "drizzle-orm";
-import { ai } from "../ai/index.js";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { executeToolCalls } from "../ai/tools.js";
+import { conversationLoop } from "../ai/conversation.js";
 import type { AppVariables } from "../types.js";
-import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
+import type { AiMessageParam } from "../ai/types.js";
 import { saveMessage, contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
@@ -53,57 +52,31 @@ The current mission ID is ${missionId}. The mission is in onboarding status. You
 
     await saveMessage(missionId, "user", message);
 
-    let currentResponse = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
     let didActivate = false;
-    const textBlocks: string[] = [];
-    let priorMessages = messages;
 
-    while (true) {
-      const assistantContent = currentResponse.content;
-      const toolUseBlocks: AiToolUseBlock[] = [];
-      for (const block of assistantContent) {
-        if (block.type === "text") {
-          textBlocks.push(block.text);
-        } else if (block.type === "tool_use") {
-          toolUseBlocks.push(block);
-        }
-      }
-
-      if (toolUseBlocks.length === 0) {
-        if (currentResponse.stop_reason === "max_tokens") {
-          textBlocks.push("\n\n[My response was cut short. Could you ask again?]");
-        }
-        await saveMessage(missionId, "assistant", assistantContent);
-        break;
-      }
-
-      if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
-        didActivate = true;
-      }
-
-      log.debug("Onboarding tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
-
-      await saveMessage(missionId, "assistant", assistantContent);
-
-      const results = await executeToolCalls(missionId, toolUseBlocks);
-      await saveMessage(missionId, "user", results);
-
-      currentResponse = await ai.continueWithToolResults(
-        priorMessages,
-        { role: "assistant", content: assistantContent },
-        results,
-        systemPrompt,
-        TEACHER_TOOLS
-      );
-
-      priorMessages = [
-        ...priorMessages,
-        { role: "assistant" as const, content: assistantContent },
-        { role: "user" as const, content: results },
-      ];
-
-      log.debug("Onboarding tool round complete, stop_reason:", currentResponse.stop_reason);
-    }
+    await conversationLoop({
+      client: c.get("ai"),
+      toolExecutor: c.get("toolExecutor"),
+      missionId,
+      systemPrompt,
+      initialMessages: messages,
+      tools: TEACHER_TOOLS,
+      logger: log,
+      hooks: {
+        onAssistantMessage: async (content) => {
+          await saveMessage(missionId, "assistant", content);
+        },
+        onBeforeToolExecution: async (toolUseBlocks) => {
+          if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
+            didActivate = true;
+          }
+          log.debug("Onboarding tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+        },
+        onAfterToolExecution: async (results) => {
+          await saveMessage(missionId, "user", results);
+        },
+      },
+    });
 
     if (didActivate) {
       c.header("HX-Redirect", `/missions/${missionId}`);

@@ -4,10 +4,8 @@ import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc, desc } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
-import { ai } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { executeToolCalls } from "../ai/tools.js";
-import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
+import { conversationLoop } from "../ai/conversation.js";
 import { lessonPage } from "../views/lesson.js";
 import { feedbackThanksBar, completeBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar } from "../views/fragments.js";
 
@@ -224,6 +222,9 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
 
   // Fire-and-forget the AI generation in the background
   const log = c.get("logger");
+  // Capture context synchronously before the IIFE (context is only valid during request handling)
+  const capturedAi = c.get("ai");
+  const capturedToolExecutor = c.get("toolExecutor");
   (async () => {
     try {
       let userMessage = `The user just completed Lesson ${number}: "${lesson.title}". Please create the next lesson (lesson ${number + 1}) for this mission.`;
@@ -239,52 +240,28 @@ Mission status: ${mission.status}
 
 You are creating the next lesson in a sequence. The user just completed Lesson ${number}: "${lesson.title}". Use create_lesson to make the next one. Make it build on previous lessons. Read existing lessons first to understand what's been covered.`;
 
-      const messages: AiMessageParam[] = [
-        { role: "user", content: userMessage },
+      const messages = [
+        { role: "user" as const, content: userMessage },
       ];
 
-      let currentResponse = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
-      let priorMessages = messages;
-
-      while (true) {
-        const assistantContent = currentResponse.content;
-        const toolUseBlocks: AiToolUseBlock[] = [];
-        for (const block of assistantContent) {
-          if (block.type === "text") {
-            // Skip text during generation — only track tool calls
-          } else if (block.type === "tool_use") {
-            toolUseBlocks.push(block);
-          }
-        }
-
-        if (toolUseBlocks.length === 0) {
-          if (currentResponse.stop_reason === "max_tokens") {
+      await conversationLoop({
+        client: capturedAi,
+        toolExecutor: capturedToolExecutor,
+        missionId,
+        systemPrompt,
+        initialMessages: messages,
+        tools: TEACHER_TOOLS,
+        hooks: {
+          onBeforeToolExecution: async (toolUseBlocks) => {
+            for (const block of toolUseBlocks) {
+              job.messages.push(toolLabel(block.name, block.input as Record<string, unknown> | undefined));
+            }
+          },
+          onTruncated: async () => {
             job.messages.push("Response was cut short…");
-          }
-          break;
-        }
-
-        // Update job with tool call labels
-        for (const block of toolUseBlocks) {
-          job.messages.push(toolLabel(block.name, block.input as Record<string, unknown> | undefined));
-        }
-
-        const results = await executeToolCalls(missionId, toolUseBlocks);
-
-        currentResponse = await ai.continueWithToolResults(
-          priorMessages,
-          { role: "assistant", content: assistantContent },
-          results,
-          systemPrompt,
-          TEACHER_TOOLS
-        );
-
-        priorMessages = [
-          ...priorMessages,
-          { role: "assistant" as const, content: assistantContent },
-          { role: "user" as const, content: results },
-        ];
-      }
+          },
+        },
+      });
 
       // Find the newly created lesson
       const [latestLesson] = await db
