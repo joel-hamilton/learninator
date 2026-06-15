@@ -5,6 +5,7 @@ dotenv.config({ override: true });
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import type { AppVariables } from "./types.js";
+import { createLogger } from "./logger.js";
 import { auth } from "./auth/index.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
@@ -13,13 +14,18 @@ import { chatRoutes } from "./routes/chat.js";
 
 const app = new Hono<{ Variables: AppVariables }>();
 
+// Logger injection
+app.use("*", async (c, next) => {
+  c.set("logger", createLogger("http"));
+  await next();
+});
 
 // Request logging
 app.use("*", async (c, next) => {
   const start = Date.now();
   await next();
   const ms = Date.now() - start;
-  console.log(`${c.req.method} ${c.req.path} — ${c.res.status} (${ms}ms)`);
+  c.get("logger").info(`${c.req.method} ${c.req.path} — ${c.res.status} (${ms}ms)`);
 });
 
 app.use("*", auth.sessionMiddleware);

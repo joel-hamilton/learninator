@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync } from "fs";
 import { resolve } from "path";
+import { createLogger } from "../logger.js";
+
+const log = createLogger("ai");
 
 export interface ToolCallOptions {
   model?: ModelTier;
@@ -50,7 +53,7 @@ g.__LEARNINATOR_ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || "https://
 const MODEL_HIGH = process.env.AI_MODEL_HIGH || "claude-sonnet-4-20250514";
 const MODEL_LOW = process.env.AI_MODEL_LOW || "claude-haiku-4-5-20251001";
 
-console.log("AI module loaded — apiKey suffix:", (g.__LEARNINATOR_ANTHROPIC_API_KEY as string).slice(-4));
+log.debug("AI module loaded — apiKey suffix:", (g.__LEARNINATOR_ANTHROPIC_API_KEY as string).slice(-4));
 
 export type ModelTier = "high" | "low";
 
@@ -132,7 +135,7 @@ function wrapError(err: unknown): never {
   }
 
   // Fallback — log the real error but don't expose it
-  console.error("AI call failed:", err);
+  log.error("AI call failed:", err);
   throw new AIError(
     "Something went wrong with the AI service. Please try again.",
     undefined,
@@ -196,9 +199,8 @@ export const ai = {
 
       const response = await getClient().messages.create(params);
 
-      console.log("AI tool response stop_reason:", response.stop_reason);
-      const types = response.content.map((b: { type: string }) => b.type).join(", ");
-      console.log("AI tool response blocks:", types);
+      log.debug("AI tool response stop_reason:", response.stop_reason);
+      log.debug("AI tool response blocks:", response.content.map((b: { type: string }) => b.type).join(", "));
 
       return response;
     } catch (err) {
@@ -240,9 +242,8 @@ export const ai = {
 
       const response = await getClient().messages.create(params);
 
-      console.log("AI continue stop_reason:", response.stop_reason);
-      const types = response.content.map((b: { type: string }) => b.type).join(", ");
-      console.log("AI continue blocks:", types);
+      log.debug("AI continue stop_reason:", response.stop_reason);
+      log.debug("AI continue blocks:", response.content.map((b: { type: string }) => b.type).join(", "));
 
       return response;
     } catch (err) {

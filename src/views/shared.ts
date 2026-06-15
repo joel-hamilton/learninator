@@ -36,6 +36,11 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.4"></scrip
     100% { width: 95%; }
   }
 
+  /* Swap label/indicator visibility during htmx requests */
+  .htmx-request .btn-label { display: none; }
+  .htmx-request .htmx-indicator-inline { display: inline-flex !important; align-items: center; gap: 0.3rem; }
+  .htmx-indicator-inline { display: none !important; }
+
   /* Inline spinner for buttons */
   .btn-loading {
     position: relative;
@@ -114,6 +119,13 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.4"></scrip
   .markdown-body em { font-style: italic; }
   .markdown-body a { color: #2d5aa0; text-decoration: underline; }
   .markdown-body hr { border: none; border-top: 1px solid #e0dbd0; margin: 0.75em 0; }
+
+  /* Thinking dots animation */
+  .thinking-dots { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
+  .thinking-dots span { width: 7px; height: 7px; background: #b8a88a; border-radius: 50%; animation: dot-bounce 1.4s infinite ease-in-out both; }
+  .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+  .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes dot-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 </style>
 <div id="htmx-loading-bar" class="htmx-indicator"></div>
 <script>
@@ -122,17 +134,24 @@ function optimisticChat(form) {
   if (!input) return;
   const msg = input.value.trim();
   if (!msg) return;
-  const container = document.getElementById("chat-messages");
+  // Read target container from form's hx-target attribute, fall back to #chat-messages
+  const targetId = form.getAttribute("hx-target") || "#chat-messages";
+  const container = document.querySelector(targetId);
   if (!container) return;
   const div = document.createElement("div");
   div.className = "msg user";
   div.style.cssText = "background:#f0ebe0;align-self:flex-end;padding:0.75rem 1rem;border-radius:8px;max-width:85%;";
   div.innerHTML = msg.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   container.appendChild(div);
+  // Add thinking bubble
+  const thinking = document.createElement("div");
+  thinking.className = "msg assistant thinking-bubble";
+  thinking.style.cssText = "background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;max-width:85%;align-self:flex-start;";
+  thinking.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+  container.appendChild(thinking);
   container.scrollTop = container.scrollHeight;
   input.value = "";
   input.style.height = "auto";
-  // Disable button briefly to prevent double-send
   const btn = form.querySelector('button[type="submit"]');
   if (btn) { btn.disabled = true; setTimeout(() => { btn.disabled = false; }, 2000); }
 }
@@ -151,9 +170,18 @@ document.addEventListener("keydown", function(e) {
   const btn = form.querySelector('button[type="submit"]');
   if (btn) btn.click();
 });
-// Clear sending flag when request completes
+// Clear sending flag and remove thinking bubble when request completes
 document.addEventListener("htmx:afterRequest", function(e) {
   const form = e.target.closest(".chat-form");
-  if (form) delete form.dataset.sending;
+  if (form) {
+    delete form.dataset.sending;
+    // Remove any thinking bubbles in the target container
+    const targetId = form.getAttribute("hx-target") || "#chat-messages";
+    const container = document.querySelector(targetId);
+    if (container) {
+      const thinking = container.querySelector(".thinking-bubble");
+      if (thinking) thinking.remove();
+    }
+  }
 });
 </script>`;

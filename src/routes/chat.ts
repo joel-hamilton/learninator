@@ -99,44 +99,62 @@ Remember: read existing content before creating new material. Use list_lessons a
   }
   messages.push({ role: "user", content: userContent });
 
+  const log = c.get("logger");
+
   try {
     await saveMessage(missionId, "user", userContent);
 
-    const response = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
-
-    const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+    let currentResponse = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
     const textParts: string[] = [];
+    let priorMessages = messages; // grows as we accumulate tool rounds
 
-    for (const block of response.content) {
-      if (block.type === "text") {
-        textParts.push(block.text);
-      } else if (block.type === "tool_use") {
-        toolUseBlocks.push(block);
-      }
-    }
-
-    if (response.stop_reason === "max_tokens" && toolUseBlocks.length === 0) {
-      textParts.push("\n\n[My response was cut short. Could you ask again?]");
-    }
-
-    if (toolUseBlocks.length > 0) {
-      const results = await executeToolCalls(missionId, toolUseBlocks);
-      const followup = await ai.continueWithToolResults(messages, { role: "assistant", content: response.content }, results, systemPrompt, TEACHER_TOOLS);
-      for (const block of followup.content) {
+    // Loop until the AI stops asking for tools
+    while (true) {
+      const assistantContent = currentResponse.content;
+      const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+      for (const block of assistantContent) {
         if (block.type === "text") {
           textParts.push(block.text);
+        } else if (block.type === "tool_use") {
+          toolUseBlocks.push(block);
         }
       }
 
-      await saveMessage(missionId, "assistant", response.content);
+      if (toolUseBlocks.length === 0) {
+        // Final response — save it and stop
+        if (currentResponse.stop_reason === "max_tokens") {
+          textParts.push("\n\n[My response was cut short. Could you ask again?]");
+        }
+        await saveMessage(missionId, "assistant", assistantContent);
+        break;
+      }
+
+      log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+
+      // Save assistant message with tool calls
+      await saveMessage(missionId, "assistant", assistantContent);
+
+      // Execute tools and save results
+      const results = await executeToolCalls(missionId, toolUseBlocks);
       await saveMessage(missionId, "user", results);
-      const followupText = (followup.content
-        .filter((b) => b.type === "text") as Anthropic.TextBlock[])
-        .map((b) => b.text)
-        .join("\n");
-      await saveMessage(missionId, "assistant", followupText || "Done.");
-    } else {
-      await saveMessage(missionId, "assistant", response.content);
+
+      // Continue with tool results
+      currentResponse = await ai.continueWithToolResults(
+        priorMessages,
+        { role: "assistant", content: assistantContent },
+        results,
+        systemPrompt,
+        TEACHER_TOOLS
+      );
+
+      // Extend conversation for any subsequent tool rounds
+      priorMessages = [
+        ...priorMessages,
+        { role: "assistant" as const, content: assistantContent },
+        { role: "user" as const, content: results },
+      ];
+
+      log.debug("Tool round complete, stop_reason:", currentResponse.stop_reason);
     }
 
     const text = textParts.join("\n") || "Done! Anything else you'd like to work on?";

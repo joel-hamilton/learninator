@@ -125,7 +125,7 @@ ${HTMX_HEAD}
   .record-card .content { font-size: 0.85rem; color: #555; line-height: 1.5; }
   .record-card .meta { font-size: 0.75rem; color: #aaa; }
   .record-card .superseded { background: #fef5f5; color: #8b2e2e; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
-  .resource-markdown { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.5rem; line-height: 1.6; white-space: pre-wrap; font-size: 0.9rem; }
+  .resource-markdown { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.5rem; line-height: 1.6; font-size: 0.9rem; }
   #chat-messages { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
   .msg { padding: 0.75rem 1rem; border-radius: 8px; line-height: 1.5; font-size: 0.95rem; }
   .msg.assistant { background: #fff; border: 1px solid #e8e4dc; align-self: flex-start; max-width: 85%; }
@@ -294,6 +294,8 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const systemPrompt = TEACHER_SYSTEM_PROMPT + `
 The current mission ID is ${missionId}. The mission is in onboarding status. Your goal is to interview the user to understand their learning goals thoroughly (why, success criteria, constraints, out of scope). Use write_mission_content to save MISSION.md when it's well-defined. Also use write_mission_content for NOTES.md to capture preferences. When the mission is fully defined, call mark_mission_active and tell the user to go to their dashboard.`;
 
+  const log = c.get("logger");
+
   try {
     const messages: Anthropic.MessageParam[] = [
       { role: "user", content: message },
@@ -301,58 +303,64 @@ The current mission ID is ${missionId}. The mission is in onboarding status. You
 
     await saveMessage(missionId, "user", message);
 
-    const response = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
-
-    const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+    let currentResponse = await ai.chatWithTools(systemPrompt, messages, TEACHER_TOOLS);
+    let didActivate = false;
     const textBlocks: string[] = [];
+    let priorMessages = messages;
 
-    for (const block of response.content) {
-      if (block.type === "text") {
-        textBlocks.push(block.text);
-      } else if (block.type === "tool_use") {
-        toolUseBlocks.push(block);
-      }
-    }
-
-    if (response.stop_reason === "max_tokens" && toolUseBlocks.length === 0) {
-      textBlocks.push("\n\n[My response was cut short. Could you ask again?]");
-    }
-
-    if (toolUseBlocks.length > 0) {
-      const results = await executeToolCalls(missionId, toolUseBlocks);
-
-      await saveMessage(missionId, "assistant", response.content);
-
-      // Check for mark_mission_active
-      const didActivate = toolUseBlocks.some((b) => b.name === "mark_mission_active");
-
-      const followup = await ai.continueWithToolResults(messages, { role: "assistant", content: response.content }, results, systemPrompt, TEACHER_TOOLS);
-      for (const block of followup.content) {
+    while (true) {
+      const assistantContent = currentResponse.content;
+      const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+      for (const block of assistantContent) {
         if (block.type === "text") {
           textBlocks.push(block.text);
+        } else if (block.type === "tool_use") {
+          toolUseBlocks.push(block);
         }
       }
 
-      const followupText = (followup.content
-        .filter((b) => b.type === "text") as Anthropic.TextBlock[])
-        .map((b) => b.text)
-        .join("\n");
-
-      await saveMessage(missionId, "user", results);
-      await saveMessage(missionId, "assistant", followupText || "Done.");
-
-      if (didActivate) {
-        // If the user's first message was detailed enough to immediately define the mission,
-        // redirect to the mission workspace
-        c.header("HX-Redirect", `/missions/${missionId}`);
-        return c.body(null);
+      if (toolUseBlocks.length === 0) {
+        if (currentResponse.stop_reason === "max_tokens") {
+          textBlocks.push("\n\n[My response was cut short. Could you ask again?]");
+        }
+        await saveMessage(missionId, "assistant", assistantContent);
+        break;
       }
-    } else {
-      await saveMessage(missionId, "assistant", response.content);
+
+      if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
+        didActivate = true;
+      }
+
+      log.debug("Onboarding tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+
+      await saveMessage(missionId, "assistant", assistantContent);
+
+      const results = await executeToolCalls(missionId, toolUseBlocks);
+      await saveMessage(missionId, "user", results);
+
+      currentResponse = await ai.continueWithToolResults(
+        priorMessages,
+        { role: "assistant", content: assistantContent },
+        results,
+        systemPrompt,
+        TEACHER_TOOLS
+      );
+
+      priorMessages = [
+        ...priorMessages,
+        { role: "assistant" as const, content: assistantContent },
+        { role: "user" as const, content: results },
+      ];
+
+      log.debug("Onboarding tool round complete, stop_reason:", currentResponse.stop_reason);
+    }
+
+    if (didActivate) {
+      c.header("HX-Redirect", `/missions/${missionId}`);
+      return c.body(null);
     }
   } catch (err: unknown) {
     // Mission and user message are saved; redirect to the chat page even on AI error.
-    // The user can retry from there.
   }
 
   c.header("HX-Redirect", `/missions/${missionId}`);
@@ -575,7 +583,7 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
 
   return c.html(missionLayout(user, mission, `
     <h2 style="font-size:1.2rem;margin-bottom:1rem;">Resources</h2>
-    <div class="resource-markdown">${resources?.markdownContent || "No resources curated yet."}</div>
+    <div class="resource-markdown markdown-body">${formatMarkdown(resources?.markdownContent || "No resources curated yet.")}</div>
   `, "resources"));
 });
 
@@ -596,60 +604,8 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
 });
 
 // ── Chat page (for active missions) ──
-missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
-  const user = c.get("user")!;
-  const id = parseInt(c.req.param("missionId")!);
-
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
-  if (!mission) return c.text("Not found", 404);
-
-  // Onboarding missions use the onboarding chat page (from GET /:missionId)
-  if (mission.status === "onboarding") {
-    return c.redirect(`/missions/${id}`);
-  }
-
-  const chatRows = await db
-    .select()
-    .from(schema.chatMessages)
-    .where(eq(schema.chatMessages.missionId, id))
-    .orderBy(asc(schema.chatMessages.createdAt));
-
-  let messagesHtml = "";
-  if (chatRows.length === 0) {
-    messagesHtml = `<div class="msg assistant">
-      I'm your teacher. You can ask me to:
-      <ul style="margin:0.5rem 0 0 1rem;font-size:0.9rem;">
-        <li>Create your next lesson</li>
-        <li>Explain something that was unclear</li>
-        <li>Create a reference document</li>
-        <li>Write a learning record for something you've mastered</li>
-      </ul>
-      What would you like to work on?
-    </div>`;
-  } else {
-    for (const row of chatRows) {
-      const text = storedContentToText(row.content);
-      if (row.role === "user") {
-        messagesHtml += `<div class="msg user" style="background:#f0ebe0;align-self:flex-end;padding:0.75rem 1rem;border-radius:8px;max-width:85%;">${formatMarkdown(text)}</div>`;
-      } else {
-        messagesHtml += `<div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${formatMarkdown(text)}</div>`;
-      }
-    }
-  }
-
-  return c.html(missionLayout(user, mission, `
-    <div id="chat-container">
-      <div id="chat-messages">
-        ${messagesHtml}
-      </div>
-      <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()" style="display:flex;gap:0.5rem;">
-        <textarea name="message" style="flex:1;padding:0.7rem 1rem;border:1px solid #e8e4dc;border-radius:8px;font-size:1rem;resize:none;font-family:inherit;" placeholder="Ask your teacher..." autofocus rows="2" oninput="autoResize(this)"></textarea>
-        <button type="submit" style="padding:0.7rem 1.5rem;background:#2d2d2d;color:#fff;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">Send</button>
-      </form>
-    </div>
-  `, "lessons"));
+// Chat GET redirects to mission — per-lesson chat uses POST only
+missionRoutes.get("/:missionId/chat", auth.requireAuth, (c: Ctx) => {
+  const id = c.req.param("missionId")!;
+  return c.redirect(`/missions/${id}`);
 });
