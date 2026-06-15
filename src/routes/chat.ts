@@ -8,7 +8,7 @@ import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
 import { marked } from "marked";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
 import type { AppVariables } from "../types.js";
 
 // re-eval marker
@@ -52,8 +52,8 @@ async function saveMessage(missionId: number, role: "user" | "assistant", conten
   });
 }
 
-/** Load chat messages from DB and convert to Anthropic format. */
-async function loadMessages(missionId: number): Promise<Anthropic.MessageParam[]> {
+/** Load chat messages from DB. */
+async function loadMessages(missionId: number): Promise<AiMessageParam[]> {
   const rows = await db
     .select()
     .from(schema.chatMessages)
@@ -111,7 +111,7 @@ Remember: read existing content before creating new material. Use list_lessons a
     // Loop until the AI stops asking for tools
     while (true) {
       const assistantContent = currentResponse.content;
-      const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+      const toolUseBlocks: AiToolUseBlock[] = [];
       for (const block of assistantContent) {
         if (block.type === "text") {
           textParts.push(block.text);

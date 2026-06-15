@@ -9,7 +9,7 @@ import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
 import { marked } from "marked";
 import type { AppVariables } from "../types.js";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { AiMessageParam, AiToolUseBlock, AiTextBlock } from "../ai/types.js";
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 
 function escHtml(text: string): string {
@@ -22,7 +22,7 @@ function storedContentToText(content: string): string {
     if (typeof parsed === "string") return parsed;
     if (Array.isArray(parsed)) {
       return (parsed
-        .filter((b) => b.type === "text") as Anthropic.TextBlock[])
+        .filter((b) => b.type === "text") as AiTextBlock[])
         .map((b) => b.text)
         .join("\n");
     }
@@ -44,7 +44,7 @@ async function saveMessage(missionId: number, role: "user" | "assistant", conten
   });
 }
 
-async function loadMessages(missionId: number): Promise<Anthropic.MessageParam[]> {
+async function loadMessages(missionId: number): Promise<AiMessageParam[]> {
   const rows = await db
     .select()
     .from(schema.chatMessages)
@@ -302,7 +302,7 @@ The current mission ID is ${missionId}. The mission is in onboarding status. You
   const log = c.get("logger");
 
   try {
-    const messages: Anthropic.MessageParam[] = [
+    const messages: AiMessageParam[] = [
       { role: "user", content: message },
     ];
 
@@ -315,7 +315,7 @@ The current mission ID is ${missionId}. The mission is in onboarding status. You
 
     while (true) {
       const assistantContent = currentResponse.content;
-      const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+      const toolUseBlocks: AiToolUseBlock[] = [];
       for (const block of assistantContent) {
         if (block.type === "text") {
           textBlocks.push(block.text);

@@ -1,4 +1,4 @@
-import type Anthropic from "@anthropic-ai/sdk";
+import type { AiTool } from "./types.js";
 
 /**
  * The teach system prompt — adapted from mattpocock/skills teach skill.
@@ -131,7 +131,7 @@ Curate RESOURCES with high-trust sources only. Annotate every entry (one line: w
 /**
  * Tool definitions the AI can call.
  */
-export const TEACHER_TOOLS: Anthropic.Tool[] = [
+export const TEACHER_TOOLS: AiTool[] = [
   // ── Mission content ──
   {
     name: "read_mission_content",

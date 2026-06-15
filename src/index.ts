@@ -6,6 +6,9 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import type { AppVariables } from "./types.js";
 import { createLogger } from "./logger.js";
+import { AnthropicAiClient } from "./ai/anthropic.js";
+import { createToolExecutor } from "./ai/tools.js";
+import { db } from "./db/index.js";
 import { auth } from "./auth/index.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
@@ -17,6 +20,13 @@ const app = new Hono<{ Variables: AppVariables }>();
 // Logger injection
 app.use("*", async (c, next) => {
   c.set("logger", createLogger("http"));
+  await next();
+});
+
+// AI client + tool executor injection
+app.use("*", async (c, next) => {
+  c.set("ai", new AnthropicAiClient());
+  c.set("toolExecutor", createToolExecutor(db));
   await next();
 });
 

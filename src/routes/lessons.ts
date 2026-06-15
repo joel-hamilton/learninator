@@ -8,7 +8,7 @@ import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 import { ai } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
-import type Anthropic from "@anthropic-ai/sdk";
+import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -344,7 +344,7 @@ Mission status: ${mission.status}
 
 You are creating the next lesson in a sequence. The user just completed Lesson ${number}: "${lesson.title}". Use create_lesson to make the next one. Make it build on previous lessons. Read existing lessons first to understand what's been covered.`;
 
-      const messages: Anthropic.MessageParam[] = [
+      const messages: AiMessageParam[] = [
         { role: "user", content: userMessage },
       ];
 
@@ -353,7 +353,7 @@ You are creating the next lesson in a sequence. The user just completed Lesson $
 
       while (true) {
         const assistantContent = currentResponse.content;
-        const toolUseBlocks: Anthropic.ToolUseBlock[] = [];
+        const toolUseBlocks: AiToolUseBlock[] = [];
         for (const block of assistantContent) {
           if (block.type === "text") {
             // Skip text during generation — only track tool calls
