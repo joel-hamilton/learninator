@@ -21,7 +21,7 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const context = String(body.context || "");
 
   if (!message) {
-    return c.html(`<div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;">I didn't catch that — what would you like to work on?</div>`);
+    return c.html(`<div class="msg assistant">I didn't catch that — what would you like to work on?</div>`);
   }
 
   const [mission] = await db
@@ -75,12 +75,12 @@ Remember: read existing content before creating new material. Use list_lessons a
     const text = result.text || "Done! Anything else you'd like to work on?";
 
     return c.html(`
-      <div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;line-height:1.5;max-width:85%;">${formatMarkdown(text)}</div>
+      <div class="msg assistant markdown-body">${formatMarkdown(text)}</div>
     `);
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>${err.recoverable ? " It may help to wait a moment and retry." : ""}`
       : "Something went wrong. Please try again.";
-    return c.html(`<div class="msg assistant" style="background:#fff;border:1px solid #e8e4dc;padding:0.75rem 1rem;border-radius:8px;color:#8b2e2e;">${msg}</div>`);
+    return c.html(`<div class="msg assistant" style="color:var(--danger);">${msg}</div>`);
   }
 });

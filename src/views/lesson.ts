@@ -35,44 +35,95 @@ export function lessonPage(params: {
 <title>${lessonTitle} — ${missionTitle} — Learninator</title>
 ${HTMX_HEAD}
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #fdfcf9; color: #2d2d2d; }
-  .toolbar { background: #fff; border-bottom: 1px solid #e8e4dc; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 10; }
-  .toolbar .left { display: flex; align-items: center; gap: 1rem; }
-  .toolbar a { font-size: 0.85rem; color: #888; text-decoration: none; }
-  .toolbar a:hover { color: #2d2d2d; }
-  .toolbar h1 { font-size: 0.95rem; font-weight: 500; }
-  .toolbar .nav { display: flex; gap: 0.5rem; }
-  .toolbar .nav a { padding: 0.3rem 0.7rem; border: 1px solid #e8e4dc; border-radius: 6px; font-size: 0.8rem; }
-  .toolbar .nav a:hover { background: #faf7f0; }
-  .toolbar .nav a.disabled { color: #ccc; pointer-events: none; border-color: #eee; }
-  .lesson-container { max-width: 780px; margin: 0 auto; padding: 1.5rem; }
-  #lesson-frame { width: 100%; border: none; background: #fff; border-radius: 8px; border: 1px solid #e8e4dc; }
-  .feedback-bar { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-  .feedback-bar .label { font-size: 0.85rem; color: #555; }
-  .feedback-bar button { padding: 0.4rem 0.9rem; border: 1px solid #e8e4dc; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
-  .feedback-bar button:hover { border-color: #b8a88a; }
-  .feedback-bar button.selected { background: #f0ebe0; border-color: #b8a88a; }
-  .feedback-bar .done-btn { margin-left: auto; padding: 0.5rem 1.25rem; background: #2d2d2d; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
-  .feedback-bar .done-btn:hover { background: #444; }
-  .lesson-chat { margin-top: 1.5rem; background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; }
-  .lesson-chat h3 { font-size: 0.95rem; margin-bottom: 1rem; color: #555; font-weight: 500; }
-  #followup-messages { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
-  .msg { padding: 0.75rem 1rem; border-radius: 8px; line-height: 1.5; font-size: 0.95rem; }
-  .msg.assistant { background: #fff; border: 1px solid #e8e4dc; align-self: flex-start; max-width: 85%; }
-  .msg.user { background: #f0ebe0; align-self: flex-end; max-width: 85%; }
-  .lesson-chat .chat-form { display: flex; gap: 0.5rem; }
-  .lesson-chat .chat-form textarea { flex: 1; padding: 0.7rem 1rem; border: 1px solid #e8e4dc; border-radius: 8px; font-size: 1rem; font-family: inherit; resize: none; }
-  .lesson-chat .chat-form textarea:focus { outline: none; border-color: #b8a88a; }
-  .lesson-chat .chat-form button { padding: 0.7rem 1.5rem; background: #2d2d2d; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-  .lesson-chat .chat-form button:hover { background: #444; }
+  /* ── Toolbar ── */
+  .toolbar {
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .toolbar .left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+  .toolbar .back-link {
+    font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
+    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    transition: all var(--transition); white-space: nowrap;
+  }
+  .toolbar .back-link:hover { border-color: var(--primary); color: var(--text); }
+  .toolbar h1 { font-size: 0.9rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar .nav { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .toolbar .nav a {
+    padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.8rem; color: var(--text-secondary); text-decoration: none; transition: all var(--transition);
+  }
+  .toolbar .nav a:hover { background: var(--primary-light); border-color: var(--border-hover); color: var(--text); }
+  .toolbar .nav .disabled {
+    padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.8rem; color: var(--text-muted); opacity: 0.5; pointer-events: none;
+  }
+
+  /* ── Lesson Container ── */
+  .lesson-container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; animation: fadeInUp 0.35s ease-out; }
+
+  /* ── Lesson Header ── */
+  .lesson-header { margin-bottom: 1.5rem; }
+  .lesson-header .lesson-num {
+    font-size: 0.72rem; color: var(--text-muted); font-family: ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; margin-bottom: 0.3rem;
+  }
+  .lesson-header h2 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
+
+  /* ── Iframe Container ── */
+  .iframe-container {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+    overflow: hidden; box-shadow: var(--shadow-md); margin-bottom: 1.5rem;
+  }
+  #lesson-frame { width: 100%; border: none; display: block; }
+
+  /* ── Feedback Bar ── */
+  .feedback-bar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center;
+    gap: 0.75rem; flex-wrap: wrap; box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.3s ease-out;
+  }
+  .feedback-bar .label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+  .feedback-bar .fb-btn {
+    padding: 0.35rem 0.85rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); cursor: pointer; font-size: 0.82rem;
+    transition: all var(--transition); color: var(--text-secondary); font-family: inherit;
+  }
+  .feedback-bar .fb-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+  .feedback-bar .fb-btn.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .feedback-bar .done-btn {
+    margin-left: auto; padding: 0.5rem 1.25rem; background: var(--primary);
+    color: #fff; border: none; border-radius: var(--radius); cursor: pointer;
+    font-size: 0.85rem; font-weight: 500; transition: all var(--transition); font-family: inherit;
+  }
+  .feedback-bar .done-btn:hover { background: var(--primary-hover); }
+  .feedback-bar .done-btn:active { transform: scale(0.97); }
+
+  /* ── Lesson Chat ── */
+  .lesson-chat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1.25rem; box-shadow: var(--shadow-sm);
+  }
+  .lesson-chat h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
+  #followup-messages { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
 </style>
 </head>
 <body>
 ${HTMX_LOADING_BAR}
 <div class="toolbar">
   <div class="left">
-    <a href="/missions/${missionId}">&larr; ${missionTitle}</a>
+    <a href="/missions/${missionId}" class="back-link">&larr; ${missionTitle}</a>
     <h1>${displayNum} — ${lessonTitle}</h1>
   </div>
   <div class="nav">
@@ -85,7 +136,14 @@ ${HTMX_LOADING_BAR}
   </div>
 </div>
 <div class="lesson-container">
-  <iframe id="lesson-frame" scrolling="no" srcdoc="${lessonHtmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
+  <div class="lesson-header">
+    <div class="lesson-num">Lesson ${displayNum}</div>
+    <h2>${lessonTitle}</h2>
+  </div>
+
+  <div class="iframe-container">
+    <iframe id="lesson-frame" scrolling="no" srcdoc="${lessonHtmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
+  </div>
 
   ${lessonStatus === "completed"
     ? completedLessonBar(missionId, lessonNumber, lessonSubNumber)
@@ -95,7 +153,7 @@ ${HTMX_LOADING_BAR}
   ${feedbackRating ? `
     <div class="feedback-bar">
       <span class="label">You rated this: <strong>${feedbackRating.replace("_", " ")}</strong></span>
-      ${feedbackText ? `<span style="font-size:0.85rem;color:#888;">${feedbackText}</span>` : ""}
+      ${feedbackText ? `<span style="font-size:0.85rem;color:var(--text-muted);">${feedbackText}</span>` : ""}
     </div>
   ` : ""}
 
@@ -111,7 +169,7 @@ ${HTMX_LOADING_BAR}
 </div>
 <script>
 const frame = document.getElementById('lesson-frame');
-frame.style.minHeight = (window.innerHeight - 200) + 'px';
+frame.style.minHeight = (window.innerHeight - 250) + 'px';
 window.addEventListener('message', function(e) {
   if (e.data?.type === 'lessonResize' && e.data.height) {
     frame.style.height = e.data.height + 'px';

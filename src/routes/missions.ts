@@ -163,8 +163,10 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   const lessonCards = lessonRows.map((l) => lessonCard(id, l)).join("");
 
   return c.html(missionLayout(user, mission, `
-    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Lessons</h2>
-    <div class="lesson-list">${lessonCards}</div>
+    <div class="section-header">
+      <h2>Lessons</h2>
+    </div>
+    <div class="lesson-list stagger">${lessonCards}</div>
   `, "lessons"));
 });
 
@@ -193,8 +195,10 @@ missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
   const cards = refs.map((r) => referenceDocCard(id, r)).join("");
 
   return c.html(missionLayout(user, mission, `
-    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Reference Documents</h2>
-    <div class="ref-list">${cards}</div>
+    <div class="section-header">
+      <h2>Reference Documents</h2>
+    </div>
+    <div class="ref-list stagger">${cards}</div>
   `, "reference"));
 });
 
@@ -221,9 +225,9 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
   return c.html(missionLayout(user, mission, `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
       <h2 style="font-size:1.2rem;">${ref.title}</h2>
-      <span style="font-size:0.8rem;color:#888;">${ref.docType}</span>
+      <span class="badge badge-default">${ref.docType}</span>
     </div>
-    <iframe srcdoc="${ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" style="width:100%;height:calc(100vh - 200px);border:1px solid #e8e4dc;border-radius:8px;background:#fff;"></iframe>
+    <iframe srcdoc="${ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" style="width:100%;height:calc(100vh - 200px);border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);"></iframe>
   `, "reference"));
 });
 
@@ -258,8 +262,10 @@ missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
   })).join("");
 
   return c.html(missionLayout(user, mission, `
-    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Learning Records</h2>
-    <div class="record-list">${cards}</div>
+    <div class="section-header">
+      <h2>Learning Records</h2>
+    </div>
+    <div class="record-list stagger">${cards}</div>
   `, "records"));
 });
 
@@ -287,7 +293,9 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
     .limit(1);
 
   return c.html(missionLayout(user, mission, `
-    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Resources</h2>
+    <div class="section-header">
+      <h2>Resources</h2>
+    </div>
     <div class="resource-markdown markdown-body">${formatMarkdown(resources?.markdownContent || "No resources curated yet.")}</div>
   `, "resources"));
 });
@@ -346,7 +354,9 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   }
 
   return c.html(missionLayout(user, mission, `
-    <h2 style="font-size:1.2rem;margin-bottom:1rem;">Chat</h2>
+    <div class="section-header">
+      <h2>Chat</h2>
+    </div>
     <div id="chat-messages">${messagesHtml}</div>
     <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <textarea name="message" placeholder="Ask your teacher something..." rows="2" oninput="autoResize(this)"></textarea>

@@ -17,7 +17,7 @@ export function chatMessageBubble(role: "user" | "assistant", content: string): 
   if (role === "user") {
     return `<div class="msg user">${content}</div>`;
   }
-  return `<div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;">${content}</div>`;
+  return `<div class="msg assistant markdown-body">${content}</div>`;
 }
 
 // ── Lesson feedback ──
@@ -26,9 +26,9 @@ export function feedbackBar(missionId: number, number: number, subNumber: number
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
     <span class="label">How was this lesson?</span>
-    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>Too easy</button>
-    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>Just right</button>
-    <button hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>Too hard</button>
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>😴 Too easy</button>
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>👍 Just right</button>
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>🤯 Too hard</button>
     <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
       <button type="submit" class="done-btn">Mark Complete</button>
     </form>
@@ -48,17 +48,22 @@ export function feedbackThanksBar(rating: string, missionId: number, number: num
 export function completeBar(alreadyCompleted: boolean, missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
-    <span class="label">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
+    <span class="label">
+      ${alreadyCompleted
+        ? '<span class="badge badge-info">Already completed</span>'
+        : '<span class="badge badge-completed">Completed</span>'}
+      <span style="margin-left:0.5rem;font-weight:400;">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
+    </span>
     <div style="display:flex;flex-direction:column;gap:0.5rem;">
-      <label style="font-size:0.85rem;color:#555;">Notes for the next lesson <span style="color:#aaa;">(optional)</span></label>
-      <textarea name="notes" placeholder="What should the next lesson cover? Anything to change? e.g. &quot;More hands-on examples&quot; or &quot;Go deeper into X&quot;" rows="3" style="padding:0.7rem;border:1px solid #e8e4dc;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;width:100%;"></textarea>
+      <label style="font-size:0.85rem;color:var(--text-secondary);">Notes for the next lesson <span style="color:var(--text-muted);">(optional)</span></label>
+      <textarea name="notes" placeholder='What should the next lesson cover? Anything to change? e.g. "More hands-on examples" or "Go deeper into X"' rows="3" class="input"></textarea>
     </div>
     <div style="display:flex;gap:0.5rem;align-items:center;">
-      <button hx-post="/missions/${missionId}/lessons/${lid}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" style="padding:0.5rem 1.25rem;background:#2d2d2d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">
-        <span class="htmx-indicator-inline">Generating<span style="display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;margin-left:0.3rem;"></span></span>
+      <button hx-post="/missions/${missionId}/lessons/${lid}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" class="btn btn-primary btn-sm">
+        <span class="htmx-indicator-inline"><span class="spinner"></span> Generating</span>
         <span class="btn-label">Create Next Lesson</span>
       </button>
-      <a href="/missions/${missionId}" style="font-size:0.85rem;color:#888;text-decoration:none;">Done</a>
+      <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Done</a>
     </div>
   </div>`;
 }
@@ -67,9 +72,9 @@ export function completedLessonBar(missionId: number, number: number, subNumber:
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
     <span class="label">Completed</span>
-    <span style="font-size:0.85rem;color:#888;margin-left:0.5rem;">Marked complete. Want to revisit?</span>
+    <span style="font-size:0.85rem;color:var(--text-muted);margin-left:0.5rem;">Marked complete. Want to revisit?</span>
     <form hx-post="/missions/${missionId}/lessons/${lid}/incomplete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn" style="background:#888;">Mark Incomplete</button>
+      <button type="submit" class="done-btn" style="background:var(--text-muted);">Mark Incomplete</button>
     </form>
   </div>`;
 }
@@ -83,8 +88,8 @@ export function generationPollingBar(missionId: number, number: number, subNumbe
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label">Generating your next lesson…</span>
-    <div style="font-size:0.85rem;color:#888;">
+    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating your next lesson…</span>
+    <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       Starting…
     </div>
@@ -98,8 +103,8 @@ export function generationRunningBar(missionId: number, number: number, subNumbe
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label">Generating your next lesson…</span>
-    <div style="font-size:0.85rem;color:#888;">
+    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating your next lesson…</span>
+    <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       ${latestMsg}
     </div>
@@ -110,19 +115,19 @@ export function generationDoneBar(missionId: number, number: number, subNumber: 
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:#2d2d2d;font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
+    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--primary);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
 export function generationErrorBar(missionId: number, error: string): string {
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label" style="color:#8b2e2e;">Failed to generate next lesson: ${error}</span>
-    <a href="/missions/${missionId}" style="font-size:0.85rem;color:#2d2d2d;">Back to lessons &rarr;</a>
+    <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to generate next lesson: ${error}</span>
+    <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
   </div>`;
 }
 
 export function generationMissingBar(missionId: number): string {
-  return `<div class="feedback-bar" id="feedback-bar"><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:#2d2d2d;">Back to lessons &rarr;</a></span></div>`;
+  return `<div class="feedback-bar" id="feedback-bar"><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--primary);">Back to lessons &rarr;</a></span></div>`;
 }
 
 // ── Empty states ──
@@ -130,7 +135,7 @@ export function generationMissingBar(missionId: number): string {
 export function emptyLessonsMessage(missionId: number): string {
   return `<div class="empty">
     <p>No lessons yet. Your AI teacher will create them as you go.</p>
-    <p style="margin-top:0.5rem;font-size:0.85rem;">Go to the <a href="/missions/${missionId}/chat" style="color:#2d2d2d;">chat</a> to ask for your first lesson.</p>
+    <p style="margin-top:0.5rem;font-size:0.85rem;">Go to the <a href="/missions/${missionId}/chat">chat</a> to ask for your first lesson.</p>
   </div>`;
 }
 
@@ -149,14 +154,14 @@ export function lessonCard(missionId: number, lesson: { number: number; subNumbe
   const displayNum = formatLessonNumber(lesson.number, lesson.subNumber);
   const lid = lessonIdStr(lesson.number, lesson.subNumber);
   const statusLabel = lesson.status === "completed" ? "Completed" : lesson.status === "in_progress" ? "In Progress" : "";
-  const statusClass = lesson.status === "completed" ? "status-completed" : lesson.status === "in_progress" ? "status-in-progress" : "status-active";
+  const badgeClass = lesson.status === "completed" ? "badge-completed" : lesson.status === "in_progress" ? "badge-in-progress" : "badge-active";
   return `
     <a href="/missions/${missionId}/lessons/${lid}" class="lesson-card ${isSub ? "lesson-card--sub" : ""}">
       <div class="info">
         <span class="num">${displayNum}</span>
         <h3>${lesson.title}</h3>
       </div>
-      ${statusLabel ? `<span class="status ${statusClass}">${statusLabel}</span>` : ""}
+      ${statusLabel ? `<span class="badge ${badgeClass}">${statusLabel}</span>` : ""}
     </a>
   `;
 }
@@ -164,9 +169,11 @@ export function lessonCard(missionId: number, lesson: { number: number; subNumbe
 export function referenceDocCard(missionId: number, ref: { id: number; title: string; docType: string }): string {
   return `
     <div class="ref-card">
-      <span class="type">${ref.docType}</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span class="type">${ref.docType}</span>
+        <a href="/missions/${missionId}/reference/${ref.id}" class="btn btn-secondary btn-sm">View &rarr;</a>
+      </div>
       <h3>${ref.title}</h3>
-      <a href="/missions/${missionId}/reference/${ref.id}" style="font-size:0.85rem;color:#2d2d2d;">View &rarr;</a>
     </div>
   `;
 }
@@ -176,7 +183,7 @@ export function learningRecordCard(record: { number: number; title: string; mark
     <div class="record-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
         <span class="meta">LR${String(record.number).padStart(4, "0")}</span>
-        ${record.status === "superseded" ? `<span class="superseded">Superseded by LR${String(record.supersededBy || 0).padStart(4, "0")}</span>` : ""}
+        ${record.status === "superseded" ? `<span class="badge badge-superseded">Superseded by LR${String(record.supersededBy || 0).padStart(4, "0")}</span>` : ""}
       </div>
       <h3>${record.title}</h3>
       <div class="content markdown-body">${record.markdownContent}</div>
