@@ -1,4 +1,5 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
+import { feedbackBar } from "./fragments.js";
 
 export function lessonPage(params: {
   missionId: number;
@@ -69,15 +70,7 @@ ${HTMX_LOADING_BAR}
 <div class="lesson-container">
   <iframe id="lesson-frame" scrolling="no" srcdoc="${lessonHtmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
 
-  <div class="feedback-bar" id="feedback-bar">
-    <span class="label">How was this lesson?</span>
-    <button hx-post="/missions/${missionId}/lessons/${lessonNumber}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>Too easy</button>
-    <button hx-post="/missions/${missionId}/lessons/${lessonNumber}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>Just right</button>
-    <button hx-post="/missions/${missionId}/lessons/${lessonNumber}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>Too hard</button>
-    <form hx-post="/missions/${missionId}/lessons/${lessonNumber}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn">Mark Complete</button>
-    </form>
-  </div>
+  ${feedbackBar(missionId, lessonNumber)}
 
   ${feedbackRating ? `
     <div class="feedback-bar">

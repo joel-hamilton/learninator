@@ -15,8 +15,6 @@ import { missionLayout } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 
-// re-eval marker
-
 type Ctx = Context<{ Variables: AppVariables }>;
 export const missionRoutes = new Hono<{ Variables: AppVariables }>();
 

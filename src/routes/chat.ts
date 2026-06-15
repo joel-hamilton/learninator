@@ -12,8 +12,6 @@ import type { AppVariables } from "../types.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 
-// re-eval marker
-
 type Ctx = Context<{ Variables: AppVariables }>;
 export const chatRoutes = new Hono<{ Variables: AppVariables }>();
 
