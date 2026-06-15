@@ -4,11 +4,12 @@ import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc, desc } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
-import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 import { ai } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
 import type Anthropic from "@anthropic-ai/sdk";
+import { lessonPage } from "../views/lesson.js";
+import { feedbackThanksBar, completeBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar } from "../views/fragments.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -63,101 +64,17 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   const prevLesson = allLessons.find((l) => l.number === number - 1);
   const nextLesson = allLessons.find((l) => l.number === number + 1);
 
-  return c.html(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${lesson.title} — ${mission.title} — Learninator</title>
-${HTMX_HEAD}
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: #fdfcf9; color: #2d2d2d; }
-  .toolbar { background: #fff; border-bottom: 1px solid #e8e4dc; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 10; }
-  .toolbar .left { display: flex; align-items: center; gap: 1rem; }
-  .toolbar a { font-size: 0.85rem; color: #888; text-decoration: none; }
-  .toolbar a:hover { color: #2d2d2d; }
-  .toolbar h1 { font-size: 0.95rem; font-weight: 500; }
-  .toolbar .nav { display: flex; gap: 0.5rem; }
-  .toolbar .nav a { padding: 0.3rem 0.7rem; border: 1px solid #e8e4dc; border-radius: 6px; font-size: 0.8rem; }
-  .toolbar .nav a:hover { background: #faf7f0; }
-  .toolbar .nav a.disabled { color: #ccc; pointer-events: none; border-color: #eee; }
-  .lesson-container { max-width: 780px; margin: 0 auto; padding: 1.5rem; }
-  #lesson-frame { width: 100%; border: none; background: #fff; border-radius: 8px; border: 1px solid #e8e4dc; }
-  .feedback-bar { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-  .feedback-bar .label { font-size: 0.85rem; color: #555; }
-  .feedback-bar button { padding: 0.4rem 0.9rem; border: 1px solid #e8e4dc; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
-  .feedback-bar button:hover { border-color: #b8a88a; }
-  .feedback-bar button.selected { background: #f0ebe0; border-color: #b8a88a; }
-  .feedback-bar .done-btn { margin-left: auto; padding: 0.5rem 1.25rem; background: #2d2d2d; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
-  .feedback-bar .done-btn:hover { background: #444; }
-  .lesson-chat { margin-top: 1.5rem; background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; }
-  .lesson-chat h3 { font-size: 0.95rem; margin-bottom: 1rem; color: #555; font-weight: 500; }
-  #followup-messages { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
-  .msg { padding: 0.75rem 1rem; border-radius: 8px; line-height: 1.5; font-size: 0.95rem; }
-  .msg.assistant { background: #fff; border: 1px solid #e8e4dc; align-self: flex-start; max-width: 85%; }
-  .msg.user { background: #f0ebe0; align-self: flex-end; max-width: 85%; }
-  .lesson-chat .chat-form { display: flex; gap: 0.5rem; }
-  .lesson-chat .chat-form textarea { flex: 1; padding: 0.7rem 1rem; border: 1px solid #e8e4dc; border-radius: 8px; font-size: 1rem; font-family: inherit; resize: none; }
-  .lesson-chat .chat-form textarea:focus { outline: none; border-color: #b8a88a; }
-  .lesson-chat .chat-form button { padding: 0.7rem 1.5rem; background: #2d2d2d; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-  .lesson-chat .chat-form button:hover { background: #444; }
-</style>
-</head>
-<body>
-${HTMX_LOADING_BAR}
-<div class="toolbar">
-  <div class="left">
-    <a href="/missions/${missionId}">&larr; ${mission.title}</a>
-    <h1>${String(number).padStart(4, "0")} — ${lesson.title}</h1>
-  </div>
-  <div class="nav">
-    ${prevLesson ? `<a href="/missions/${missionId}/lessons/${number - 1}">&larr; Previous</a>` : `<span class="disabled">&larr; Previous</span>`}
-    ${nextLesson ? `<a href="/missions/${missionId}/lessons/${number + 1}">Next &rarr;</a>` : `<span class="disabled">Next &rarr;</span>`}
-  </div>
-</div>
-<div class="lesson-container">
-  <iframe id="lesson-frame" scrolling="no" srcdoc="${lesson.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
-
-  <div class="feedback-bar" id="feedback-bar">
-    <span class="label">How was this lesson?</span>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>Too easy</button>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>Just right</button>
-    <button hx-post="/missions/${missionId}/lessons/${number}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>Too hard</button>
-    <form hx-post="/missions/${missionId}/lessons/${number}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn">Mark Complete</button>
-    </form>
-  </div>
-
-  ${lesson.feedbackRating ? `
-    <div class="feedback-bar">
-      <span class="label">You rated this: <strong>${lesson.feedbackRating.replace("_", " ")}</strong></span>
-      ${lesson.feedbackText ? `<span style="font-size:0.85rem;color:#888;">${lesson.feedbackText}</span>` : ""}
-    </div>
-  ` : ""}
-
-  <div class="lesson-chat">
-    <h3>Questions about this lesson?</h3>
-    <div id="followup-messages"></div>
-    <form class="chat-form" hx-post="/missions/${missionId}/chat" hx-target="#followup-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-      <input type="hidden" name="context" value="Lesson ${number}: ${lesson.title}">
-      <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" oninput="autoResize(this)"></textarea>
-      <button type="submit">Ask</button>
-    </form>
-  </div>
-</div>
-<script>
-const frame = document.getElementById('lesson-frame');
-frame.style.minHeight = (window.innerHeight - 200) + 'px';
-window.addEventListener('message', function(e) {
-  if (e.data?.type === 'lessonResize' && e.data.height) {
-    frame.style.height = e.data.height + 'px';
-    frame.style.minHeight = '0';
-  }
-});
-</script>
-</body>
-</html>`);
+  return c.html(lessonPage({
+    missionId,
+    missionTitle: mission.title,
+    lessonNumber: number,
+    lessonTitle: lesson.title,
+    lessonHtmlContent: lesson.htmlContent,
+    feedbackRating: lesson.feedbackRating,
+    feedbackText: lesson.feedbackText,
+    prevLesson,
+    nextLesson,
+  }));
 });
 
 lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
@@ -184,14 +101,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
       )
     );
 
-  return c.html(`
-    <div class="feedback-bar" id="feedback-bar">
-      <span class="label">Thanks! You rated this: <strong>${rating.replace("_", " ")}</strong></span>
-      <form hx-post="/missions/${missionId}/lessons/${number}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-        <button type="submit" class="done-btn">Mark Complete</button>
-      </form>
-    </div>
-  `);
+  return c.html(feedbackThanksBar(rating, missionId, number));
 });
 
 lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
@@ -232,22 +142,7 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
       );
   }
 
-  return c.html(`
-    <div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
-      <span class="label">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
-      <div style="display:flex;flex-direction:column;gap:0.5rem;">
-        <label style="font-size:0.85rem;color:#555;">Notes for the next lesson <span style="color:#aaa;">(optional)</span></label>
-        <textarea name="notes" placeholder="What should the next lesson cover? Anything to change? e.g. &quot;More hands-on examples&quot; or &quot;Go deeper into X&quot;" rows="3" style="padding:0.7rem;border:1px solid #e8e4dc;border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical;width:100%;"></textarea>
-      </div>
-      <div style="display:flex;gap:0.5rem;align-items:center;">
-        <button hx-post="/missions/${missionId}/lessons/${number}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" style="padding:0.5rem 1.25rem;background:#2d2d2d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">
-          <span class="htmx-indicator-inline">Generating<span style="display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;margin-left:0.3rem;"></span></span>
-          <span class="btn-label">Create Next Lesson</span>
-        </button>
-        <a href="/missions/${missionId}" style="font-size:0.85rem;color:#888;text-decoration:none;">Done</a>
-      </div>
-    </div>
-  `);
+  return c.html(completeBar(alreadyCompleted, missionId, number));
 });
 
 // ── In-memory tracking for generation jobs ──
@@ -417,19 +312,7 @@ You are creating the next lesson in a sequence. The user just completed Lesson $
   })();
 
   // Return a polling container immediately
-  return c.html(`
-    <div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-         hx-get="/missions/${missionId}/lessons/${number}/generate-next/status"
-         hx-trigger="every 1s"
-         hx-swap="outerHTML"
-         hx-target="#feedback-bar">
-      <span class="label">Generating your next lesson…</span>
-      <div style="font-size:0.85rem;color:#888;">
-        <span class="thinking-dots"><span></span><span></span><span></span></span>
-        Starting…
-      </div>
-    </div>
-  `);
+  return c.html(generationPollingBar(missionId, number));
 });
 
 lessonRoutes.get("/:number/generate-next/status", auth.requireAuth, (c: Ctx) => {
@@ -440,41 +323,20 @@ lessonRoutes.get("/:number/generate-next/status", auth.requireAuth, (c: Ctx) => 
 
   if (!job) {
     // Job gone (expired or never existed) — fall back to checking if a new lesson exists
-    return c.html(`<div class="feedback-bar" id="feedback-bar"><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:#2d2d2d;">Back to lessons &rarr;</a></span></div>`);
+    return c.html(generationMissingBar(missionId));
   }
 
   if (job.status === "error") {
     generationJobs.delete(key);
-    return c.html(`
-      <div class="feedback-bar" id="feedback-bar">
-        <span class="label" style="color:#8b2e2e;">Failed to generate next lesson: ${job.error}</span>
-        <a href="/missions/${missionId}" style="font-size:0.85rem;color:#2d2d2d;">Back to lessons &rarr;</a>
-      </div>
-    `);
+    return c.html(generationErrorBar(missionId, job.error || "Something went wrong."));
   }
 
   if (job.status === "done" && job.result) {
     generationJobs.delete(key);
-    return c.html(`
-      <div class="feedback-bar" id="feedback-bar">
-        <span class="label">Lesson created! <a href="/missions/${missionId}/lessons/${job.result.lessonNumber}" style="color:#2d2d2d;font-weight:500;">Start Lesson ${String(job.result.lessonNumber).padStart(4, "0")}: ${job.result.lessonTitle} &rarr;</a></span>
-      </div>
-    `);
+    return c.html(generationDoneBar(missionId, job.result.lessonNumber, job.result.lessonTitle));
   }
 
   // Still running — show latest progress
   const latestMsg = job.messages.at(-1) || "Working…";
-  return c.html(`
-    <div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-         hx-get="/missions/${missionId}/lessons/${number}/generate-next/status"
-         hx-trigger="every 1s"
-         hx-swap="outerHTML"
-         hx-target="#feedback-bar">
-      <span class="label">Generating your next lesson…</span>
-      <div style="font-size:0.85rem;color:#888;">
-        <span class="thinking-dots"><span></span><span></span><span></span></span>
-        ${latestMsg}
-      </div>
-    </div>
-  `);
+  return c.html(generationRunningBar(missionId, number, latestMsg));
 });
