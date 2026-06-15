@@ -127,14 +127,12 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.4"></scrip
   .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
   @keyframes dot-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
 </style>
-<div id="htmx-loading-bar" class="htmx-indicator"></div>
 <script>
 function optimisticChat(form) {
   const input = form.querySelector('textarea[name="message"]');
   if (!input) return;
   const msg = input.value.trim();
   if (!msg) return;
-  // Read target container from form's hx-target attribute, fall back to #chat-messages
   const targetId = form.getAttribute("hx-target") || "#chat-messages";
   const container = document.querySelector(targetId);
   if (!container) return;
@@ -175,7 +173,6 @@ document.addEventListener("htmx:afterRequest", function(e) {
   const form = e.target.closest(".chat-form");
   if (form) {
     delete form.dataset.sending;
-    // Remove any thinking bubbles in the target container
     const targetId = form.getAttribute("hx-target") || "#chat-messages";
     const container = document.querySelector(targetId);
     if (container) {
@@ -185,3 +182,6 @@ document.addEventListener("htmx:afterRequest", function(e) {
   }
 });
 </script>`;
+
+/** Loading bar — add right after <body> in page layouts, NOT inside <head>. */
+export const HTMX_LOADING_BAR = `<div id="htmx-loading-bar" class="htmx-indicator"></div>`;

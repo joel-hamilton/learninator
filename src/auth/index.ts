@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { db, schema } from "../db/index.js";
 import { eq } from "drizzle-orm";
 import type { AppVariables, User } from "../types.js";
-import { HTMX_HEAD } from "../views/shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 
 type AuthContext = Context<{ Variables: AppVariables }>;
 
@@ -65,6 +65,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <div class="card">
   <h1>Learninator</h1>
   <p class="sub">Sign in to continue learning</p>
@@ -154,6 +155,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <div class="card">
   <h1>Learninator</h1>
   <p class="sub">Create your account</p>

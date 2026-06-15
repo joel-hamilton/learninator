@@ -5,7 +5,7 @@ import { db, schema } from "../db/index.js";
 import { eq } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import type { User } from "../types.js";
-import { HTMX_HEAD } from "../views/shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const homeRoutes = new Hono<{ Variables: AppVariables }>();
@@ -57,6 +57,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <header class="header">
   <h1>Learninator</h1>
   <div class="user">${user.email} <a href="/logout">Log out</a></div>

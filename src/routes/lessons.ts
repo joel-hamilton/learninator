@@ -4,7 +4,7 @@ import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc, desc } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
-import { HTMX_HEAD } from "../views/shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 import { ai } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
@@ -71,6 +71,7 @@ ${HTMX_HEAD}
   .toolbar .nav a:hover { background: #faf7f0; }
   .toolbar .nav a.disabled { color: #ccc; pointer-events: none; border-color: #eee; }
   .lesson-container { max-width: 780px; margin: 0 auto; padding: 1.5rem; }
+  #lesson-frame { width: 100%; border: none; background: #fff; border-radius: 8px; border: 1px solid #e8e4dc; }
   .feedback-bar { background: #fff; border: 1px solid #e8e4dc; border-radius: 8px; padding: 1.25rem; margin-top: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
   .feedback-bar .label { font-size: 0.85rem; color: #555; }
   .feedback-bar button { padding: 0.4rem 0.9rem; border: 1px solid #e8e4dc; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
@@ -92,6 +93,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <div class="toolbar">
   <div class="left">
     <a href="/missions/${missionId}">&larr; ${mission.title}</a>
@@ -103,7 +105,7 @@ ${HTMX_HEAD}
   </div>
 </div>
 <div class="lesson-container">
-  <iframe srcdoc="${lesson.htmlContent.replace(/"/g, '&quot;')}" style="width:100%;min-height:70vh;border:none;background:#fff;border-radius:8px;border:1px solid #e8e4dc;"></iframe>
+  <iframe id="lesson-frame" scrolling="no" srcdoc="${lesson.htmlContent.replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
 
   <div class="feedback-bar" id="feedback-bar">
     <span class="label">How was this lesson?</span>
@@ -132,6 +134,16 @@ ${HTMX_HEAD}
     </form>
   </div>
 </div>
+<script>
+const frame = document.getElementById('lesson-frame');
+frame.style.minHeight = (window.innerHeight - 200) + 'px';
+window.addEventListener('message', function(e) {
+  if (e.data?.type === 'lessonResize' && e.data.height) {
+    frame.style.height = e.data.height + 'px';
+    frame.style.minHeight = '0';
+  }
+});
+</script>
 </body>
 </html>`);
 });

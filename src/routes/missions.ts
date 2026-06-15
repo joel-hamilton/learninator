@@ -10,7 +10,7 @@ import { executeToolCalls } from "../ai/tools.js";
 import { marked } from "marked";
 import type { AppVariables } from "../types.js";
 import type Anthropic from "@anthropic-ai/sdk";
-import { HTMX_HEAD } from "../views/shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR } from "../views/shared.js";
 
 function escHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -140,6 +140,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <header class="header">
   <div class="left">
     <a href="/" class="back">&larr; Dashboard</a>
@@ -203,6 +204,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <header class="header">
   <div class="left">
     <a href="/" class="back">&larr; Dashboard</a>
@@ -255,6 +257,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body>
+${HTMX_LOADING_BAR}
 <header class="header">
   <a href="/">&larr; Dashboard</a>
 </header>
