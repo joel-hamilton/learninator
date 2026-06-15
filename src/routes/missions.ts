@@ -603,6 +603,11 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
+  await db.delete(schema.chatMessages).where(eq(schema.chatMessages.missionId, id));
+  await db.delete(schema.lessons).where(eq(schema.lessons.missionId, id));
+  await db.delete(schema.referenceDocs).where(eq(schema.referenceDocs.missionId, id));
+  await db.delete(schema.learningRecords).where(eq(schema.learningRecords.missionId, id));
+  await db.delete(schema.missionContent).where(eq(schema.missionContent.missionId, id));
   await db.delete(schema.missions).where(eq(schema.missions.id, id));
   return c.html("");
 });
