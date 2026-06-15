@@ -66,7 +66,6 @@ AI_MODEL_HIGH=claude-sonnet-4-20250514
 AI_MODEL_LOW=claude-haiku-4-5-20251001
 DATABASE_URL=data/learninator.db
 SESSION_SECRET=change-me
-PORT=3000
 ```
 
 `ai.chat()` and `ai.chatWithTools()` accept `model: "high" | "low"` in options. Defaults to `"high"` if not specified. Use `"low"` for simple title generation or summary tasks. Use `"high"` for teaching, lesson generation, and chat.

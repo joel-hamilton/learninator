@@ -7,64 +7,13 @@ import { ai } from "../ai/index.js";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { executeToolCalls } from "../ai/tools.js";
-import { marked } from "marked";
 import type { AiMessageParam, AiToolUseBlock } from "../ai/types.js";
 import type { AppVariables } from "../types.js";
-
-// re-eval marker
+import { saveMessage, loadMessages } from "../shared/messages.js";
+import { formatMarkdown } from "../shared/markdown.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const chatRoutes = new Hono<{ Variables: AppVariables }>();
-
-/** Extract display text from stored message content (JSON). */
-function contentToText(content: string): string {
-  try {
-    const parsed = JSON.parse(content);
-    if (typeof parsed === "string") return parsed;
-    if (Array.isArray(parsed)) {
-      return parsed
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("\n");
-    }
-    return String(parsed);
-  } catch {
-    return content;
-  }
-}
-
-/** Escape HTML entities in user-provided text. */
-function esc(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Convert markdown to HTML for display. */
-function formatMarkdown(text: string): string {
-  return marked.parse(text, { async: false }) as string;
-}
-
-/** Save a single message to the chat history. */
-async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown) {
-  await db.insert(schema.chatMessages).values({
-    missionId,
-    role,
-    content: JSON.stringify(content),
-  });
-}
-
-/** Load chat messages from DB. */
-async function loadMessages(missionId: number): Promise<AiMessageParam[]> {
-  const rows = await db
-    .select()
-    .from(schema.chatMessages)
-    .where(eq(schema.chatMessages.missionId, missionId))
-    .orderBy(asc(schema.chatMessages.createdAt));
-
-  return rows.map((row) => ({
-    role: row.role as "user" | "assistant",
-    content: JSON.parse(row.content),
-  }));
-}
 
 chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
