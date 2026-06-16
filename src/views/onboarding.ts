@@ -31,12 +31,9 @@ ${HTMX_HEAD}
   .header-right { font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.75rem; }
   .header-right a { color: var(--text-secondary); text-decoration: none; margin-left: 0.5rem; }
   .header-right a:hover { color: var(--text); }
-  .mode-toggle-btn { padding: 0.3rem 0.75rem; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
-  .mode-toggle-btn:hover { border-color: var(--primary); color: var(--text); }
-
   .container { max-width: 700px; margin: 3rem auto; padding: 0 2rem; animation: fadeInUp 0.35s ease-out; }
   h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
-  .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+  .subtitle { color: var(--text-secondary); margin-bottom: 0.3rem; font-size: 0.95rem; }
 
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
@@ -52,13 +49,13 @@ ${HTMX_LOADING_BAR}
     <h1>${mission.title}</h1>
   </div>
   <div class="header-right">
-    <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="display:inline;"><input type="hidden" name="mode" value="guided"><button type="submit" class="mode-toggle-btn">Switch to Guided</button></form>
     ${user.email} <a href="/logout">Log out</a>
   </div>
 </header>
 <div class="container">
   <h1>Mission Setup</h1>
   <p class="subtitle">Your AI teacher will interview you to understand your learning goals.</p>
+  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:2rem;"><input type="hidden" name="mode" value="guided"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);font-size:0.85rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer structured questions instead?</button></form>
   <div id="chat-messages">
     ${messagesHtml}
   </div>

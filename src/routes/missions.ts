@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
+import { streamSSE } from "hono/streaming";
 import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc } from "drizzle-orm";
@@ -14,6 +15,8 @@ import { missionLayout } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 import { GUIDED_QUESTION_SCRIPT } from "../views/shared.js";
+import { emit, subscribe } from "../ai/events.js";
+import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const missionRoutes = new Hono<{ Variables: AppVariables }>();
@@ -88,6 +91,8 @@ async function runConversationLoop(
   const log = c.get("logger");
   let didActivate = false;
 
+  let pendingToolNames: string[] = [];
+
   const result = await conversationLoop({
     client: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
@@ -99,14 +104,19 @@ async function runConversationLoop(
     pauseOnTools: opts?.pauseOnTools,
     hooks: {
       onAssistantMessage: async (content) => {
-        const hasText = content.some((b: any) => b.type === "text");
-        if (hasText) await saveMessage(missionId, "assistant", content);
+        await saveMessage(missionId, "assistant", content);
       },
       onBeforeToolExecution: async (toolUseBlocks) => {
+        pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
+        emit(missionId, { type: "tool_start", names: pendingToolNames });
         if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
           didActivate = true;
         }
         log.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+      },
+      onAfterToolExecution: async (results) => {
+        emit(missionId, { type: "tool_end", names: pendingToolNames });
+        await saveMessage(missionId, "user", results);
       },
     },
   });
@@ -124,8 +134,6 @@ function guidedOnboardingLayout(
   options: string[],
   needsTrigger: boolean
 ) {
-  const modeToggle = `<form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="display:inline;"><input type="hidden" name="mode" value="chat"><button type="submit" class="mode-toggle-btn">Switch to Chat</button></form>`;
-
   let questionCardHtml = "";
   if (needsTrigger) {
     questionCardHtml = `<div class="question-card" id="question-card">
@@ -156,11 +164,9 @@ function guidedOnboardingLayout(
   .header .user { font-size: 0.85rem; color: var(--text-secondary); }
   .header .user a { color: var(--text-secondary); text-decoration: none; margin-left: 0.5rem; }
   .header .user a:hover { color: var(--text); }
-  .mode-toggle-btn { padding: 0.3rem 0.75rem; background: transparent; border: 1px solid var(--border-hover); border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; }
-  .mode-toggle-btn:hover { border-color: var(--primary); color: var(--text); }
   .container { max-width: 700px; margin: 2rem auto; padding: 0 2rem; }
   h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-  .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; }
+  .subtitle { color: var(--text-secondary); margin-bottom: 0.3rem; }
   #chat-messages { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 30vh; overflow-y: auto; padding: 0.25rem; }
   .msg { padding: 0.6rem 0.9rem; border-radius: 8px; line-height: 1.5; font-size: 0.9rem; }
   .msg.assistant { background: var(--surface); border: 1px solid var(--border); align-self: flex-start; max-width: 90%; }
@@ -190,6 +196,27 @@ function guidedOnboardingLayout(
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #ccc; border-top-color: #888; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.5rem; }
   @keyframes spin { to { transform: rotate(360deg); } }
+	.tool-banner {
+	  position: sticky;
+	  top: 0;
+	  z-index: 99;
+	  background: var(--warning-bg);
+	  border-bottom: 1px solid var(--warning);
+	  font-size: 0.75rem;
+	  color: var(--warning);
+	  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	  max-height: 0;
+	  overflow: hidden;
+	  transition: all 0.2s ease;
+	  padding: 0 2rem;
+	  display: flex;
+	  align-items: center;
+	  gap: 0.5rem;
+	}
+	.tool-banner.visible {
+	  max-height: 36px;
+	  padding: 0.4rem 2rem;
+	}
 </style>
 </head>
 <body>
@@ -200,13 +227,14 @@ function guidedOnboardingLayout(
     <h1>${mission.title}</h1>
   </div>
   <div class="right">
-    ${modeToggle}
     <span class="user">${user.email} <a href="/logout">Log out</a></span>
   </div>
 </header>
+	<div id="tool-banner" class="tool-banner"></div>
 <div class="container">
   <h1>Mission Setup</h1>
   <p class="subtitle">Answer each question to define your learning goals.</p>
+  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:1.5rem;"><input type="hidden" name="mode" value="chat"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);font-size:0.85rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer free-form chat instead?</button></form>
   <div id="chat-messages">${messagesHtml}</div>
   <div id="question-section">
     ${questionCardHtml}
@@ -215,7 +243,45 @@ function guidedOnboardingLayout(
     </div>
   </div>
 </div>
-${GUIDED_QUESTION_SCRIPT}
+	${GUIDED_QUESTION_SCRIPT}
+<script>
+(function() {
+  var banner = document.getElementById("tool-banner");
+  if (!banner) return;
+  var missionId = ${mission.id};
+  var activeTools = [];
+  var shownAt = 0;
+  var hideTimer = 0;
+  var MIN_SHOW_MS = 800;
+  var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
+  es.addEventListener("message", function(e) {
+    try {
+      var event = JSON.parse(e.data);
+      if (event.type === "tool_start") {
+        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
+        if (activeTools.length > 0) showBanner();
+      } else if (event.type === "tool_end") {
+        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
+        if (activeTools.length === 0) hideBanner();
+      }
+    } catch(ex) {}
+  });
+  function showBanner() {
+    shownAt = Date.now();
+    clearTimeout(hideTimer);
+    banner.innerHTML = '<span class="spinner"></span> ' + activeTools.join(", ");
+    banner.classList.add("visible");
+  }
+  function hideBanner() {
+    var elapsed = Date.now() - shownAt;
+    if (elapsed < MIN_SHOW_MS) {
+      hideTimer = setTimeout(function() { banner.classList.remove("visible"); }, MIN_SHOW_MS - elapsed);
+    } else {
+      banner.classList.remove("visible");
+    }
+  }
+})();
+</script>
 </body>
 </html>`;
 }
@@ -239,7 +305,7 @@ function guidedQuestionCard(missionId: number, questionId: number, question: str
     <div class="other-input" id="other-input">
       <input type="text" name="other_text" id="other-text" placeholder="Type your answer..." autocomplete="off" oninput="onOtherInput(this)">
     </div>
-    <form hx-post="/missions/${missionId}/guided/answer" hx-target="#question-section" hx-swap="outerHTML" hx-on::before-request="return validateAnswer()" hx-on::after-request="this.reset()">
+    <form hx-post="/missions/${missionId}/guided/answer" hx-target="#question-section" hx-swap="outerHTML" hx-on::before-request="return submitGuidedAnswer()" hx-on::after-request="this.reset()">
       <input type="hidden" name="question_id" value="${questionId}">
       <input type="hidden" name="answer" id="answer-hidden">
       <input type="hidden" name="other_text" id="other-text-hidden">
@@ -417,7 +483,26 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
     return c.html(missionLayout(user, mission, emptyLessonsMessage(id), "lessons"));
   }
 
-  const lessonCards = lessonRows.map((l) => lessonCard(id, l)).join("");
+  const parentNums = new Set<number>();
+  const lastSubs = new Set<string>();
+  const maxSubByNum = new Map<number, number>();
+  for (const l of lessonRows) {
+    if (l.subNumber !== null) {
+      parentNums.add(l.number);
+      const curr = maxSubByNum.get(l.number) ?? 0;
+      if (l.subNumber > curr) maxSubByNum.set(l.number, l.subNumber);
+    }
+  }
+  for (const l of lessonRows) {
+    if (l.subNumber !== null && l.subNumber === maxSubByNum.get(l.number)) {
+      lastSubs.add(`${l.number}:${l.subNumber}`);
+    }
+  }
+
+  const lessonCards = lessonRows.map((l) => lessonCard(id, l, {
+    hasSubLessons: l.subNumber === null && parentNums.has(l.number),
+    isLastSub: l.subNumber !== null && lastSubs.has(`${l.number}:${l.subNumber}`),
+  })).join("");
 
   return c.html(missionLayout(user, mission, `
     <div class="section-header">
@@ -793,6 +878,33 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   await db.delete(schema.missionContent).where(eq(schema.missionContent.missionId, id));
   await db.delete(schema.missions).where(eq(schema.missions.id, id));
   return c.html("");
+});
+
+// ── SSE endpoint for tool call events (dev visibility) ──
+missionRoutes.get("/:missionId/chat/tool-events", auth.requireAuth, async (c: Ctx) => {
+  const missionId = parseInt(c.req.param("missionId")!);
+
+  return streamSSE(c, async (stream) => {
+    const log = c.get("logger");
+    log.debug("SSE client connected for mission %d", missionId);
+
+    const unsub = subscribe(missionId, async (event) => {
+      log.debug("SSE sending %s: %s", event.type, event.names.join(", "));
+      try {
+        await stream.writeSSE({ data: JSON.stringify(event) });
+      } catch (e) {
+        log.debug("SSE write error: %s", e);
+      }
+    });
+
+    await new Promise<void>((resolve) => {
+      c.req.raw.signal.addEventListener("abort", () => {
+        log.debug("SSE client disconnected for mission %d", missionId);
+        unsub();
+        resolve();
+      });
+    });
+  });
 });
 
 // ── Chat page (for active missions) ──

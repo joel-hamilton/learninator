@@ -284,6 +284,26 @@ async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   return `Question saved. Waiting for user answer.`
 }
 
+// ── Friendly display names for UI ──────────────────────────────────────
+
+export const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  read_mission_content: "Reading content",
+  write_mission_content: "Writing content",
+  create_lesson: "Creating lesson",
+  create_sub_lesson: "Creating sub-lesson",
+  read_lesson: "Reading lesson",
+  list_lessons: "Listing lessons",
+  create_reference_doc: "Creating reference",
+  list_reference_docs: "Listing references",
+  create_learning_record: "Creating record",
+  list_learning_records: "Listing records",
+  update_learning_record: "Updating record",
+  mark_mission_active: "Activating mission",
+  read_resources: "Reading resources",
+  write_resources: "Writing resources",
+  ask_guided_question: "Asking question",
+};
+
 // ── Handler map ───────────────────────────────────────────────────────
 
 function buildHandlerMap(): Map<string, ToolHandler> {

@@ -211,11 +211,9 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
 
 	.textarea-wrapper {
 	    position: relative;
-	}
-	.chat-form .textarea-wrapper {
-	.textarea-wrapper textarea { padding-bottom: 1.3rem; }
 	    flex: 1;
 	}
+	.textarea-wrapper textarea { padding-bottom: 1.3rem; }
 	.textarea-hint {
 	    position: absolute;
 	    bottom: 4px;
@@ -407,6 +405,14 @@ function validateAnswer() {
   if (isVisible && otherText && !otherText.value.trim()) {
     otherText.focus();
     return false;
+  }
+  return true;
+}
+function submitGuidedAnswer() {
+  if (!validateAnswer()) return false;
+  var section = document.getElementById('question-section');
+  if (section) {
+    section.innerHTML = '<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>';
   }
   return true;
 }

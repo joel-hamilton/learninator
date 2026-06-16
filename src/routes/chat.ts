@@ -61,11 +61,13 @@ Remember: read existing content before creating new material. Use list_lessons a
       logger: log,
       hooks: {
         onAssistantMessage: async (content) => {
-          const hasText = content.some((b: any) => b.type === "text");
-          if (hasText) await saveMessage(missionId, "assistant", content);
+          await saveMessage(missionId, "assistant", content);
         },
         onBeforeToolExecution: async (toolUseBlocks) => {
           log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+        },
+        onAfterToolExecution: async (results) => {
+          await saveMessage(missionId, "user", results);
         },
       },
     });

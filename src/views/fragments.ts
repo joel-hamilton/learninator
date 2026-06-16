@@ -152,14 +152,19 @@ export function emptyRecordsMessage(): string {
 
 // ── Cards ──
 
-export function lessonCard(missionId: number, lesson: { number: number; subNumber: number | null; title: string; status: string }): string {
+export function lessonCard(missionId: number, lesson: { number: number; subNumber: number | null; title: string; status: string }, opts?: { hasSubLessons?: boolean; isLastSub?: boolean }): string {
   const isSub = lesson.subNumber !== null;
   const displayNum = formatLessonNumber(lesson.number, lesson.subNumber);
   const lid = lessonIdStr(lesson.number, lesson.subNumber);
   const statusLabel = lesson.status === "completed" ? "Completed" : lesson.status === "in_progress" ? "In Progress" : "";
   const badgeClass = lesson.status === "completed" ? "badge-completed" : lesson.status === "in_progress" ? "badge-in-progress" : "badge-active";
+  const extraClass = [
+    isSub ? "lesson-card--sub" : "",
+    opts?.hasSubLessons ? "lesson-card--has-subs" : "",
+    opts?.isLastSub ? "lesson-card--last-sub" : "",
+  ].filter(Boolean).join(" ");
   return `
-    <a href="/missions/${missionId}/lessons/${lid}" class="lesson-card ${isSub ? "lesson-card--sub" : ""}">
+    <a href="/missions/${missionId}/lessons/${lid}" class="lesson-card ${extraClass}">
       <div class="info">
         <span class="num">${displayNum}</span>
         <h3>${lesson.title}</h3>

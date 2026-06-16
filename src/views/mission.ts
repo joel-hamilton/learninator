@@ -128,7 +128,8 @@ ${HTMX_HEAD}
   .main { padding: 2rem; overflow: auto; animation: fadeInUp 0.3s ease-out; }
 
   /* ── Cards ── */
-  .lesson-list { display: grid; gap: 0.5rem; }
+  .lesson-list { display: grid; gap: 0; }
+	  .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 1rem; }
   .lesson-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between;
@@ -144,6 +145,20 @@ ${HTMX_HEAD}
   .lesson-card h3 {
     font-size: 0.9rem; font-weight: 500; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lesson-card--sub {
+    margin-left: 1.5rem;
+    border-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+  .lesson-card--has-subs {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .lesson-card--last-sub {
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
   }
 
   .ref-list { display: grid; gap: 0.5rem; }
@@ -177,6 +192,35 @@ ${HTMX_HEAD}
     margin-bottom: 1rem; max-height: 60vh; overflow-y: auto; padding: 0.25rem;
   }
 
+  /* Tool Call Banner */
+  .tool-banner {
+    position: sticky;
+    top: 56px;
+    z-index: 99;
+    background: #fef5e7;
+    border-bottom: 2px solid #e8a020;
+    font-size: 0.82rem;
+    color: #8b6914;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.25s ease;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .tool-banner.visible {
+    max-height: 44px;
+    padding: 0.6rem 1.5rem;
+    animation: bannerPulse 0.4s ease-out;
+  }
+  @keyframes bannerPulse {
+    from { background: #fff3cd; }
+    to { background: #fef5e7; }
+  }
   /* ── Empty ── */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--primary); }
@@ -199,6 +243,7 @@ ${HTMX_LOADING_BAR}
     <a href="/logout" class="logout-link">Log out</a>
   </div>
 </header>
+<div id="tool-banner" class="tool-banner"></div>
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-label">Workspace</div>
@@ -216,6 +261,72 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
+
+<script>
+(function() {
+  var banner = document.getElementById("tool-banner");
+  if (!banner) return;
+
+  var parts = window.location.pathname.split("/");
+  var missionId = parts[2];
+  if (!missionId || isNaN(Number(missionId))) return;
+
+  var activeTools = [];
+  var shownAt = 0;
+  var hideTimer = 0;
+  var MIN_SHOW_MS = 1200;
+
+  // ── Reliable: show banner during any HTMX request from the chat form ──
+  document.addEventListener("htmx:beforeRequest", function(e) {
+    var el = e.target;
+    var form = (el && el.closest) ? el.closest(".chat-form") : null;
+    if (!form) form = document.querySelector(".chat-form");
+    if (form) showBanner("Working...");
+  });
+
+  document.addEventListener("htmx:afterRequest", function(e) {
+    if (activeTools.length === 0) hideBanner();
+  });
+
+  // ── Enhancement: SSE for real-time tool names ──
+  var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
+
+  es.addEventListener("message", function(e) {
+    try {
+      var event = JSON.parse(e.data);
+      if (event.type === "tool_start") {
+        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
+        showBanner(activeTools.join(", "));
+      } else if (event.type === "tool_end") {
+        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
+        if (activeTools.length === 0) hideBanner();
+      }
+    } catch(ex) {}
+  });
+
+  es.addEventListener("error", function() {
+    // EventSource will auto-reconnect
+  });
+
+  function showBanner(msg) {
+    shownAt = Date.now();
+    clearTimeout(hideTimer);
+    banner.innerHTML = '&#9881; ' + msg + ' <span class="spinner"></span>';
+    banner.classList.add("visible");
+  }
+
+  function hideBanner() {
+    var elapsed = Date.now() - shownAt;
+    if (elapsed < MIN_SHOW_MS) {
+      hideTimer = setTimeout(function() {
+        banner.classList.remove("visible");
+      }, MIN_SHOW_MS - elapsed);
+    } else {
+      banner.classList.remove("visible");
+    }
+  }
+})();
+</script>
 </body>
 </html>`;
 }
