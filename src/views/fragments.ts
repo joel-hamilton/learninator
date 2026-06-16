@@ -20,78 +20,53 @@ export function chatMessageBubble(role: "user" | "assistant", content: string): 
   return `<div class="msg assistant markdown-body">${content}</div>`;
 }
 
-// ── Lesson feedback ──
+// ── Lesson action bars ──
 
-export function feedbackBar(missionId: number, number: number, subNumber: number | null): string {
+export function lessonActionBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">How was this lesson?</span>
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_easy"}'>😴 Too easy</button>
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"just_right"}'>👍 Just right</button>
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback" hx-target="#feedback-bar" hx-swap="outerHTML" hx-vals='{"rating":"too_hard"}'>🤯 Too hard</button>
-    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn">Mark Complete</button>
-    </form>
-  </div>`;
-}
-
-export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null): string {
-  const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Thanks! You rated this: <strong>${rating.replace("_", " ")}</strong></span>
-    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn">Mark Complete</button>
-    </form>
-  </div>`;
-}
-
-export function completeBar(alreadyCompleted: boolean, missionId: number, number: number, subNumber: number | null): string {
-  const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
-    <span class="label">
-      ${alreadyCompleted
-        ? '<span class="badge badge-info">Already completed</span>'
-        : '<span class="badge badge-completed">Completed</span>'}
-      <span style="margin-left:0.5rem;font-weight:400;">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
-    </span>
-    <div style="display:flex;flex-direction:column;gap:0.5rem;">
-      <label style="font-size:0.85rem;color:var(--text-secondary);">Notes for the next lesson <span style="color:var(--text-muted);">(optional)</span></label>
-      <div class="textarea-wrapper">
-        <textarea name="notes" placeholder='What should the next lesson cover? Anything to change? e.g. "More hands-on examples" or "Go deeper into X"' rows="3" class="input"></textarea>
-        <span class="textarea-hint">Shift + Enter for newline</span>
-      </div>
-    </div>
-    <div style="display:flex;gap:0.5rem;align-items:center;">
-      <button hx-post="/missions/${missionId}/lessons/${lid}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" class="btn btn-primary btn-sm">
-        <span class="htmx-indicator-inline"><span class="spinner"></span> Generating</span>
-        <span class="btn-label">Create Next Lesson</span>
-      </button>
-      <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Done</a>
-    </div>
+    <button class="btn btn-ghost btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/complete"
+      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
+      hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
+    <button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
+      hx-target="#feedback-bar" hx-swap="outerHTML">More on This</button>
   </div>`;
 }
 
 export function completedLessonBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Completed</span>
-    <span style="font-size:0.85rem;color:var(--text-muted);margin-left:0.5rem;">Marked complete. Want to revisit?</span>
-    <form hx-post="/missions/${missionId}/lessons/${lid}/incomplete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn" style="background:var(--text-muted);">Mark Incomplete</button>
-    </form>
+    <span class="badge badge-completed">Completed</span>
+    <button class="btn btn-ghost btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/incomplete"
+      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Incomplete</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
+      hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
+    <button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
+      hx-target="#feedback-bar" hx-swap="outerHTML">More on This</button>
   </div>`;
 }
 
 // ── Lesson generation ──
 
-export function generationPollingBar(missionId: number, number: number, subNumber: number | null): string {
+export function generationPollingBar(missionId: number, number: number, subNumber: number | null, isSub: boolean = false): string {
   const lid = lessonIdStr(number, subNumber);
+  const suffix = isSub ? "generate-sub-lesson" : "generate-next";
+  const label = isSub ? "Creating sub-lesson…" : "Creating your next lesson…";
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-       hx-get="/missions/${missionId}/lessons/${lid}/generate-next/status"
+       hx-get="/missions/${missionId}/lessons/${lid}/${suffix}/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating your next lesson…</span>
+    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
     <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       Starting…
@@ -99,14 +74,16 @@ export function generationPollingBar(missionId: number, number: number, subNumbe
   </div>`;
 }
 
-export function generationRunningBar(missionId: number, number: number, subNumber: number | null, latestMsg: string): string {
+export function generationRunningBar(missionId: number, number: number, subNumber: number | null, isSub: boolean, latestMsg: string): string {
   const lid = lessonIdStr(number, subNumber);
+  const suffix = isSub ? "generate-sub-lesson" : "generate-next";
+  const label = isSub ? "Creating sub-lesson…" : "Creating your next lesson…";
   return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-       hx-get="/missions/${missionId}/lessons/${lid}/generate-next/status"
+       hx-get="/missions/${missionId}/lessons/${lid}/${suffix}/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating your next lesson…</span>
+    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
     <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       ${latestMsg}
