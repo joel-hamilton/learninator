@@ -274,6 +274,53 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .markdown-body em { font-style: italic; }
   .markdown-body a { color: var(--primary); text-decoration: underline; }
   .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 0.75em 0; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .modal-content {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-xl); box-shadow: var(--shadow-lg);
+    max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto;
+    animation: fadeInUp 0.25s ease-out;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem 0;
+  }
+  .modal-header h3 { font-size: 1.05rem; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; cursor: pointer; font-size: 1.2rem;
+    color: var(--text-muted); padding: 0.25rem; line-height: 1;
+    border-radius: var(--radius-sm); transition: all var(--transition);
+  }
+  .modal-close:hover { color: var(--text); background: var(--primary-light); }
+  .modal-body { padding: 1rem 1.5rem; }
+  .modal-body textarea {
+    width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 0.9rem; font-family: inherit;
+    background: var(--surface); color: var(--text); resize: vertical;
+    transition: all var(--transition); outline: none; line-height: 1.5;
+    min-height: 100px;
+  }
+  .modal-body textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45, 45, 45, 0.1); }
+  .modal-body textarea::placeholder { color: var(--text-muted); }
+  .modal-body .field-label {
+    display: block; font-size: 0.82rem; font-weight: 500;
+    color: var(--text-secondary); margin-bottom: 0.4rem;
+  }
+  .modal-body .field + .field { margin-top: 1rem; }
+  .modal-footer {
+    display: flex; gap: 0.5rem; justify-content: flex-end;
+    padding: 0 1.5rem 1.25rem;
+  }
 </style>
 <script>
 function optimisticChat(form) {
@@ -339,6 +386,23 @@ document.addEventListener("htmx:afterRequest", function(e) {
     }
   }
 });
+function addFollowupMessage(text) {
+  const container = document.querySelector("#followup-messages");
+  if (!container || !text) return;
+  const userDiv = document.createElement("div");
+  userDiv.className = "msg user";
+  userDiv.textContent = text;
+  container.appendChild(userDiv);
+  const thinking = document.createElement("div");
+  thinking.className = "msg assistant thinking-bubble";
+  thinking.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+  container.appendChild(thinking);
+  container.scrollTop = container.scrollHeight;
+}
+function cleanupThinking() {
+  const thinking = document.querySelector("#followup-messages .thinking-bubble");
+  if (thinking) thinking.remove();
+}
 </script>`;
 
 /** Loading bar — add right after <body> in page layouts, NOT inside <head>. */

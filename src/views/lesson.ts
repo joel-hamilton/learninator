@@ -121,6 +121,7 @@ ${HTMX_HEAD}
 </head>
 <body>
 ${HTMX_LOADING_BAR}
+<div id="modal-container"></div>
 <div class="toolbar">
   <div class="left">
     <a href="/missions/${missionId}" class="back-link">&larr; ${missionTitle}</a>
@@ -158,7 +159,15 @@ ${HTMX_LOADING_BAR}
   ` : ""}
 
   <div class="lesson-chat">
-    <h3>Questions about this lesson?</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="margin:0;">Questions about this lesson?</h3>
+      <button class="btn btn-secondary btn-sm"
+              hx-get="/missions/${missionId}/lessons/${lessonIdStr(lessonNumber, lessonSubNumber)}/feedback-modal?mode=more"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">
+        More on this topic
+      </button>
+    </div>
     <div id="followup-messages"></div>
     <form class="chat-form" hx-post="/missions/${missionId}/chat" hx-target="#followup-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <input type="hidden" name="context" value="Lesson ${displayNum}: ${lessonTitle}">

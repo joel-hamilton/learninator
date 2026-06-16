@@ -7,7 +7,7 @@ import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop } from "../ai/conversation.js";
 import { lessonPage } from "../views/lesson.js";
-import { feedbackBar, feedbackThanksBar, completeBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar } from "../views/fragments.js";
+import { feedbackBar, feedbackThanksBar, completeBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, feedbackModal } from "../views/fragments.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -114,6 +114,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const body = await c.req.parseBody();
   const rating = String(body.rating || "");
+  const feedbackText = String(body.feedbackText || "").trim();
 
   const [mission] = await db
     .select()
@@ -132,9 +133,14 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
+  const updateData: Record<string, unknown> = { feedbackRating: rating as "too_easy" | "just_right" | "too_hard" };
+  if (feedbackText) {
+    updateData.feedbackText = feedbackText;
+  }
+
   await db
     .update(schema.lessons)
-    .set({ feedbackRating: rating as "too_easy" | "just_right" | "too_hard" })
+    .set(updateData)
     .where(and(...conditions));
 
   return c.html(feedbackThanksBar(rating, missionId, number, subNumber));
@@ -215,6 +221,47 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
   return c.html(completeBar(alreadyCompleted, missionId, number, subNumber));
 });
 
+// ── Feedback modal ──
+
+lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const mode = (c.req.query("mode") || "next") as "next" | "more";
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const conditions = [
+    eq(schema.lessons.missionId, missionId),
+    eq(schema.lessons.number, number),
+  ];
+  if (subNumber !== null) {
+    conditions.push(eq(schema.lessons.subNumber, subNumber));
+  } else {
+    conditions.push(isNull(schema.lessons.parentLessonId));
+  }
+
+  const [lesson] = await db
+    .select()
+    .from(schema.lessons)
+    .where(and(...conditions))
+    .limit(1);
+  if (!lesson) return c.text("Lesson not found", 404);
+
+  return c.html(feedbackModal({
+    missionId,
+    number,
+    subNumber,
+    lessonTitle: lesson.title,
+    mode,
+  }));
+});
+
 // ── In-memory tracking for generation jobs ──
 type GenerationJob = {
   missionId: number;
@@ -260,6 +307,7 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const body = await c.req.parseBody();
   const notes = String(body.notes || "").trim();
+  const feedback = String(body.feedback || "").trim();
 
   const [mission] = await db
     .select()
@@ -285,6 +333,14 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
     .limit(1);
   if (!lesson) return c.text("Lesson not found", 404);
 
+  // Save feedback text if provided
+  if (feedback) {
+    await db
+      .update(schema.lessons)
+      .set({ feedbackText: feedback })
+      .where(and(...conditions));
+  }
+
   const key = jobKey(missionId, number, subNumber);
   if (generationJobs.has(key)) {
     return c.html(`<div class="feedback-bar" id="feedback-bar"><span class="label">Already generating your next lesson…</span></div>`);
@@ -308,8 +364,11 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
     try {
       const displayNum = formatLessonNumber(number, subNumber);
       let userMessage = `The user just completed Lesson ${displayNum}: "${lesson.title}". Please create the next logical lesson.`;
+      if (feedback) {
+        userMessage += `\n\nThe user gave this feedback on the lesson: ${feedback}`;
+      }
       if (notes) {
-        userMessage += `\n\nThe user provided these notes: ${notes}`;
+        userMessage += `\n\nThe user requested the next lesson cover: ${notes}`;
       }
       userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Decide whether the next step is a new topic (use create_lesson) or a same-topic follow-up / deeper dive (use create_sub_lesson with parent_lesson_number: ${number}).`;
 
