@@ -242,6 +242,7 @@ ${HTMX_HEAD}
 <body>
 ${HTMX_LOADING_BAR}
 <div id="tool-banner" class="tool-banner"></div>
+<div id="modal-container"></div>
 <div class="toolbar">
   <div class="left">
     <a href="/" class="logo">${svgIcon("zap")}</a>
@@ -294,6 +295,10 @@ ${HTMX_LOADING_BAR}
       <button class="quick-chip" onclick="sendQuick('Can you explain this lesson in simpler terms?')">Explain this</button>
       <button class="quick-chip" onclick="sendQuick('Give me a practice exercise for this lesson')">Practice exercise</button>
       <button class="quick-chip" onclick="sendQuick('Create a new lesson that builds on this')">Next lesson</button>
+      <button class="quick-chip"
+              hx-get="/missions/${missionId}/lessons/${lid}/feedback-modal?mode=more"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">More on this topic</button>
     </div>
     <div class="chat-panel-messages" id="lesson-chat-messages">
       <div class="msg assistant">Ask me anything about this lesson! I can clarify concepts, give examples, or create follow-up lessons.</div>

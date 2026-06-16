@@ -39,6 +39,34 @@ export function lessonActionBar(missionId: number, number: number, subNumber: nu
   </div>`;
 }
 
+export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar" id="feedback-bar">
+    <span class="label">Thanks! You rated this: <strong>${rating.replace("_", " ")}</strong></span>
+    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
+      <button type="submit" class="done-btn">Mark Complete</button>
+    </form>
+  </div>`;
+}
+
+export function completeBar(alreadyCompleted: boolean, missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
+    <span class="label">
+      ${alreadyCompleted
+        ? '<span class="badge badge-info">Already completed</span>'
+        : '<span class="badge badge-completed">Completed</span>'}
+      <span style="margin-left:0.5rem;font-weight:400;">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
+    </span>
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+      <button hx-get="/missions/${missionId}/lessons/${lid}/feedback-modal?mode=next" hx-target="#modal-container" hx-swap="innerHTML" class="btn btn-primary btn-sm">
+        Create Next Lesson
+      </button>
+      <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Done</a>
+    </div>
+  </div>`;
+}
+
 export function completedLessonBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
@@ -164,6 +192,68 @@ export function referenceDocCard(missionId: number, ref: { id: number; title: st
       <h3>${ref.title}</h3>
     </a>
   `;
+}
+
+// ── Feedback Modal ──
+
+export function feedbackModal(params: {
+  missionId: number;
+  number: number;
+  subNumber: number | null;
+  lessonTitle: string;
+  mode: "next" | "more";
+}): string {
+  const { missionId, number, subNumber, lessonTitle, mode } = params;
+  const lid = lessonIdStr(number, subNumber);
+  const displayNum = formatLessonNumber(number, subNumber);
+
+  const isNext = mode === "next";
+  const title = isNext ? "Before your next lesson…" : "What would you like to explore?";
+  const feedbackLabel = isNext
+    ? "How was this lesson?"
+    : "What aspect would you like to dive deeper into?";
+  const feedbackPlaceholder = isNext
+    ? "What worked well? What was confusing? What would you like more or less of?"
+    : "What specific topic, concept, or skill would you like to explore further?";
+  const submitLabel = isNext ? "Generate Next Lesson" : "Ask Teacher";
+  const postUrl = isNext
+    ? `/missions/${missionId}/lessons/${lid}/generate-next`
+    : `/missions/${missionId}/chat`;
+  const feedbackFieldName = isNext ? "feedback" : "message";
+
+  const formAttrs = isNext
+    ? `hx-post="${postUrl}" hx-target="#feedback-bar" hx-swap="outerHTML" hx-on:htmx:after-request="document.querySelector('#feedback-modal')?.remove()"`
+    : `hx-post="${postUrl}" hx-target="#followup-messages" hx-swap="beforeend" hx-on:htmx:before-request="var t=document.querySelector('#feedback-modal textarea[name=message]');addFollowupMessage(t?.value);document.querySelector('#feedback-modal')?.remove()" hx-on:htmx:after-request="cleanupThinking()"`;
+
+  return `<div class="modal-overlay" id="feedback-modal">
+  <div class="modal-content">
+    <form ${formAttrs}>
+      <div class="modal-header">
+        <h3>${title}</h3>
+        <button type="button" class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label class="field-label">${feedbackLabel}</label>
+          <textarea name="${feedbackFieldName}" placeholder="${feedbackPlaceholder}" rows="3"></textarea>
+        </div>
+        ${isNext ? `
+        <div class="field">
+          <label class="field-label">What should the next lesson cover? <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+          <textarea name="notes" placeholder='e.g. "More hands-on examples" or "Go deeper into chord progressions"' rows="2"></textarea>
+        </div>` : ""}
+      </div>
+      <div class="modal-footer">
+        ${isNext
+          ? `<input type="hidden" name="fromFeedbackModal" value="1">`
+          : `<input type="hidden" name="context" value="Lesson ${displayNum}: ${lessonTitle.replace(/"/g, '&quot;')}">
+             <input type="hidden" name="fromFeedbackModal" value="1">`}
+        <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+        <button type="submit" class="btn btn-primary btn-sm">${submitLabel}</button>
+      </div>
+    </form>
+  </div>
+</div>`;
 }
 
 export function learningRecordCard(record: { number: number; title: string; markdownContent: string; status: string; supersededBy: number | null }): string {
