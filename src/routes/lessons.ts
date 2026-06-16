@@ -7,7 +7,10 @@ import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop } from "../ai/conversation.js";
 import { lessonPage } from "../views/lesson.js";
-import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar } from "../views/fragments.js";
+import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble } from "../views/fragments.js";
+import { saveMessage, contentToText } from "../shared/messages.js";
+import { formatMarkdown } from "../shared/markdown.js";
+import { AIError } from "../ai/index.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -484,4 +487,66 @@ lessonRoutes.get("/:number/generate-sub-lesson/status", auth.requireAuth, (c: Ct
 
   const latestMsg = job.messages.at(-1) || "Working…";
   return c.html(generationRunningBar(missionId, number, subNumber, true, latestMsg));
+});
+
+// ── Lesson chat ──
+
+lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const body = await c.req.parseBody();
+  const message = String(body.message || "").trim();
+  const lessonTitle = String(body.lesson_title || "");
+  const lessonNumber = String(body.lesson_number || "");
+  if (!message) return c.text("");
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const systemPrompt = TEACHER_SYSTEM_PROMPT + `
+The current mission ID is ${missionId}.
+Mission title: ${mission.title}
+
+The user is currently viewing Lesson ${lessonNumber}: "${lessonTitle}". They may ask you to:
+- Explain concepts from this lesson in more detail
+- Provide examples or practice exercises related to this lesson
+- Create the next lesson or a sub-lesson that builds on this material
+
+If they ask for a new lesson, use create_lesson or create_sub_lesson as appropriate. Review existing lessons first to avoid duplicates.`;
+
+  // Store user message in the shared mission chat
+  await saveMessage(missionId, "user", `[Re: Lesson ${lessonNumber}: ${lessonTitle}]\n${message}`);
+
+  try {
+    const result = await conversationLoop({
+      client: c.get("ai"),
+      toolExecutor: c.get("toolExecutor"),
+      missionId,
+      systemPrompt,
+      initialMessages: [
+        { role: "user" as const, content: `[The user is on Lesson ${lessonNumber}: "${lessonTitle}". They said:] ${message}` },
+      ],
+      tools: TEACHER_TOOLS,
+      hooks: {
+        onAssistantMessage: async (content) => {
+          await saveMessage(missionId, "assistant", content);
+        },
+        onAfterToolExecution: async (results) => {
+          await saveMessage(missionId, "user", results);
+        },
+      },
+    });
+
+    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…")));
+  } catch (err: unknown) {
+    const msg = err instanceof AIError
+      ? `<strong>${err.message}</strong>`
+      : "Something went wrong. Please try again.";
+    return c.html(`<div class="msg assistant" style="color:var(--danger);">${msg}</div>`);
+  }
 });

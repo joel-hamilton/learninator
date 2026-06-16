@@ -95,7 +95,7 @@ export function generationDoneBar(missionId: number, number: number, subNumber: 
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--primary);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
+    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
@@ -163,7 +163,7 @@ export function referenceDocCard(missionId: number, ref: { id: number; title: st
 export function learningRecordCard(record: { number: number; title: string; markdownContent: string; status: string; supersededBy: number | null }): string {
   return `
     <div class="record-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+      <div class="record-header">
         <span class="meta">LR${String(record.number).padStart(4, "0")}</span>
         ${record.status === "superseded" ? `<span class="badge badge-superseded">Superseded by LR${String(record.supersededBy || 0).padStart(4, "0")}</span>` : ""}
       </div>

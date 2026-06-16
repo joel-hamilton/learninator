@@ -1,4 +1,4 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
 import { lessonActionBar, completedLessonBar } from "./fragments.js";
 
 function formatLessonNumber(num: number, sub: number | null): string {
@@ -24,6 +24,7 @@ export function lessonPage(params: {
   const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, prevLesson, nextLesson } = params;
 
   const displayNum = formatLessonNumber(lessonNumber, lessonSubNumber);
+  const lid = lessonIdStr(lessonNumber, lessonSubNumber);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -35,102 +36,181 @@ ${HTMX_HEAD}
 <style>
   /* ── Toolbar ── */
   .toolbar {
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
-    padding: 0 1.5rem;
+    padding: 0 1.25rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 52px;
+    height: 50px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
-  .toolbar .left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+  .toolbar .left { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
   .toolbar .back-link {
-    font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
-    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.8rem; color: var(--text-secondary); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition); white-space: nowrap;
   }
-  .toolbar .back-link:hover { border-color: var(--primary); color: var(--text); }
-  .toolbar h1 { font-size: 0.9rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .toolbar .nav { display: flex; gap: 0.5rem; flex-shrink: 0; }
+  .toolbar .back-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .toolbar .back-link .svg-icon { width: 0.85em; height: 0.85em; }
+  .toolbar h1 { font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar .nav { display: flex; gap: 0.4rem; flex-shrink: 0; }
   .toolbar .nav a {
-    padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.8rem; color: var(--text-secondary); text-decoration: none; transition: all var(--transition);
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; transition: all var(--transition);
   }
-  .toolbar .nav a:hover { background: var(--primary-light); border-color: var(--border-hover); color: var(--text); }
+  .toolbar .nav a:hover { background: var(--surface-hover); border-color: var(--border-hover); color: var(--text); }
   .toolbar .nav .disabled {
-    padding: 0.35rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.8rem; color: var(--text-muted); opacity: 0.5; pointer-events: none;
+    display: inline-flex; align-items: center; gap: 0.2rem;
+    padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.78rem; color: var(--text-muted); opacity: 0.4; pointer-events: none;
   }
+  .toolbar .nav .svg-icon { width: 0.8em; height: 0.8em; }
 
   /* ── Lesson Container ── */
-  .lesson-container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; animation: fadeInUp 0.35s ease-out; }
+  .lesson-container { max-width: 800px; margin: 0 auto; padding: 1.75rem 1.5rem 6rem; animation: fadeInUp 0.35s ease-out; }
 
   /* ── Lesson Header ── */
-  .lesson-header { margin-bottom: 1.5rem; }
+  .lesson-header { margin-bottom: 1.25rem; }
   .lesson-header .lesson-num {
-    font-size: 0.72rem; color: var(--text-muted); font-family: ui-monospace, monospace;
-    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; margin-bottom: 0.3rem;
+    font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; margin-bottom: 0.2rem;
   }
-  .lesson-header h2 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; }
+  .lesson-header h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.02em; }
 
   /* ── Iframe Container ── */
   .iframe-container {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
-    overflow: hidden; box-shadow: var(--shadow-md); margin-bottom: 1.5rem;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    overflow: hidden; margin-bottom: 1.25rem;
   }
   #lesson-frame { width: 100%; border: none; display: block; }
 
   /* ── Feedback Bar ── */
   .feedback-bar {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center;
-    gap: 0.75rem; flex-wrap: wrap; box-shadow: var(--shadow-sm);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.1rem; margin-bottom: 1.25rem; display: flex; align-items: center;
+    gap: 0.6rem; flex-wrap: wrap;
     animation: fadeInUp 0.3s ease-out;
   }
-  .feedback-bar .label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+  .feedback-bar .label { font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; }
   .feedback-bar .fb-btn {
     padding: 0.35rem 0.85rem; border: 1px solid var(--border); border-radius: 999px;
-    background: var(--surface); cursor: pointer; font-size: 0.82rem;
+    background: var(--surface); cursor: pointer; font-size: 0.8rem;
     transition: all var(--transition); color: var(--text-secondary); font-family: inherit;
   }
-  .feedback-bar .fb-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
-  .feedback-bar .fb-btn.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .feedback-bar .fb-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
   .feedback-bar .done-btn {
-    margin-left: auto; padding: 0.5rem 1.25rem; background: var(--primary);
-    color: #fff; border: none; border-radius: var(--radius); cursor: pointer;
-    font-size: 0.85rem; font-weight: 500; transition: all var(--transition); font-family: inherit;
+    padding: 0.45rem 1.1rem; background: var(--primary);
+    color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer;
+    font-size: 0.82rem; font-weight: 500; transition: all var(--transition); font-family: inherit;
   }
   .feedback-bar .done-btn:hover { background: var(--primary-hover); }
-  .feedback-bar .done-btn:active { transform: scale(0.97); }
 
-  /* ── Lesson Chat ── */
-  .lesson-chat {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.25rem; box-shadow: var(--shadow-sm);
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--primary); color: #fff; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transition: all var(--transition-slow);
   }
-  .lesson-chat h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
-  #followup-messages { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+  .fab:hover { background: var(--primary-hover); transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,0,0,0.2); }
+  .fab .svg-icon { width: 1.2em; height: 1.2em; }
+  .fab.hidden { display: none; }
+
+  /* ── Chat Panel ── */
+  .chat-panel {
+    position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 199;
+    width: 380px; max-height: 520px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    display: none; flex-direction: column;
+    animation: fadeInUp 0.25s ease-out;
+    overflow: hidden;
+  }
+  .chat-panel.open { display: flex; }
+
+  .chat-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .chat-panel-header h4 { font-size: 0.85rem; font-weight: 600; }
+  .chat-panel-header .header-actions { display: flex; gap: 0.3rem; }
+  .chat-panel-header button {
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    padding: 0.2rem; border-radius: 4px; transition: all var(--transition);
+  }
+  .chat-panel-header button:hover { color: var(--text); background: var(--primary-light); }
+  .chat-panel-header button .svg-icon { width: 0.95em; height: 0.95em; }
+
+  .chat-panel-messages {
+    flex: 1; overflow-y: auto; padding: 0.75rem;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    min-height: 150px;
+    max-height: 320px;
+  }
+
+  .chat-panel-footer {
+    padding: 0.5rem; border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .chat-panel-footer .chat-form {
+    border: none; padding: 0;
+    box-shadow: none;
+  }
+  .chat-panel-footer .chat-form textarea {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.4rem;
+    padding-bottom: 1.2rem;
+  }
+  .chat-panel-footer .chat-form button {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.9rem;
+  }
+  .chat-panel-footer .textarea-hint {
+    font-size: 0.6rem;
+    left: 5px;
+  }
+
+  /* ── Quick action chips inside chat panel ── */
+  .quick-actions { display: flex; gap: 0.35rem; padding: 0.5rem 0.75rem 0; flex-wrap: wrap; }
+  .quick-chip {
+    padding: 0.25rem 0.6rem; font-size: 0.7rem; font-weight: 500;
+    background: var(--primary-light); border: 1px solid var(--border);
+    border-radius: 999px; cursor: pointer; font-family: inherit;
+    color: var(--text-secondary); transition: all var(--transition);
+  }
+  .quick-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* ── Responsive ── */
+  @media (max-width: 480px) {
+    .chat-panel { width: calc(100vw - 2rem); right: 1rem; bottom: 4.5rem; }
+  }
 </style>
 </head>
 <body>
 ${HTMX_LOADING_BAR}
 <div class="toolbar">
   <div class="left">
-    <a href="/missions/${missionId}" class="back-link">&larr; ${missionTitle}</a>
-    <h1>${displayNum} — ${lessonTitle}</h1>
+    <a href="/missions/${missionId}" class="back-link">${svgIcon("arrowLeft")} ${missionTitle}</a>
+    <h1>${displayNum} &mdash; ${lessonTitle}</h1>
   </div>
   <div class="nav">
     ${prevLesson
-      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(prevLesson.number, prevLesson.subNumber)}">&larr; Previous</a>`
-      : `<span class="disabled">&larr; Previous</span>`}
+      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(prevLesson.number, prevLesson.subNumber)}">${svgIcon("arrowLeft")} Previous</a>`
+      : `<span class="disabled">${svgIcon("arrowLeft")} Previous</span>`}
     ${nextLesson
-      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(nextLesson.number, nextLesson.subNumber)}">Next &rarr;</a>`
-      : `<span class="disabled">Next &rarr;</span>`}
+      ? `<a href="/missions/${missionId}/lessons/${lessonIdStr(nextLesson.number, nextLesson.subNumber)}">Next ${svgIcon("arrowRight")}</a>`
+      : `<span class="disabled">Next ${svgIcon("arrowRight")}</span>`}
   </div>
 </div>
 <div class="lesson-container">
@@ -148,17 +228,43 @@ ${HTMX_LOADING_BAR}
     : lessonActionBar(missionId, lessonNumber, lessonSubNumber)
   }
 
-  <div class="lesson-chat">
-    <h3>Questions about this lesson?</h3>
-    <div id="followup-messages"></div>
-    <form class="chat-form" hx-post="/missions/${missionId}/chat" hx-target="#followup-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-      <input type="hidden" name="context" value="Lesson ${displayNum}: ${lessonTitle}">
-      <div class="textarea-wrapper">
-        <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" oninput="autoResize(this)"></textarea>
-        <span class="textarea-hint">Shift + Enter for newline</span>
+  <!-- FAB -->
+  <button class="fab" id="lesson-fab" onclick="toggleChat()" title="Ask about this lesson">
+    ${svgIcon("messageCircle")}
+  </button>
+
+  <!-- Chat Panel -->
+  <div class="chat-panel" id="lesson-chat-panel">
+    <div class="chat-panel-header">
+      <h4>Ask about this lesson</h4>
+      <div class="header-actions">
+        <button title="Clear conversation" onclick="clearChat(${missionId})">
+          ${svgIcon("trash")}
+        </button>
+        <button title="Close" onclick="toggleChat()">
+          ${svgIcon("x")}
+        </button>
       </div>
-      <button type="submit">Ask</button>
-    </form>
+    </div>
+    <div class="quick-actions">
+      <button class="quick-chip" onclick="sendQuick('Can you explain this lesson in simpler terms?')">Explain this</button>
+      <button class="quick-chip" onclick="sendQuick('Give me a practice exercise for this lesson')">Practice exercise</button>
+      <button class="quick-chip" onclick="sendQuick('Create a new lesson that builds on this')">Next lesson</button>
+    </div>
+    <div class="chat-panel-messages" id="lesson-chat-messages">
+      <div class="msg assistant">Ask me anything about this lesson! I can clarify concepts, give examples, or create follow-up lessons.</div>
+    </div>
+    <div class="chat-panel-footer">
+      <form class="chat-form" hx-post="/missions/${missionId}/lessons/${lid}/chat" hx-target="#lesson-chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
+        <input type="hidden" name="lesson_title" value="${lessonTitle.replace(/"/g, '&quot;')}">
+        <input type="hidden" name="lesson_number" value="${displayNum}">
+        <div class="textarea-wrapper">
+          <textarea name="message" placeholder="Ask about this lesson..." rows="1" oninput="autoResize(this)"></textarea>
+          <span class="textarea-hint">Shift + Enter for newline</span>
+        </div>
+        <button type="submit">${svgIcon("send")}</button>
+      </form>
+    </div>
   </div>
 </div>
 <script>
@@ -170,6 +276,41 @@ window.addEventListener('message', function(e) {
     frame.style.minHeight = '0';
   }
 });
+
+// FAB chat panel
+function toggleChat() {
+  var panel = document.getElementById('lesson-chat-panel');
+  var fab = document.getElementById('lesson-fab');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    fab.classList.add('hidden');
+    var msgs = document.getElementById('lesson-chat-messages');
+    if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  } else {
+    fab.classList.remove('hidden');
+  }
+}
+
+function sendQuick(text) {
+  var textarea = document.querySelector('#lesson-chat-panel textarea[name="message"]');
+  if (textarea) {
+    textarea.value = text;
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    var form = textarea.closest('form');
+    if (form) {
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.click();
+    }
+  }
+}
+
+function clearChat(missionId) {
+  if (!confirm('Clear this conversation? (Messages are still saved to the mission chat)')) return;
+  var msgs = document.getElementById('lesson-chat-messages');
+  if (msgs) {
+    msgs.innerHTML = '<div class="msg assistant">Ask me anything about this lesson! I can clarify concepts, give examples, or create follow-up lessons.</div>';
+  }
+}
 </script>
 </body>
 </html>`;

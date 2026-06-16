@@ -1,39 +1,45 @@
 /** Shared HTML snippets for all pages. */
 
 export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ── Design Tokens ── */
   :root {
-    --bg: #fdfcf9;
+    --bg: #f8f7f5;
     --surface: #ffffff;
-    --surface-hover: #faf8f5;
-    --border: #e8e4dc;
-    --border-hover: #d4cdbc;
-    --text: #2d2d2d;
-    --text-secondary: #6b6b6b;
-    --text-muted: #a3a3a3;
-    --primary: #2d2d2d;
-    --primary-hover: #444444;
-    --primary-light: #f5f2eb;
-    --success: #2d5a27;
-    --success-bg: #e8f0e4;
-    --success-border: #c4dbbf;
-    --warning: #8b6914;
-    --warning-bg: #fef5e7;
-    --warning-border: #f5deb3;
-    --danger: #8b2e2e;
-    --danger-bg: #fef5f5;
-    --danger-border: #f5c6c6;
-    --info: #2d5aa0;
-    --info-bg: #eef4fc;
-    --radius-sm: 6px;
-    --radius: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+    --surface-hover: #f5f4f1;
+    --border: #e6e3dd;
+    --border-hover: #d4d0c8;
+    --text: #1a1a1a;
+    --text-secondary: #5c5c5c;
+    --text-muted: #999999;
+    --primary: #1a1a1a;
+    --primary-hover: #3d3d3d;
+    --primary-light: #f3f1ec;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-light: #eff6ff;
+    --success: #166534;
+    --success-bg: #f0fdf4;
+    --success-border: #bbf7d0;
+    --warning: #854d0e;
+    --warning-bg: #fffbeb;
+    --warning-border: #fde68a;
+    --danger: #991b1b;
+    --danger-bg: #fef2f2;
+    --danger-border: #fecaca;
+    --info: #1e40af;
+    --info-bg: #eff6ff;
+    --radius-sm: 8px;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+    --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
     --transition: 150ms ease;
     --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -41,35 +47,37 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   /* ── Reset ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 15px;
+    line-height: 1.5;
   }
-  a { color: var(--primary); text-decoration: none; transition: color var(--transition); }
-  a:hover { color: var(--primary-hover); }
+  a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
+  a:hover { color: var(--accent-hover); }
 
   /* ── Focus Ring ── */
   input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(45, 45, 45, 0.15);
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
 
   /* ── Selection ── */
-  ::selection { background: rgba(45, 45, 45, 0.12); }
+  ::selection { background: rgba(37, 99, 235, 0.15); }
 
   /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
   /* ── Loading Bar ── */
   #htmx-loading-bar {
-    position: fixed; top: 0; left: 0; height: 3px;
-    background: var(--primary);
+    position: fixed; top: 0; left: 0; height: 2px;
+    background: var(--accent);
     z-index: 9999; opacity: 0; transition: opacity 150ms; width: 0;
   }
   .htmx-request#htmx-loading-bar { opacity: 1; animation: htmx-load 2s ease-out; }
@@ -85,18 +93,18 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .htmx-indicator-inline { display: none !important; }
 
   /* ── Spinner ── */
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Thinking Dots ── */
-  .thinking-dots { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
-  .thinking-dots span { width: 7px; height: 7px; background: var(--primary); border-radius: 50%; animation: dot-bounce 1.4s infinite ease-in-out both; opacity: 0.4; }
+  .thinking-dots { display: flex; gap: 3px; align-items: center; padding: 2px 0; }
+  .thinking-dots span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: dot-bounce 1.4s infinite ease-in-out both; opacity: 0.4; }
   .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
   .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
   @keyframes dot-bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.2; } 40% { transform: scale(1); opacity: 0.8; } }
 
   /* ── Animations ── */
-  @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .fade-in { animation: fadeIn 0.25s ease-out; }
   .fade-in-up { animation: fadeInUp 0.35s ease-out; }
@@ -114,63 +122,69 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .stagger > *:nth-child(9) { animation-delay: 0.32s; }
   .stagger > *:nth-child(10) { animation-delay: 0.36s; }
 
+  /* ── SVG Icon Library ── */
+  .svg-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -0.15em; flex-shrink: 0; stroke-width: 1.75; }
+
   /* ── Badges ── */
   .badge {
     display: inline-flex; align-items: center;
-    padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.72rem;
+    padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.7rem;
     font-weight: 500; line-height: 1.5; letter-spacing: 0.02em;
   }
-  .badge-default { background: var(--primary-light); color: var(--text-secondary); border: 1px solid var(--border); }
-  .badge-active { background: var(--primary-light); color: var(--text-secondary); border: 1px solid var(--border); }
-  .badge-in-progress { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
-  .badge-completed { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-  .badge-superseded { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
-  .badge-info { background: var(--info-bg); color: var(--info); border: 1px solid #c4d4eb; }
-  .badge-ready { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-  .badge-error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+  .badge-default { background: var(--primary-light); color: var(--text-secondary); }
+  .badge-active { background: var(--accent-light); color: var(--accent); }
+  .badge-in-progress { background: var(--warning-bg); color: var(--warning); }
+  .badge-completed { background: var(--success-bg); color: var(--success); }
+  .badge-superseded { background: var(--danger-bg); color: var(--danger); }
+  .badge-info { background: var(--info-bg); color: var(--info); }
+  .badge-ready { background: var(--success-bg); color: var(--success); }
+  .badge-error { background: var(--danger-bg); color: var(--danger); }
 
   /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.5rem 1rem; border-radius: var(--radius); font-size: 0.875rem;
+    padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem;
     font-weight: 500; cursor: pointer; transition: all var(--transition);
     border: 1px solid transparent; font-family: inherit; line-height: 1.4;
-    text-decoration: none; white-space: nowrap;
+    text-decoration: none; white-space: nowrap; letter-spacing: 0.01em;
   }
   .btn:active { transform: scale(0.97); }
   .btn-primary {
-    background: var(--primary); color: #fff; border: none;
+    background: var(--primary); color: #fff;
   }
-  .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow); }
-  .btn-primary:active { transform: translateY(0) scale(0.98); }
+  .btn-primary:hover { background: var(--primary-hover); }
   .btn-secondary {
-    background: var(--surface); color: var(--text); border-color: var(--border); box-shadow: var(--shadow-sm);
+    background: var(--surface); color: var(--text); border-color: var(--border);
   }
-  .btn-secondary:hover { border-color: var(--border-hover); box-shadow: var(--shadow); }
+  .btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-hover); }
   .btn-ghost {
     background: transparent; color: var(--text-secondary); border-color: var(--border);
   }
-  .btn-ghost:hover { border-color: var(--border-hover); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface-hover); border-color: var(--border-hover); color: var(--text); }
   .btn-danger {
     background: var(--surface); color: var(--danger); border-color: var(--border);
   }
   .btn-danger:hover { background: var(--danger-bg); border-color: var(--danger); }
-  .btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8rem; border-radius: var(--radius-sm); }
-  .btn-lg { padding: 0.7rem 1.5rem; font-size: 1rem; border-radius: var(--radius-lg); }
+  .btn-accent {
+    background: var(--accent); color: #fff;
+  }
+  .btn-accent:hover { background: var(--accent-hover); }
+  .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; border-radius: 6px; }
+  .btn-lg { padding: 0.65rem 1.4rem; font-size: 0.95rem; border-radius: var(--radius-lg); }
 
   /* ── Form Elements ── */
   .input {
-    padding: 0.65rem 0.85rem; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-size: 0.9rem; font-family: inherit; background: var(--surface);
     color: var(--text); transition: all var(--transition); outline: none; width: 100%;
   }
-  .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45, 45, 45, 0.1); }
+  .input:focus { border-color: var(--accent); }
   .input::placeholder { color: var(--text-muted); }
 
   /* ── Chat Messages ── */
   .msg {
-    padding: 0.75rem 1rem; border-radius: var(--radius-lg); line-height: 1.5;
-    font-size: 0.95rem; max-width: 85%;
+    padding: 0.7rem 0.95rem; border-radius: var(--radius); line-height: 1.55;
+    font-size: 0.9rem; max-width: 88%;
     animation: fadeIn 0.25s ease-out;
   }
   .msg.user {
@@ -182,53 +196,49 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     background: var(--surface); border: 1px solid var(--border);
     align-self: flex-start;
     border-bottom-left-radius: 4px;
-    box-shadow: var(--shadow-sm);
   }
 
-  /* ── Chat Form (unified card) ── */
+  /* ── Chat Form ── */
   .chat-form {
     display: flex; gap: 0.5rem; align-items: flex-end;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius-lg); padding: 0.6rem;
-    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-lg); padding: 0.5rem;
+    transition: border-color var(--transition);
   }
+  .chat-form:focus-within { border-color: var(--border-hover); }
+  .chat-form .textarea-wrapper { position: relative; flex: 1; }
   .chat-form textarea {
-    width: 100%; box-sizing: border-box; border: none; padding: 0.4rem 0.5rem; padding-bottom: 1.3rem;
-    font-size: 0.95rem; font-family: inherit; resize: none;
+    width: 100%; box-sizing: border-box; border: none; padding: 0.35rem 0.5rem; padding-bottom: 1.4rem;
+    font-size: 0.9rem; font-family: inherit; resize: none;
     background: transparent; color: var(--text); outline: none;
     line-height: 1.5;
   }
   .chat-form textarea::placeholder { color: var(--text-muted); }
+  .chat-form .textarea-hint {
+    position: absolute;
+    bottom: 4px;
+    left: 6px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    pointer-events: none;
+    opacity: 0.55;
+    line-height: 1;
+    font-weight: 500;
+  }
   .chat-form button {
-    padding: 0.55rem 1.2rem;
+    padding: 0.5rem 1.1rem;
     background: var(--primary); color: #fff; border: none;
-    border-radius: var(--radius); font-size: 0.9rem; font-weight: 500;
+    border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 500;
     cursor: pointer; transition: all var(--transition);
     flex-shrink: 0; font-family: inherit;
   }
   .chat-form button:hover { background: var(--primary-hover); }
   .chat-form button:active { transform: scale(0.97); }
 
-	.textarea-wrapper {
-	    position: relative;
-	    flex: 1;
-	}
-	.textarea-wrapper textarea { padding-bottom: 1.3rem; }
-	.textarea-hint {
-	    position: absolute;
-	    bottom: 4px;
-	    left: 8px;
-	    font-size: 0.62rem;
-	    color: var(--text-muted);
-	    pointer-events: none;
-	    opacity: 0.45;
-	    line-height: 1;
-	}
-
-	/* ── Section Divider ── */
+  /* ── Section Label ── */
   .section-label {
     display: flex; align-items: center; gap: 0.75rem;
-    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--text-muted); font-weight: 600; margin-bottom: 0.75rem;
   }
   .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
@@ -238,21 +248,21 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1rem;
   }
-  .section-header h2 { font-size: 1.1rem; font-weight: 600; }
+  .section-header h2 { font-size: 1.05rem; font-weight: 600; }
 
   /* ── Markdown Body ── */
   .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-    margin: 0.5em 0 0.25em; font-weight: 600; line-height: 1.3;
+    margin: 0.5em 0 0.2em; font-weight: 600; line-height: 1.3;
   }
-  .markdown-body h1 { font-size: 1.4em; }
-  .markdown-body h2 { font-size: 1.25em; }
-  .markdown-body h3 { font-size: 1.1em; }
-  .markdown-body p { margin: 0.25em 0 0.5em; }
-  .markdown-body ul, .markdown-body ol { margin: 0.25em 0 0.5em; padding-left: 1.5em; }
-  .markdown-body li { margin: 0.15em 0; }
+  .markdown-body h1 { font-size: 1.35em; }
+  .markdown-body h2 { font-size: 1.2em; }
+  .markdown-body h3 { font-size: 1.05em; }
+  .markdown-body p { margin: 0.2em 0 0.5em; }
+  .markdown-body ul, .markdown-body ol { margin: 0.2em 0 0.5em; padding-left: 1.5em; }
+  .markdown-body li { margin: 0.1em 0; }
   .markdown-body code {
     background: var(--primary-light); padding: 0.1em 0.35em; border-radius: 3px;
-    font-size: 0.9em; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.88em; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
   .markdown-body pre {
     background: #1e1e1e; color: #e0e0e0; padding: 0.75rem 1rem;
@@ -260,19 +270,20 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   }
   .markdown-body pre code { background: none; padding: 0; font-size: 0.85em; color: inherit; }
   .markdown-body blockquote {
-    border-left: 3px solid var(--border-hover); margin: 0.5em 0;
-    padding: 0.25em 0.75em; color: var(--text-secondary);
+    border-left: 3px solid var(--border-hover); margin: 0.4em 0;
+    padding: 0.2em 0.75em; color: var(--text-secondary);
   }
-  .markdown-body table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
+  .markdown-body table { border-collapse: collapse; margin: 0.4em 0; width: 100%; }
   .markdown-body th, .markdown-body td {
-    border: 1px solid var(--border); padding: 0.4em 0.75em; text-align: left;
+    border: 1px solid var(--border); padding: 0.35em 0.7em; text-align: left;
   }
   .markdown-body th { background: var(--primary-light); font-weight: 600; }
   .markdown-body strong { font-weight: 600; }
   .markdown-body em { font-style: italic; }
-  .markdown-body a { color: var(--primary); text-decoration: underline; }
+  .markdown-body a { color: var(--accent); text-decoration: underline; }
   .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 0.75em 0; }
 </style>
+
 <script>
 function optimisticChat(form) {
   const input = form.querySelector('textarea[name="message"]');
@@ -295,7 +306,7 @@ function optimisticChat(form) {
   input.value = "";
   input.style.height = "auto";
   const btn = form.querySelector('button[type="submit"]');
-  if (btn) { btn.disabled = true; setTimeout(() => { btn.disabled = false; }, 2000); }
+  if (btn) { btn.disabled = true; setTimeout(function() { btn.disabled = false; }, 2000); }
 }
 function autoResize(el) {
   el.style.height = "auto";
@@ -337,44 +348,7 @@ document.addEventListener("htmx:afterRequest", function(e) {
     }
   }
 });
-	// Guided question helpers
-	function selectOption(row, idx) {
-	  const radio = row.querySelector('input[type="radio"]');
-	  if (radio) radio.checked = true;
-	  onOptionChange(idx);
-	}
-	function onOptionChange(idx) {
-	  const options = document.querySelectorAll('#options-container .option-row');
-	  options.forEach((row, i) => row.classList.toggle('selected', i === idx));
-	  const isOther = idx === options.length - 1;
-	  const otherInput = document.getElementById('other-input');
-	  if (otherInput) otherInput.classList.toggle('visible', isOther);
-	  const submitBtn = document.getElementById('submit-btn');
-	  if (submitBtn) submitBtn.disabled = false;
-	  const hidden = document.getElementById('answer-hidden');
-	  const radio = document.querySelector('input[name="answer"]:checked');
-	  if (hidden && radio) hidden.value = radio.value;
-	}
-	function onOtherInput(input) {
-	  const hidden = document.getElementById('other-text-hidden');
-	  if (hidden) hidden.value = input.value;
-	  const answerHidden = document.getElementById('answer-hidden');
-	  if (answerHidden) answerHidden.value = input.value;
-	}
-	function validateAnswer() {
-	  const otherInput = document.getElementById('other-input');
-	  const otherText = document.getElementById('other-text');
-	  const isVisible = otherInput && otherInput.classList.contains('visible');
-	  if (isVisible && otherText && !otherText.value.trim()) {
-	    otherText.focus();
-	    return false;
-	  }
-	  return true;
-	}
-</script>`;
-
-/** Guided question JS for onboarding pages. */
-export const GUIDED_QUESTION_SCRIPT = `<script>
+// Guided question helpers
 function selectOption(row, idx) {
   const radio = row.querySelector('input[type="radio"]');
   if (radio) radio.checked = true;
@@ -382,7 +356,7 @@ function selectOption(row, idx) {
 }
 function onOptionChange(idx) {
   const options = document.querySelectorAll('#options-container .option-row');
-  options.forEach((row, i) => row.classList.toggle('selected', i === idx));
+  options.forEach(function(row, i) { row.classList.toggle('selected', i === idx); });
   const isOther = idx === options.length - 1;
   const otherInput = document.getElementById('other-input');
   if (otherInput) otherInput.classList.toggle('visible', isOther);
@@ -408,15 +382,81 @@ function validateAnswer() {
   }
   return true;
 }
-function submitGuidedAnswer() {
-  if (!validateAnswer()) return false;
-  var section = document.getElementById('question-section');
-  if (section) {
-    section.innerHTML = '<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>';
-  }
-  return true;
-}
 </script>`;
 
+/** SVG icon sprite — returns the SVG markup for a named icon */
+export function svgIcon(name: string, className: string = "svg-icon"): string {
+  const icons: Record<string, string> = {
+    book: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    chat: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    file: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    chart: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    box: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>',
+    arrowLeft: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+    arrowRight: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+    plus: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    check: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    x: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    send: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+    messageCircle: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+    loading: '<svg class="' + className + ' spinner-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+    home: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+    zap: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    trash: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+    logOut: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+  };
+  return icons[name] || "";
+}
+
+/** Animated spinner SVG icon */
+export function spinnerSvg(size: number = 16): string {
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="animation: spin 0.6s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+}
+
+/** Guided question JS for onboarding pages. */
+export const GUIDED_QUESTION_SCRIPT = '<script>\n' +
+  'function selectOption(row, idx) {\n' +
+  '  const radio = row.querySelector(\'input[type="radio"]\');\n' +
+  '  if (radio) radio.checked = true;\n' +
+  '  onOptionChange(idx);\n' +
+  '}\n' +
+  'function onOptionChange(idx) {\n' +
+  '  const options = document.querySelectorAll(\'#options-container .option-row\');\n' +
+  '  options.forEach(function(row, i) { row.classList.toggle(\'selected\', i === idx); });\n' +
+  '  const isOther = idx === options.length - 1;\n' +
+  '  const otherInput = document.getElementById(\'other-input\');\n' +
+  '  if (otherInput) otherInput.classList.toggle(\'visible\', isOther);\n' +
+  '  const submitBtn = document.getElementById(\'submit-btn\');\n' +
+  '  if (submitBtn) submitBtn.disabled = false;\n' +
+  '  const hidden = document.getElementById(\'answer-hidden\');\n' +
+  '  const radio = document.querySelector(\'input[name="answer"]:checked\');\n' +
+  '  if (hidden && radio) hidden.value = radio.value;\n' +
+  '}\n' +
+  'function onOtherInput(input) {\n' +
+  '  const hidden = document.getElementById(\'other-text-hidden\');\n' +
+  '  if (hidden) hidden.value = input.value;\n' +
+  '  const answerHidden = document.getElementById(\'answer-hidden\');\n' +
+  '  if (answerHidden) answerHidden.value = input.value;\n' +
+  '}\n' +
+  'function validateAnswer() {\n' +
+  '  const otherInput = document.getElementById(\'other-input\');\n' +
+  '  const otherText = document.getElementById(\'other-text\');\n' +
+  '  const isVisible = otherInput && otherInput.classList.contains(\'visible\');\n' +
+  '  if (isVisible && otherText && !otherText.value.trim()) {\n' +
+  '    otherText.focus();\n' +
+  '    return false;\n' +
+  '  }\n' +
+  '  return true;\n' +
+  '}\n' +
+  'function submitGuidedAnswer() {\n' +
+  '  if (!validateAnswer()) return false;\n' +
+  '  var section = document.getElementById(\'question-section\');\n' +
+  '  if (section) {\n' +
+  '    section.innerHTML = \'<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>\';\n' +
+  '  }\n' +
+  '  return true;\n' +
+  '}\n' +
+  '</script>';
+
 /** Loading bar — add right after <body> in page layouts, NOT inside <head>. */
-export const HTMX_LOADING_BAR = `<div id="htmx-loading-bar" class="htmx-indicator"></div>`;
+export const HTMX_LOADING_BAR = '<div id="htmx-loading-bar" class="htmx-indicator"></div>';

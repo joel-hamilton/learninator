@@ -14,7 +14,7 @@ import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
-import { GUIDED_QUESTION_SCRIPT } from "../views/shared.js";
+import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "../views/shared.js";
 import { emit, subscribe } from "../ai/events.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 
@@ -150,7 +150,7 @@ function guidedOnboardingLayout(
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${mission.title} — Learninator</title>
-<script src="https://unpkg.com/htmx.org@2.0.10"></script>
+${HTMX_HEAD}
 <style>
   :root { --bg: #fdfcf9; --surface: #ffffff; --border: #e8e4dc; --border-hover: #d4cdbc; --text: #2d2d2d; --text-secondary: #6b6b6b; --text-muted: #a3a3a3; --primary: #2d2d2d; --primary-hover: #444444; --primary-light: #f5f2eb; --warning: #8b6914; --warning-bg: #fef5e7; --radius: 8px; --radius-lg: 12px; --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --transition: 150ms ease; --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1); }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -223,7 +223,7 @@ function guidedOnboardingLayout(
 <div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;height:3px;background:var(--primary);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
 <header class="header">
   <div class="left">
-    <a href="/" class="back">&larr; Dashboard</a>
+    <a href="/" class="back">${svgIcon("arrowLeft")} Dashboard</a>
     <h1>${mission.title}</h1>
   </div>
   <div class="right">
@@ -780,12 +780,24 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
     .limit(1);
   if (!ref) return c.text("Not found", 404);
 
+  const safeHtml = ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`);
   return c.html(missionLayout(user, mission, `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-      <h2 style="font-size:1.2rem;">${ref.title}</h2>
+      <h2 style="font-size:1.15rem;font-weight:600;">${ref.title}</h2>
       <span class="badge badge-default">${ref.docType}</span>
     </div>
-    <iframe srcdoc="${ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" style="width:100%;height:calc(100vh - 200px);border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface);"></iframe>
+    <div class="ref-iframe-container" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+      <iframe id="ref-frame" scrolling="no" srcdoc="${safeHtml}" style="width:100%;border:none;display:block;min-height:400px;"></iframe>
+    </div>
+    <script>
+    const refFrame = document.getElementById('ref-frame');
+    window.addEventListener('message', function(e) {
+      if (e.data?.type === 'lessonResize' && e.data.height) {
+        refFrame.style.height = e.data.height + 'px';
+        refFrame.style.minHeight = '0';
+      }
+    });
+    </script>
   `, "reference"));
 });
 
@@ -948,7 +960,7 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <div class="textarea-wrapper">
         <textarea name="message" placeholder="Ask your teacher something..." rows="2" oninput="autoResize(this)"></textarea>
-        <span class="textarea-hint">Shift + Enter for newline</span>
+        <span class="textarea-hint">Press Enter to send \Shift + Enter for newlinemiddot; Shift + Enter for newline</span>
       </div>
       <button type="submit">Send</button>
     </form>

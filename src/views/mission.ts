@@ -1,13 +1,13 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
 
 function tabIcon(key: string): string {
   switch (key) {
-    case "lessons": return "📖";
-    case "chat": return "💬";
-    case "reference": return "📋";
-    case "records": return "📊";
-    case "resources": return "📦";
-    default: return "•";
+    case "lessons": return svgIcon("book");
+    case "chat": return svgIcon("chat");
+    case "reference": return svgIcon("file");
+    case "records": return svgIcon("chart");
+    case "resources": return svgIcon("box");
+    default: return svgIcon("book");
   }
 }
 
@@ -42,108 +42,108 @@ ${HTMX_HEAD}
 <style>
   /* ── Header ── */
   .header {
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 56px;
+    height: 54px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
   .header-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
   .header-back {
-    font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
-    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.82rem; color: var(--text-secondary); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.25rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition); white-space: nowrap;
   }
-  .header-back:hover { border-color: var(--primary); color: var(--text); }
+  .header-back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .header-back .svg-icon { width: 0.9em; height: 0.9em; }
   .header-title {
-    font-size: 0.95rem; font-weight: 600; overflow: hidden;
+    font-size: 0.9rem; font-weight: 600; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .status-tag {
     display: inline-block;
-    font-size: 0.65rem; font-weight: 500; padding: 0.15rem 0.45rem;
+    font-size: 0.62rem; font-weight: 500; padding: 0.12rem 0.4rem;
     border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
     margin-left: 0.5rem; vertical-align: middle;
   }
-  .tag-active { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-  .tag-onboarding { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
-  .tag-archived { background: var(--primary-light); color: var(--text-muted); border: 1px solid var(--border); }
-  .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--text-secondary); flex-shrink: 0; }
+  .tag-active { background: var(--success-bg); color: var(--success); }
+  .tag-onboarding { background: var(--warning-bg); color: var(--warning); }
+  .tag-archived { background: var(--primary-light); color: var(--text-muted); }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
   .header-right .logout-link {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.8rem;
-    padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-secondary); text-decoration: none; font-size: 0.78rem;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.25rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition);
   }
-  .header-right .logout-link:hover { border-color: var(--primary); color: var(--text); }
+  .header-right .logout-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
 
   /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); }
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 54px); }
 
   /* ── Sidebar ── */
   .sidebar {
     background: var(--surface); border-right: 1px solid var(--border);
-    padding: 1.25rem 1rem; display: flex; flex-direction: column;
-    position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    padding: 1rem 0.75rem; display: flex; flex-direction: column;
+    position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto;
   }
   .sidebar-label {
-    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.5rem;
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.4rem;
   }
-  .tabs { display: flex; flex-direction: column; gap: 2px; }
+  .tabs { display: flex; flex-direction: column; gap: 1px; }
   .tab {
     display: flex; align-items: center; gap: 0.55rem;
-    padding: 0.55rem 0.75rem; border-radius: var(--radius);
-    font-size: 0.88rem; color: var(--text-secondary); text-decoration: none;
-    transition: all var(--transition);
+    padding: 0.5rem 0.7rem; border-radius: var(--radius-sm);
+    font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
+    transition: all var(--transition); font-weight: 500;
   }
   .tab:hover { background: var(--primary-light); color: var(--text); }
   .tab.active {
-    background: var(--primary-light); color: var(--text); font-weight: 500;
-    border-left: 3px solid var(--primary); border-radius: 0 var(--radius) var(--radius) 0;
-    margin-left: -0.5rem; padding-left: calc(0.75rem - 3px);
+    background: var(--accent-light); color: var(--accent); font-weight: 600;
   }
-  .tab-icon { font-size: 0.95rem; width: 1.3em; text-align: center; flex-shrink: 0; }
+  .tab-icon { width: 1.2em; text-align: center; flex-shrink: 0; }
+  .tab-icon .svg-icon { width: 1em; height: 1em; color: var(--text-muted); transition: color var(--transition); }
+  .tab:hover .tab-icon .svg-icon, .tab.active .tab-icon .svg-icon { color: inherit; }
 
-  .sidebar-divider { height: 1px; background: var(--border); margin: 1rem 0.5rem; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 0.75rem 0.4rem; }
 
   .sidebar-footer {
-    margin-top: auto; padding: 1rem 0.75rem;
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-top: auto; padding: 0.75rem 0.7rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
   }
   .sidebar-footer .label {
-    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--text-muted); font-weight: 600; margin-bottom: 0.3rem;
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 0.2rem;
   }
-  .sidebar-footer .mission-name { font-size: 0.85rem; color: var(--text); font-weight: 500; margin-bottom: 0.15rem; }
-  .sidebar-footer .mission-status { font-size: 0.75rem; color: var(--text-muted); }
+  .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--text); font-weight: 500; margin-bottom: 0.1rem; }
+  .sidebar-footer .mission-status { font-size: 0.7rem; color: var(--text-muted); }
 
   /* ── Main ── */
-  .main { padding: 2rem; overflow: auto; animation: fadeInUp 0.3s ease-out; }
+  .main { padding: 2rem 2.5rem; overflow: auto; animation: fadeInUp 0.3s ease-out; }
 
-  /* ── Cards ── */
+  /* ── Lesson Cards ── */
   .lesson-list { display: grid; gap: 0; }
-	  .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 1rem; }
+  .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 0.75rem; }
   .lesson-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between;
     text-decoration: none; color: inherit; cursor: pointer;
-    transition: all var(--transition-slow); box-shadow: var(--shadow-sm);
+    transition: all var(--transition-slow);
   }
-  .lesson-card:hover {
-    border-color: var(--primary); box-shadow: var(--shadow-md);
-    transform: translateX(3px);
-  }
-  .lesson-card .info { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
-  .lesson-card .num { font-size: 0.75rem; color: var(--text-muted); font-family: ui-monospace, monospace; flex-shrink: 0; }
+  .lesson-card:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+  .lesson-card .info { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+  .lesson-card .num { font-size: 0.7rem; color: var(--text-muted); font-family: ui-monospace, monospace; flex-shrink: 0; }
   .lesson-card h3 {
-    font-size: 0.9rem; font-weight: 500; overflow: hidden;
+    font-size: 0.85rem; font-weight: 500; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .lesson-card--sub {
@@ -157,33 +157,37 @@ ${HTMX_HEAD}
     border-bottom-right-radius: 0;
   }
   .lesson-card--last-sub {
-    border-bottom-left-radius: var(--radius-lg);
-    border-bottom-right-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
   }
 
-  .ref-list { display: grid; gap: 0.5rem; }
+  /* ── Reference Cards ── */
+  .ref-list { display: grid; gap: 0.4rem; }
   .ref-card {
     display: block; text-decoration: none; color: inherit;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.25rem; transition: all var(--transition-slow); box-shadow: var(--shadow-sm);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1rem 1.1rem; transition: all var(--transition-slow);
   }
-  .ref-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
-  .ref-card h3 { font-size: 0.95rem; }
-  .ref-card .type { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .ref-card:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+  .ref-card h3 { font-size: 0.9rem; font-weight: 500; }
+  .ref-card .type { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 0.15rem; }
 
-  .record-list { display: grid; gap: 0.5rem; }
+  /* ── Learning Records (text-only, not clickable) ── */
+  .record-list { display: flex; flex-direction: column; }
   .record-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.25rem; transition: all var(--transition-slow); box-shadow: var(--shadow-sm);
+    padding: 1rem 0;
   }
-  .record-card:hover { border-color: var(--primary); box-shadow: var(--shadow-md); }
-  .record-card h3 { font-size: 0.95rem; margin-bottom: 0.5rem; }
-  .record-card .content { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
-  .record-card .meta { font-size: 0.75rem; color: var(--text-muted); }
+  .record-card + .record-card { border-top: 1px solid var(--border); }
+  .record-card .record-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+  .record-card .record-header .meta { font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace; }
+  .record-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+  .record-card .content { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; }
+  .record-card .content.markdown-body { font-size: 0.85rem; }
 
+  /* ── Resources ── */
   .resource-markdown {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 1.5rem; line-height: 1.6; font-size: 0.9rem; box-shadow: var(--shadow-sm);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.5rem; line-height: 1.6; font-size: 0.88rem;
   }
 
   /* ── Chat ── */
@@ -192,55 +196,50 @@ ${HTMX_HEAD}
     margin-bottom: 1rem; max-height: 60vh; overflow-y: auto; padding: 0.25rem;
   }
 
-  /* Tool Call Banner */
+  /* ── Tool Banner ── */
   .tool-banner {
     position: sticky;
-    top: 56px;
+    top: 54px;
     z-index: 99;
-    background: #fef5e7;
-    border-bottom: 2px solid #e8a020;
-    font-size: 0.82rem;
-    color: #8b6914;
+    background: var(--warning-bg);
+    border-bottom: 1px solid var(--warning-border);
+    font-size: 0.78rem;
+    color: var(--warning);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-weight: 600;
+    font-weight: 500;
     max-height: 0;
     overflow: hidden;
-    transition: all 0.25s ease;
+    transition: all 0.2s ease;
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
   .tool-banner.visible {
-    max-height: 44px;
-    padding: 0.6rem 1.5rem;
-    animation: bannerPulse 0.4s ease-out;
+    max-height: 36px;
+    padding: 0.4rem 1.5rem;
   }
-  @keyframes bannerPulse {
-    from { background: #fff3cd; }
-    to { background: #fef5e7; }
-  }
+
   /* ── Empty ── */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
-  .empty a { color: var(--primary); }
+  .empty a { color: var(--accent); }
 </style>
 </head>
 <body>
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
-    <a href="/" class="header-back">&larr; Dashboard</a>
+    <a href="/" class="header-back">${svgIcon("arrowLeft")} Dashboard</a>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
-      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.9rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;font-family:inherit;width:200px;">
+      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
       <button type="submit" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Save</button>
       <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Cancel</button>
     </form>
   </div>
   <div class="header-right">
     ${user.email}
-    <a href="/logout" class="logout-link">Log out</a>
+    <a href="/logout" class="logout-link">${svgIcon("logOut")} Log out</a>
   </div>
 </header>
 <div id="tool-banner" class="tool-banner"></div>
@@ -276,7 +275,6 @@ ${HTMX_LOADING_BAR}
   var hideTimer = 0;
   var MIN_SHOW_MS = 1200;
 
-  // ── Reliable: show banner during any HTMX request from the chat form ──
   document.addEventListener("htmx:beforeRequest", function(e) {
     var el = e.target;
     var form = (el && el.closest) ? el.closest(".chat-form") : null;
@@ -288,7 +286,6 @@ ${HTMX_LOADING_BAR}
     if (activeTools.length === 0) hideBanner();
   });
 
-  // ── Enhancement: SSE for real-time tool names ──
   var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
 
   es.addEventListener("message", function(e) {
@@ -304,14 +301,12 @@ ${HTMX_LOADING_BAR}
     } catch(ex) {}
   });
 
-  es.addEventListener("error", function() {
-    // EventSource will auto-reconnect
-  });
+  es.addEventListener("error", function() {});
 
   function showBanner(msg) {
     shownAt = Date.now();
     clearTimeout(hideTimer);
-    banner.innerHTML = '&#9881; ' + msg + ' <span class="spinner"></span>';
+    banner.innerHTML = '<span class="spinner"></span> ' + msg;
     banner.classList.add("visible");
   }
 
