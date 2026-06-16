@@ -32,6 +32,8 @@ export interface ConversationLoopParams {
   options?: ToolCallOptions;
   hooks?: ConversationHooks;
   logger?: Pick<Logger, "debug">;
+  /** Tool names that should pause the loop after execution instead of continuing. */
+  pauseOnTools?: Set<string>;
 }
 
 export interface ConversationLoopResult {
@@ -41,6 +43,8 @@ export interface ConversationLoopResult {
   finalMessage: AiMessage;
   /** Total number of tool calls executed across all rounds. */
   toolCallsExecuted: number;
+  /** If the loop paused because of a pauseOnTools match, the tool_use block that triggered it. */
+  pausedToolUse?: AiToolUseBlock;
 }
 
 /**
@@ -115,6 +119,20 @@ export async function conversationLoop(
     toolCallsExecuted += toolUseBlocks.length;
 
     await hooks?.onAfterToolExecution?.(results);
+
+    // Check if any executed tool matches pauseOnTools
+    if (params.pauseOnTools) {
+      for (const block of toolUseBlocks) {
+        if (params.pauseOnTools.has(block.name)) {
+          return {
+            text: textParts.join("\n"),
+            finalMessage: currentResponse,
+            toolCallsExecuted,
+            pausedToolUse: block,
+          };
+        }
+      }
+    }
 
     currentResponse = await client.continueWithToolResults(
       priorMessages,

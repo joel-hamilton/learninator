@@ -17,10 +17,46 @@ export async function loadMessages(missionId: number): Promise<AiMessageParam[]>
     .where(eq(schema.chatMessages.missionId, missionId))
     .orderBy(asc(schema.chatMessages.createdAt));
 
-  return rows.map((row) => ({
-    role: row.role as "user" | "assistant",
-    content: JSON.parse(row.content),
-  }));
+  const messages: AiMessageParam[] = [];
+  let lastAssistantToolUseIds: Set<string> | null = null;
+
+  for (const row of rows) {
+    const parsed = JSON.parse(row.content);
+
+    if (row.role === "assistant") {
+      // Collect tool_use IDs from this assistant message
+      lastAssistantToolUseIds = null;
+      if (Array.isArray(parsed)) {
+        const ids = new Set<string>();
+        for (const block of parsed) {
+          if (block.type === "tool_use" && block.id) {
+            ids.add(block.id);
+          }
+        }
+        if (ids.size > 0) lastAssistantToolUseIds = ids;
+      }
+      messages.push({ role: "assistant", content: parsed });
+    } else {
+      // For user messages, check if it's a tool_result that references orphaned tool_use IDs
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type === "tool_result") {
+        if (lastAssistantToolUseIds) {
+          // Keep only results whose tool_use_id appeared in the preceding assistant message
+          const valid = parsed.filter(
+            (b: any) => b.type === "tool_result" && lastAssistantToolUseIds!.has(b.tool_use_id)
+          );
+          if (valid.length > 0) {
+            messages.push({ role: "user", content: valid });
+          }
+          // If none are valid, skip this message entirely
+        }
+        // If no preceding assistant with tool_use IDs, skip orphaned tool_results
+      } else {
+        messages.push({ role: "user", content: parsed });
+      }
+    }
+  }
+
+  return messages;
 }
 
 export function contentToText(content: string): string {

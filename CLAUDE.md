@@ -41,7 +41,51 @@ src/
 - **DB queries**: Drizzle `and()` for multiple where conditions, `eq()` takes typed column values
 - **AI interaction**: Function tools (`TEACHER_TOOLS`) let the AI read/write DB. Tool calls are executed server-side via `executeTool`. Multi-turn conversations use `continueWithToolResults`.
 - **htmx**: All forms use htmx attributes (`hx-post`, `hx-target`, `hx-swap`). Server returns HTML fragments, not JSON.
+- **Immediate feedback**: Any user interaction that triggers an AI call (browse click, chat send, etc.) MUST show immediate visible feedback — the clicked element should dim/change instantly via CSS (`htmx-request` class), and a loading indicator should appear. Never leave the user staring at an unchanged screen while waiting for the AI. Even if the AI takes 2+ seconds, the user must know their click registered immediately.
 - **Lessons**: AI-generated HTML rendered in sandboxed iframes. Lesson HTML should be self-contained with inline CSS/JS.
+
+## Database migrations
+
+**CRITICAL: Never use `npm run db:generate` (drizzle-kit generate).** The drizzle snapshot chain is broken — the 0001 migration has no corresponding snapshot, so `db:generate` compares against a stale 0000 snapshot and produces wrong SQL (re-creating existing tables).
+
+### When you need a schema change
+
+1. Edit `src/db/schema.ts` with the TypeScript column/table definition
+2. Write a manual SQL migration file in `src/db/migrations/`:
+   ```sql
+   -- For a new column:
+   ALTER TABLE `table_name` ADD `column_name` text DEFAULT 'default_value' NOT NULL;
+
+   -- For a new table:
+   CREATE TABLE `table_name` (
+     `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+     `mission_id` integer NOT NULL,
+     -- ... more columns ...
+     FOREIGN KEY (`mission_id`) REFERENCES `missions`(`id`) ON UPDATE no action ON DELETE no action
+   );
+   ```
+3. Name it with the next sequence number: `0002_<descriptive_tag>.sql`
+4. Add the entry to `src/db/migrations/meta/_journal.json`:
+   ```json
+   {
+     "idx": <next_number>,
+     "version": "6",
+     "when": <current_unix_ms>,
+     "tag": "0002_<descriptive_tag>",
+     "breakpoints": true
+   }
+   ```
+5. Run `npm run db:migrate` to apply
+
+### Before touching migrations
+
+Always run these checks first:
+```bash
+cat src/db/migrations/meta/_journal.json   # journal entries must match actual .sql files
+ls src/db/migrations/*.sql                 # no missing or extra files
+```
+
+The snapshot situation should be fixed properly (run `drizzle-kit generate` on a clean DB after merging) so `db:generate` can be trusted again. Until then, manual SQL.
 
 ## Running
 

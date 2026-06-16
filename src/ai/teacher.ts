@@ -323,6 +323,27 @@ export const TEACHER_TOOLS: AiTool[] = [
     },
   },
 
+  // ── Guided onboarding ──
+  {
+    name: "ask_guided_question",
+    description: "Ask the user a single multiple-choice question during guided onboarding. Provide 3-4 concrete answer options — the system automatically adds a free-form 'Other' option so users can type their own answer. Call this exactly ONCE per response — ask only the single most important next question. The user's answer will be returned to you so you can ask the next question.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "The question to ask the user. Make it concise and specific.",
+        },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          description: "3-4 single-select answer options. The system automatically appends a free-form 'Other' option, so do NOT include it yourself. Make options concrete and distinct.",
+        },
+      },
+      required: ["question", "options"],
+    },
+  },
+
   // ── Mission lifecycle ──
   {
     name: "mark_mission_active",

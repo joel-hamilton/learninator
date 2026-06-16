@@ -9,6 +9,8 @@ import { conversationLoop } from "../ai/conversation.js";
 import type { AppVariables } from "../types.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
+import { chatMessageBubble } from "../views/fragments.js";
+import { userInitial } from "../views/shared.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const chatRoutes = new Hono<{ Variables: AppVariables }>();
@@ -74,9 +76,7 @@ Remember: read existing content before creating new material. Use list_lessons a
 
     const text = result.text || "Done! Anything else you'd like to work on?";
 
-    return c.html(`
-      <div class="msg assistant markdown-body">${formatMarkdown(text)}</div>
-    `);
+    return c.html(chatMessageBubble("assistant", formatMarkdown(text), userInitial(user)));
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>${err.recoverable ? " It may help to wait a moment and retry." : ""}`

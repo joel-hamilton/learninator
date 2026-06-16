@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config({ override: true });
-// Force env override — .env values take priority over shell env vars
+import "./env.js";
+// ↑ must be first — walks up the directory tree to find .env before
+// other imports read process.env at module load time
 
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
@@ -14,6 +14,7 @@ import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
 import { chatRoutes } from "./routes/chat.js";
+import { settingsApp } from "./routes/settings.js";
 import { browseRoutes } from "./routes/browse.js";
 
 const app = new Hono<{ Variables: AppVariables }>();
@@ -48,10 +49,13 @@ app.get("/favicon.ico", (c) => {
 app.use("*", auth.sessionMiddleware);
 app.route("/", auth.authApp);
 app.route("/", homeRoutes);
+app.route("/", browseRoutes);
 app.route("/missions", missionRoutes);
 app.route("/missions/:missionId/lessons", lessonRoutes);
 app.route("/missions/:missionId/chat", chatRoutes);
-app.route("/browse", browseRoutes);
+app.use("/settings", auth.requireAuth);
+app.use("/settings/*", auth.requireAuth);
+app.route("/settings", settingsApp);
 
 const port = parseInt(process.env.PORT || "3000");
 console.log(`Learninator running on http://localhost:${port}`);
