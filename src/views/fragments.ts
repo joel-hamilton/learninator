@@ -171,13 +171,10 @@ export function lessonCard(missionId: number, lesson: { number: number; subNumbe
 
 export function referenceDocCard(missionId: number, ref: { id: number; title: string; docType: string }): string {
   return `
-    <div class="ref-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <span class="type">${ref.docType}</span>
-        <a href="/missions/${missionId}/reference/${ref.id}" class="btn btn-secondary btn-sm">View &rarr;</a>
-      </div>
+    <a href="/missions/${missionId}/reference/${ref.id}" class="ref-card">
+      <span class="type">${ref.docType}</span>
       <h3>${ref.title}</h3>
-    </div>
+    </a>
   `;
 }
 

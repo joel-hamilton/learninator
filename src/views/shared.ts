@@ -339,6 +339,77 @@ document.addEventListener("htmx:afterRequest", function(e) {
     }
   }
 });
+	// Guided question helpers
+	function selectOption(row, idx) {
+	  const radio = row.querySelector('input[type="radio"]');
+	  if (radio) radio.checked = true;
+	  onOptionChange(idx);
+	}
+	function onOptionChange(idx) {
+	  const options = document.querySelectorAll('#options-container .option-row');
+	  options.forEach((row, i) => row.classList.toggle('selected', i === idx));
+	  const isOther = idx === options.length - 1;
+	  const otherInput = document.getElementById('other-input');
+	  if (otherInput) otherInput.classList.toggle('visible', isOther);
+	  const submitBtn = document.getElementById('submit-btn');
+	  if (submitBtn) submitBtn.disabled = false;
+	  const hidden = document.getElementById('answer-hidden');
+	  const radio = document.querySelector('input[name="answer"]:checked');
+	  if (hidden && radio) hidden.value = radio.value;
+	}
+	function onOtherInput(input) {
+	  const hidden = document.getElementById('other-text-hidden');
+	  if (hidden) hidden.value = input.value;
+	  const answerHidden = document.getElementById('answer-hidden');
+	  if (answerHidden) answerHidden.value = input.value;
+	}
+	function validateAnswer() {
+	  const otherInput = document.getElementById('other-input');
+	  const otherText = document.getElementById('other-text');
+	  const isVisible = otherInput && otherInput.classList.contains('visible');
+	  if (isVisible && otherText && !otherText.value.trim()) {
+	    otherText.focus();
+	    return false;
+	  }
+	  return true;
+	}
+</script>`;
+
+/** Guided question JS for onboarding pages. */
+export const GUIDED_QUESTION_SCRIPT = `<script>
+function selectOption(row, idx) {
+  const radio = row.querySelector('input[type="radio"]');
+  if (radio) radio.checked = true;
+  onOptionChange(idx);
+}
+function onOptionChange(idx) {
+  const options = document.querySelectorAll('#options-container .option-row');
+  options.forEach((row, i) => row.classList.toggle('selected', i === idx));
+  const isOther = idx === options.length - 1;
+  const otherInput = document.getElementById('other-input');
+  if (otherInput) otherInput.classList.toggle('visible', isOther);
+  const submitBtn = document.getElementById('submit-btn');
+  if (submitBtn) submitBtn.disabled = false;
+  const hidden = document.getElementById('answer-hidden');
+  const radio = document.querySelector('input[name="answer"]:checked');
+  if (hidden && radio) hidden.value = radio.value;
+}
+function onOtherInput(input) {
+  const hidden = document.getElementById('other-text-hidden');
+  if (hidden) hidden.value = input.value;
+  const answerHidden = document.getElementById('answer-hidden');
+  if (answerHidden) answerHidden.value = input.value;
+}
+function validateAnswer() {
+  const otherInput = document.getElementById('other-input');
+  const otherText = document.getElementById('other-text');
+  const isVisible = otherInput && otherInput.classList.contains('visible');
+  if (isVisible && otherText && !otherText.value.trim()) {
+    otherText.focus();
+    return false;
+  }
+  return true;
+}
 </script>`;
 
 /** Loading bar — add right after <body> in page layouts, NOT inside <head>. */

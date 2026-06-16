@@ -21,6 +21,9 @@ export const missions = sqliteTable("missions", {
   status: text("status", { enum: ["onboarding", "active", "archived"] })
     .notNull()
     .default("onboarding"),
+  onboardingMode: text("onboarding_mode", { enum: ["guided", "chat"] })
+    .notNull()
+    .default("guided"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),
@@ -105,6 +108,22 @@ export const learningRecords = sqliteTable("learning_records", {
     .notNull()
     .default("active"),
   supersededBy: integer("superseded_by"),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
+// ── Guided Questions ─────────────────────────────────────────────
+export const guidedQuestions = sqliteTable("guided_questions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  missionId: integer("mission_id")
+    .notNull()
+    .references(() => missions.id),
+  question: text("question").notNull(),
+  options: text("options").notNull(),
+  answer: text("answer"),
+  answerText: text("answer_text"),
+  status: text("status", { enum: ["pending", "answered"] }).notNull().default("pending"),
   createdAt: text("created_at")
     .notNull()
     .$defaultFn(() => new Date().toISOString()),

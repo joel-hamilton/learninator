@@ -148,6 +148,7 @@ ${HTMX_HEAD}
 
   .ref-list { display: grid; gap: 0.5rem; }
   .ref-card {
+    display: block; text-decoration: none; color: inherit;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 1.25rem; transition: all var(--transition-slow); box-shadow: var(--shadow-sm);
   }
@@ -186,7 +187,12 @@ ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="header-back">&larr; Dashboard</a>
-    <span class="header-title">${mission.title}${statusTag}</span>
+    <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
+    <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
+      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.9rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:4px;font-family:inherit;width:200px;">
+      <button type="submit" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Save</button>
+      <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Cancel</button>
+    </form>
   </div>
   <div class="header-right">
     ${user.email}

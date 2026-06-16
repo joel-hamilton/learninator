@@ -265,6 +265,25 @@ async function markMissionActive(ctx: ToolHandlerContext): Promise<string> {
   return "Mission is now active. You can begin creating lessons."
 }
 
+async function readResources(ctx: ToolHandlerContext): Promise<string> {
+  return readMissionContent({ ...ctx, input: { content_type: "resources" } })
+}
+
+async function writeResources(ctx: ToolHandlerContext): Promise<string> {
+  return writeMissionContent({ ...ctx, input: { ...ctx.input, content_type: "resources" } })
+}
+
+async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId, input } = ctx
+  const options = [...(input.options as string[]), "Other (please specify)"]
+  await db.insert(schema.guidedQuestions).values({
+    missionId,
+    question: input.question as string,
+    options: JSON.stringify(options),
+  })
+  return `Question saved. Waiting for user answer.`
+}
+
 // ── Handler map ───────────────────────────────────────────────────────
 
 function buildHandlerMap(): Map<string, ToolHandler> {
@@ -281,6 +300,9 @@ function buildHandlerMap(): Map<string, ToolHandler> {
     ["list_learning_records", listLearningRecords],
     ["update_learning_record", updateLearningRecord],
     ["mark_mission_active", markMissionActive],
+    ["read_resources", readResources],
+    ["write_resources", writeResources],
+    ["ask_guided_question", askGuidedQuestion],
   ])
 }
 

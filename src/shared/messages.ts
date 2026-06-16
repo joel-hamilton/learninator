@@ -29,8 +29,12 @@ export function contentToText(content: string): string {
     if (typeof parsed === "string") return parsed;
     if (Array.isArray(parsed)) {
       return parsed
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
+        .map((b: { type: string; text?: string; content?: string }) => {
+          if (b.type === "text" && b.text) return b.text;
+          if (b.type === "tool_result" && b.content) return b.content;
+          return "";
+        })
+        .filter((s) => s.length > 0)
         .join("\n");
     }
     return String(parsed);

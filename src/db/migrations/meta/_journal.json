@@ -19,8 +19,8 @@
     {
       "idx": 2,
       "version": "6",
-      "when": 1781553406222,
-      "tag": "0002_unknown_bullseye",
+      "when": 1781615200000,
+      "tag": "0002_guided_onboarding",
       "breakpoints": true
     }
   ]
