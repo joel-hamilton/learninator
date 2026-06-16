@@ -6,6 +6,7 @@ import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 import { emit } from "../ai/events.js";
 import { AIError } from "../ai/index.js";
+import { saveMessage, loadMessages } from "../shared/messages.js";
 import { eq, and, asc } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 
@@ -42,56 +43,6 @@ export interface OnboardingModule {
 export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
   const { ai, toolExecutor, db, logger } = deps;
 
-  // ── Internal message persistence helpers (use deps.db for testability) ──
-
-  async function saveMsg(missionId: number, role: "user" | "assistant", content: unknown) {
-    await db.insert(schema.chatMessages).values({
-      missionId,
-      role,
-      content: JSON.stringify(content),
-    });
-  }
-
-  async function loadMsgs(missionId: number): Promise<AiMessageParam[]> {
-    const rows = await db
-      .select()
-      .from(schema.chatMessages)
-      .where(eq(schema.chatMessages.missionId, missionId))
-      .orderBy(asc(schema.chatMessages.createdAt));
-
-    const messages: AiMessageParam[] = [];
-    let lastAssistantToolUseIds: Set<string> | null = null;
-
-    for (const row of rows) {
-      const parsed = JSON.parse(row.content);
-
-      if (row.role === "assistant") {
-        lastAssistantToolUseIds = null;
-        if (Array.isArray(parsed)) {
-          const ids = new Set<string>();
-          for (const block of parsed) {
-            if (block.type === "tool_use" && block.id) ids.add(block.id);
-          }
-          if (ids.size > 0) lastAssistantToolUseIds = ids;
-        }
-        messages.push({ role: "assistant", content: parsed });
-      } else {
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type === "tool_result") {
-          if (lastAssistantToolUseIds) {
-            const valid = parsed.filter(
-              (b: any) => b.type === "tool_result" && lastAssistantToolUseIds!.has(b.tool_use_id)
-            );
-            if (valid.length > 0) messages.push({ role: "user", content: valid });
-          }
-        } else {
-          messages.push({ role: "user", content: parsed });
-        }
-      }
-    }
-
-    return messages;
-  }
-
   // ── Prompt builder ──
 
   function getOnboardingPrompt(mode: string): string {
@@ -117,7 +68,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
   }
 
   async function generateMissionTitle(missionId: number): Promise<string | null> {
-    const messages = await loadMsgs(missionId);
+    const messages = await loadMessages(missionId, db);
     if (messages.length === 0) return null;
 
     const conversationText = messages.map((m) => {
@@ -176,7 +127,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
       pauseOnTools: opts?.pauseOnTools,
       hooks: {
         onAssistantMessage: async (content) => {
-          await saveMsg(missionId, "assistant", content);
+          await saveMessage(missionId, "assistant", content, db);
         },
         onBeforeToolExecution: async (toolUseBlocks) => {
           pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
@@ -188,7 +139,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
         },
         onAfterToolExecution: async (results) => {
           emit(missionId, { type: "tool_end", names: pendingToolNames });
-          await saveMsg(missionId, "user", results);
+          await saveMessage(missionId, "user", results, db);
         },
       },
     });
@@ -218,7 +169,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
         { role: "user", content: userMessage },
       ];
 
-      await saveMsg(missionId, "user", userMessage);
+      await saveMessage(missionId, "user", userMessage, db);
 
       const opts = mode === "guided"
         ? { pauseOnTools: new Set(["ask_guided_question"]) }
@@ -230,7 +181,8 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
         if (result.didActivate) {
           await generateMissionTitle(missionId);
         }
-      } catch {
+      } catch (err) {
+        logger.error("onboarding.start failed:", err);
         // Mission and user message are saved; redirect to onboarding page
       }
 
@@ -239,7 +191,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
 
     async continueGuided(missionId) {
       const systemPrompt = getOnboardingPrompt("guided");
-      const messages = await loadMsgs(missionId);
+      const messages = await loadMessages(missionId, db);
 
       try {
         const result = await runConversationLoop(
@@ -294,10 +246,10 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
 
       const qText = questionRow?.question || "Previous question";
       const userMessage = `Question: ${qText}\nAnswer: ${finalAnswer}`;
-      await saveMsg(missionId, "user", userMessage);
+      await saveMessage(missionId, "user", userMessage, db);
 
       const systemPrompt = getOnboardingPrompt("guided");
-      const messages = await loadMsgs(missionId);
+      const messages = await loadMessages(missionId, db);
 
       try {
         const result = await runConversationLoop(
@@ -347,8 +299,8 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
       const skipTools = TEACHER_TOOLS.filter((t) => t.name !== "ask_guided_question");
 
       const skipMessage = "[I've answered enough questions. Please use your best judgment for the rest and create the mission and first lesson.]";
-      await saveMsg(missionId, "user", skipMessage);
-      const allMessages = await loadMsgs(missionId);
+      await saveMessage(missionId, "user", skipMessage, db);
+      const allMessages = await loadMessages(missionId, db);
 
       try {
         const result = await runConversationLoop(missionId, systemPrompt, allMessages, skipTools);
@@ -357,7 +309,8 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
           await generateMissionTitle(missionId);
           return { type: "redirect", url: `/missions/${missionId}` };
         }
-      } catch {
+      } catch (err) {
+        logger.error("onboarding.skipQuestions failed:", err);
         // Continue to redirect even on error — mission exists
       }
 
@@ -384,7 +337,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
             const options: string[] = JSON.parse(pq.options as string);
             const optionsText = options.map((o: string) => `- ${o}`).join("\n");
             const questionMsg = `**${pq.question}**\n\n${optionsText}`;
-            await saveMsg(missionId, "assistant", questionMsg);
+            await saveMessage(missionId, "assistant", questionMsg, db);
             await db
               .update(schema.guidedQuestions)
               .set({ answer: "(switched to chat)", status: "answered" })

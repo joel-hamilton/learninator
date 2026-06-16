@@ -2,16 +2,18 @@ import { db, schema } from "../db/index.js";
 import { eq, asc } from "drizzle-orm";
 import type { AiMessageParam } from "../ai/types.js";
 
-export async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown) {
-  await db.insert(schema.chatMessages).values({
+export async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown, dbInstance?: any) {
+  const d = dbInstance || db;
+  await d.insert(schema.chatMessages).values({
     missionId,
     role,
     content: JSON.stringify(content),
   });
 }
 
-export async function loadMessages(missionId: number): Promise<AiMessageParam[]> {
-  const rows = await db
+export async function loadMessages(missionId: number, dbInstance?: any): Promise<AiMessageParam[]> {
+  const d = dbInstance || db;
+  const rows = await d
     .select()
     .from(schema.chatMessages)
     .where(eq(schema.chatMessages.missionId, missionId))
