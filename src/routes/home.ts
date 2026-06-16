@@ -29,6 +29,9 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
           </div>
           <button type="submit">Start Learning</button>
         </form>
+        <div class="browse-entry" style="margin-top:1.25rem">
+          <a href="/browse" class="btn btn-secondary">🧭 Browse topics</a>
+        </div>
         <div class="examples">
           <button type="button" class="example-btn" onclick="const ta=this.closest('.empty-state').querySelector('textarea');ta.value='Guitar fretboard fluency';ta.focus()">Guitar fretboard</button>
           <button type="button" class="example-btn" onclick="const ta=this.closest('.empty-state').querySelector('textarea');ta.value='Rust programming';ta.focus()">Rust</button>
@@ -65,8 +68,9 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
       <h2>Your missions</h2>
       <p>Continue learning where you left off, or start something new.</p>
     </div>
-    <div class="add-new">
+    <div class="add-new" style="display:flex;gap:0.75rem;align-items:center">
       <a href="/missions/new">+ Start a new mission</a>
+      <a href="/browse" class="btn btn-secondary btn-sm">🧭 Browse topics</a>
     </div>
     <div class="section-label">Missions</div>
     <div class="mission-list stagger">
