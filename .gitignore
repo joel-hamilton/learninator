@@ -4,6 +4,6 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 .playwright-mcp
-.claude/worktrees
+.claude/worktrees/
 .env
 *.log
