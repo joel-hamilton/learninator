@@ -78,8 +78,24 @@ ${HTMX_HEAD}
   .tag-archived { background: var(--primary-light); color: var(--text-muted); }
   .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
 
-  /* Layout */
-  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 56px); }
+  /* ── Sidebar toggle ── */
+  .sidebar-toggle {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.1rem; color: var(--text-secondary);
+    padding: 0.25rem 0.4rem; border-radius: var(--radius-sm);
+    line-height: 1; transition: all var(--transition);
+    flex-shrink: 0;
+  }
+  .sidebar-toggle:hover { color: var(--text); background: var(--primary-light); }
+  /* ── Layout ── */
+  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); transition: grid-template-columns 0.25s ease; }
+  .layout.sidebar-closed { grid-template-columns: 0 1fr; }
+  .layout.sidebar-closed .sidebar { overflow: hidden; padding: 0; border-right: none; min-width: 0; }
+
+  @media (max-width: 768px) {
+    .layout:not(.sidebar-open) { grid-template-columns: 0 1fr; }
+    .layout:not(.sidebar-open) .sidebar { overflow: hidden; padding: 0; border-right: none; min-width: 0; }
+  }
 
   /* Sidebar */
   .sidebar {
@@ -231,6 +247,7 @@ ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
+    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
       <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
@@ -259,64 +276,91 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
-
 <script>
 (function() {
+  // ── Tool banner (SSE) ──
   var banner = document.getElementById("tool-banner");
-  if (!banner) return;
+  if (banner) {
+    var parts = window.location.pathname.split("/");
+    var missionId = parts[2];
+    if (missionId && !isNaN(Number(missionId))) {
+      var activeTools = [];
+      var shownAt = 0;
+      var hideTimer = 0;
+      var MIN_SHOW_MS = 1200;
 
-  var parts = window.location.pathname.split("/");
-  var missionId = parts[2];
-  if (!missionId || isNaN(Number(missionId))) return;
+      document.addEventListener("htmx:beforeRequest", function(e) {
+        var el = e.target;
+        var form = (el && el.closest) ? el.closest(".chat-form") : null;
+        if (!form) form = document.querySelector(".chat-form");
+        if (form) showBanner("Working...");
+      });
 
-  var activeTools = [];
-  var shownAt = 0;
-  var hideTimer = 0;
-  var MIN_SHOW_MS = 1200;
-
-  document.addEventListener("htmx:beforeRequest", function(e) {
-    var el = e.target;
-    var form = (el && el.closest) ? el.closest(".chat-form") : null;
-    if (!form) form = document.querySelector(".chat-form");
-    if (form) showBanner("Working...");
-  });
-
-  document.addEventListener("htmx:afterRequest", function(e) {
-    if (activeTools.length === 0) hideBanner();
-  });
-
-  var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
-
-  es.addEventListener("message", function(e) {
-    try {
-      var event = JSON.parse(e.data);
-      if (event.type === "tool_start") {
-        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
-        showBanner(activeTools.join(", "));
-      } else if (event.type === "tool_end") {
-        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
+      document.addEventListener("htmx:afterRequest", function(e) {
         if (activeTools.length === 0) hideBanner();
+      });
+
+      var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
+
+      es.addEventListener("message", function(e) {
+        try {
+          var event = JSON.parse(e.data);
+          if (event.type === "tool_start") {
+            event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
+            showBanner(activeTools.join(", "));
+          } else if (event.type === "tool_end") {
+            activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
+            if (activeTools.length === 0) hideBanner();
+          }
+        } catch(ex) {}
+      });
+
+      es.addEventListener("error", function() {});
+
+      function showBanner(msg) {
+        shownAt = Date.now();
+        clearTimeout(hideTimer);
+        banner.innerHTML = '<span class="spinner"></span> ' + msg;
+        banner.classList.add("visible");
       }
-    } catch(ex) {}
-  });
 
-  es.addEventListener("error", function() {});
-
-  function showBanner(msg) {
-    shownAt = Date.now();
-    clearTimeout(hideTimer);
-    banner.innerHTML = '<span class="spinner"></span> ' + msg;
-    banner.classList.add("visible");
+      function hideBanner() {
+        var elapsed = Date.now() - shownAt;
+        if (elapsed < MIN_SHOW_MS) {
+          hideTimer = setTimeout(function() {
+            banner.classList.remove("visible");
+          }, MIN_SHOW_MS - elapsed);
+        } else {
+          banner.classList.remove("visible");
+        }
+      }
+    }
   }
 
-  function hideBanner() {
-    var elapsed = Date.now() - shownAt;
-    if (elapsed < MIN_SHOW_MS) {
-      hideTimer = setTimeout(function() {
-        banner.classList.remove("visible");
-      }, MIN_SHOW_MS - elapsed);
-    } else {
-      banner.classList.remove("visible");
+  // ── Sidebar toggle ──
+  var layout = document.querySelector(".layout");
+  var toggle = document.querySelector(".sidebar-toggle");
+  if (layout && toggle) {
+    if (window.innerWidth <= 768) {
+      layout.classList.add("sidebar-closed");
+    }
+    updateToggleIcon();
+
+    toggle.addEventListener("click", function() {
+      var isClosed = layout.classList.contains("sidebar-closed") ||
+        (window.innerWidth <= 768 && !layout.classList.contains("sidebar-open"));
+      if (isClosed) {
+        layout.classList.remove("sidebar-closed");
+        layout.classList.add("sidebar-open");
+      } else {
+        layout.classList.remove("sidebar-open");
+        layout.classList.add("sidebar-closed");
+      }
+      updateToggleIcon();
+    });
+
+    function updateToggleIcon() {
+      toggle.textContent = layout.classList.contains("sidebar-closed") ? "▶" : "◀";
     }
   }
 })();
