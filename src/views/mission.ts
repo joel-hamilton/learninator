@@ -84,14 +84,58 @@ ${HTMX_HEAD}
   .header-right .logout-link:hover { border-color: var(--primary); color: var(--text); }
 
   /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); }
+  .layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    min-height: calc(100vh - 56px);
+    transition: grid-template-columns 0.25s ease;
+  }
+  .layout.sidebar-collapsed { grid-template-columns: 0 1fr; }
 
   /* ── Sidebar ── */
   .sidebar {
     background: var(--surface); border-right: 1px solid var(--border);
     padding: 1.25rem 1rem; display: flex; flex-direction: column;
     position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    transition: padding 0.25s ease, border 0.25s ease;
   }
+  .layout.sidebar-collapsed .sidebar { padding: 0; border-right: none; overflow: hidden; }
+
+  /* ── Sidebar toggle ── */
+  .sidebar-toggle {
+    position: absolute;
+    right: -12px;
+    bottom: 80px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1;
+  }
+  .sidebar-toggle:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .sidebar-toggle svg {
+    width: 10px;
+    height: 10px;
+    transition: transform 0.25s ease;
+  }
+  .sidebar-collapsed .sidebar-toggle { right: -28px; }
+  .sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+
   .sidebar-label {
     font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.5rem;
@@ -195,6 +239,9 @@ ${HTMX_LOADING_BAR}
 </header>
 <div class="layout">
   <aside class="sidebar">
+    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
+    </button>
     <div class="sidebar-label">Workspace</div>
     <nav class="tabs">
       ${tabHtml}
@@ -210,6 +257,16 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
+<script>
+  (function() {
+    var toggle = document.querySelector(".sidebar-toggle");
+    var layout = document.querySelector(".layout");
+    if (!toggle || !layout) return;
+    toggle.addEventListener("click", function() {
+      layout.classList.toggle("sidebar-collapsed");
+    });
+  })();
+</script>
 </body>
 </html>`;
 }
