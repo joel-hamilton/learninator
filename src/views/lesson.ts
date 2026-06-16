@@ -1,5 +1,5 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
-import { feedbackBar, completedLessonBar } from "./fragments.js";
+import { lessonActionBar, completedLessonBar } from "./fragments.js";
 
 function formatLessonNumber(num: number, sub: number | null): string {
   const base = String(num).padStart(4, "0");
@@ -18,12 +18,10 @@ export function lessonPage(params: {
   lessonTitle: string;
   lessonStatus: string;
   lessonHtmlContent: string;
-  feedbackRating: string | null;
-  feedbackText: string | null;
   prevLesson: { number: number; subNumber: number | null } | undefined;
   nextLesson: { number: number; subNumber: number | null } | undefined;
 }): string {
-  const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, feedbackRating, feedbackText, prevLesson, nextLesson } = params;
+  const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, prevLesson, nextLesson } = params;
 
   const displayNum = formatLessonNumber(lessonNumber, lessonSubNumber);
 
@@ -147,15 +145,8 @@ ${HTMX_LOADING_BAR}
 
   ${lessonStatus === "completed"
     ? completedLessonBar(missionId, lessonNumber, lessonSubNumber)
-    : feedbackBar(missionId, lessonNumber, lessonSubNumber)
+    : lessonActionBar(missionId, lessonNumber, lessonSubNumber)
   }
-
-  ${feedbackRating ? `
-    <div class="feedback-bar">
-      <span class="label">You rated this: <strong>${feedbackRating.replace("_", " ")}</strong></span>
-      ${feedbackText ? `<span style="font-size:0.85rem;color:var(--text-muted);">${feedbackText}</span>` : ""}
-    </div>
-  ` : ""}
 
   <div class="lesson-chat">
     <h3>Questions about this lesson?</h3>

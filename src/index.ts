@@ -1,6 +1,6 @@
-import dotenv from "dotenv";
-dotenv.config({ override: true });
-// Force env override — .env values take priority over shell env vars
+import "./env.js";
+// ↑ must be first — walks up the directory tree to find .env before
+// other imports read process.env at module load time
 
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
