@@ -235,6 +235,7 @@ export const BROWSE_STYLES = `<style>
     align-items: center;
     gap: 0.7rem;
     box-shadow: var(--shadow-sm);
+    height: 100%;
   }
   .skeleton-icon {
     width: 36px;
@@ -301,16 +302,18 @@ export const BROWSE_STYLES = `<style>
   .browse-options {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-auto-rows: 1fr;
     gap: 0.65rem;
     position: relative;
   }
 
   /* Card form */
-  .browse-card-form { margin: 0; padding: 0; }
+  .browse-card-form { margin: 0; padding: 0; height: 100%; }
 
   /* Card button */
   .browse-card {
     width: 100%;
+    height: 100%;
     background: var(--surface);
     border: 1.5px solid var(--border);
     border-radius: var(--radius-lg);
