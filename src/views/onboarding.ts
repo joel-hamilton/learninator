@@ -58,8 +58,11 @@ ${HTMX_LOADING_BAR}
     ${messagesHtml}
   </div>
   <form class="chat-form" hx-post="/missions/${mission.id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-    <textarea name="message" id="chat-input" placeholder="Type your answer..." autofocus autocomplete="off" rows="2" oninput="autoResize(this)"></textarea>
-    <button type="submit">Send</button>
+	    <div class="textarea-wrapper">
+	      <textarea name="message" id="chat-input" placeholder="Type your answer..." autofocus autocomplete="off" rows="2" oninput="autoResize(this)"></textarea>
+	      <span class="textarea-hint">Shift + Enter for newline</span>
+	    </div>
+	    <button type="submit">Send</button>
   </form>
 </div>
 </body>
@@ -110,7 +113,10 @@ ${HTMX_LOADING_BAR}
     <div class="msg assistant">Hi! I'm your teacher. What would you like to learn? Be as specific as you can — for example, "I want to be able to solo on guitar anywhere on the neck" or "I want to ship a Rust CLI tool."</div>
   </div>
   <form class="chat-form" hx-post="/missions" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-    <textarea name="message" id="chat-input" placeholder="Type your answer..." autofocus autocomplete="off" rows="2" oninput="autoResize(this)"></textarea>
+    <div class="textarea-wrapper">
+      <textarea name="message" id="chat-input" placeholder="Type your answer..." autofocus autocomplete="off" rows="2" oninput="autoResize(this)"></textarea>
+      <span class="textarea-hint">Shift + Enter for newline</span>
+    </div>
     <button type="submit">Send</button>
   </form>
 </div>

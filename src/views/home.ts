@@ -41,9 +41,10 @@ ${HTMX_HEAD}
   .empty-state h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
   .empty-state p { color: var(--text-secondary); margin-bottom: 2rem; }
   .empty-state form { display: flex; gap: 0.5rem; justify-content: center; }
+	.empty-state .textarea-wrapper { width: 380px; }
   .empty-state textarea {
-    padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-lg);
-    font-size: 1rem; width: 380px; font-family: inherit; resize: none;
+    padding: 0.75rem 1rem; padding-bottom: 1.3rem; border: 1px solid var(--border); border-radius: var(--radius-lg);
+    font-size: 1rem; width: 100%; box-sizing: border-box; font-family: inherit; resize: none;
     transition: border-color var(--transition), box-shadow var(--transition); outline: none;
   }
   .empty-state textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,45,45,0.1); }

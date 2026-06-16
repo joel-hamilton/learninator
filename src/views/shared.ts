@@ -193,7 +193,7 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     box-shadow: var(--shadow-sm);
   }
   .chat-form textarea {
-    flex: 1; border: none; padding: 0.4rem 0.5rem;
+    width: 100%; box-sizing: border-box; border: none; padding: 0.4rem 0.5rem; padding-bottom: 1.3rem;
     font-size: 0.95rem; font-family: inherit; resize: none;
     background: transparent; color: var(--text); outline: none;
     line-height: 1.5;
@@ -209,7 +209,25 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .chat-form button:hover { background: var(--primary-hover); }
   .chat-form button:active { transform: scale(0.97); }
 
-  /* ── Section Divider ── */
+	.textarea-wrapper {
+	    position: relative;
+	}
+	.chat-form .textarea-wrapper {
+	.textarea-wrapper textarea { padding-bottom: 1.3rem; }
+	    flex: 1;
+	}
+	.textarea-hint {
+	    position: absolute;
+	    bottom: 4px;
+	    left: 8px;
+	    font-size: 0.62rem;
+	    color: var(--text-muted);
+	    pointer-events: none;
+	    opacity: 0.45;
+	    line-height: 1;
+	}
+
+	/* ── Section Divider ── */
   .section-label {
     display: flex; align-items: center; gap: 0.75rem;
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em;
@@ -287,13 +305,27 @@ function autoResize(el) {
 }
 document.addEventListener("keydown", function(e) {
   if (e.target.tagName !== "TEXTAREA" || e.key !== "Enter" || e.shiftKey) return;
-  const form = e.target.closest(".chat-form");
-  if (!form || form.dataset.sending) return;
-  if (!e.target.value.trim()) return;
+  const chatForm = e.target.closest(".chat-form");
+  if (chatForm && chatForm.dataset.sending) return;
+  if (chatForm && !e.target.value.trim()) return;
   e.preventDefault();
-  form.dataset.sending = "true";
-  const btn = form.querySelector('button[type="submit"]');
+
+  const form = e.target.closest("form");
+  let btn;
+  if (form) {
+    btn = form.querySelector('button[type="submit"]');
+  } else {
+    let el = e.target;
+    while (el && el !== document.body) {
+      btn = el.querySelector('button[hx-post], button[type="submit"]');
+      if (btn) break;
+      el = el.parentElement;
+    }
+  }
+
+  if (chatForm) chatForm.dataset.sending = "true";
   if (btn) btn.click();
+  else if (form) form.requestSubmit();
 });
 document.addEventListener("htmx:afterRequest", function(e) {
   const form = e.target.closest(".chat-form");

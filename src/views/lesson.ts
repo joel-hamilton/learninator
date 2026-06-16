@@ -162,7 +162,10 @@ ${HTMX_LOADING_BAR}
     <div id="followup-messages"></div>
     <form class="chat-form" hx-post="/missions/${missionId}/chat" hx-target="#followup-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <input type="hidden" name="context" value="Lesson ${displayNum}: ${lessonTitle}">
-      <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" oninput="autoResize(this)"></textarea>
+      <div class="textarea-wrapper">
+        <textarea name="message" placeholder="What's unclear about this lesson?" rows="2" oninput="autoResize(this)"></textarea>
+        <span class="textarea-hint">Shift + Enter for newline</span>
+      </div>
       <button type="submit">Ask</button>
     </form>
   </div>

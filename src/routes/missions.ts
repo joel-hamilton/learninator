@@ -359,7 +359,10 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     </div>
     <div id="chat-messages">${messagesHtml}</div>
     <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
-      <textarea name="message" placeholder="Ask your teacher something..." rows="2" oninput="autoResize(this)"></textarea>
+      <div class="textarea-wrapper">
+        <textarea name="message" placeholder="Ask your teacher something..." rows="2" oninput="autoResize(this)"></textarea>
+        <span class="textarea-hint">Shift + Enter for newline</span>
+      </div>
       <button type="submit">Send</button>
     </form>
   `, "chat"));

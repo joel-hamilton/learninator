@@ -23,7 +23,10 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
         <h2>What do you want to learn?</h2>
         <p>Start a new mission and your AI teacher will guide you.</p>
         <form hx-post="/missions" hx-target="body">
-          <textarea name="message" placeholder="e.g., Guitar, Rust, Quantum Physics..." required autofocus rows="2" oninput="autoResize(this)"></textarea>
+          <div class="textarea-wrapper">
+            <textarea name="message" placeholder="e.g., Guitar, Rust, Quantum Physics..." required autofocus rows="2" oninput="autoResize(this)"></textarea>
+            <span class="textarea-hint">Shift + Enter for newline</span>
+          </div>
           <button type="submit">Start Learning</button>
         </form>
         <div class="examples">

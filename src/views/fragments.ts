@@ -56,7 +56,10 @@ export function completeBar(alreadyCompleted: boolean, missionId: number, number
     </span>
     <div style="display:flex;flex-direction:column;gap:0.5rem;">
       <label style="font-size:0.85rem;color:var(--text-secondary);">Notes for the next lesson <span style="color:var(--text-muted);">(optional)</span></label>
-      <textarea name="notes" placeholder='What should the next lesson cover? Anything to change? e.g. "More hands-on examples" or "Go deeper into X"' rows="3" class="input"></textarea>
+      <div class="textarea-wrapper">
+        <textarea name="notes" placeholder='What should the next lesson cover? Anything to change? e.g. "More hands-on examples" or "Go deeper into X"' rows="3" class="input"></textarea>
+        <span class="textarea-hint">Shift + Enter for newline</span>
+      </div>
     </div>
     <div style="display:flex;gap:0.5rem;align-items:center;">
       <button hx-post="/missions/${missionId}/lessons/${lid}/generate-next" hx-target="#feedback-bar" hx-swap="outerHTML" hx-include="[name='notes']" class="btn btn-primary btn-sm">
