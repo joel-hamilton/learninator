@@ -78,19 +78,15 @@ ${HTMX_HEAD}
   .tag-archived { background: var(--primary-light); color: var(--text-muted); }
   .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
 
-  /* ── Sidebar toggle ── */
-  .sidebar-toggle {
-    background: none; border: none; cursor: pointer;
-    font-size: 1.1rem; color: var(--text-secondary);
-    padding: 0.25rem 0.4rem; border-radius: var(--radius-sm);
-    line-height: 1; transition: all var(--transition);
-    flex-shrink: 0;
+  /* Layout */
+  .layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    min-height: calc(100vh - 56px);
+    transition: grid-template-columns 0.25s ease;
   }
-  .sidebar-toggle:hover { color: var(--text); background: var(--primary-light); }
-  /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); transition: grid-template-columns 0.25s ease; }
-  .layout.sidebar-closed { grid-template-columns: 0 1fr; }
-  .layout.sidebar-closed .sidebar { overflow: hidden; padding: 0; border-right: none; min-width: 0; }
+  .layout.sidebar-collapsed { grid-template-columns: 0 1fr; }
+  .layout.sidebar-collapsed .sidebar { padding: 0; border-right: none; overflow: hidden; }
 
   @media (max-width: 768px) {
     .layout:not(.sidebar-open) { grid-template-columns: 0 1fr; }
@@ -102,6 +98,7 @@ ${HTMX_HEAD}
     background: var(--surface); border-right: 1px solid var(--border);
     padding: 1.25rem 0.75rem; display: flex; flex-direction: column;
     position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    transition: padding 0.25s ease, border 0.25s ease;
   }
   .sidebar-back {
     font-size: 0.78rem; color: var(--text-secondary); text-decoration: none;
@@ -111,6 +108,42 @@ ${HTMX_HEAD}
   }
   .sidebar-back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
   .sidebar-back .svg-icon { width: 0.8em; height: 0.8em; }
+
+  /* Sidebar toggle */
+  .sidebar-toggle {
+    position: absolute;
+    right: -12px;
+    bottom: 80px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    transition: all 0.2s ease;
+    padding: 0;
+    line-height: 1;
+  }
+  .sidebar-toggle:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+  .sidebar-toggle svg {
+    width: 10px;
+    height: 10px;
+    transition: transform 0.25s ease;
+  }
+  .sidebar-collapsed .sidebar-toggle { right: -28px; }
+  .sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+
   .sidebar-label {
     font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
     color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.35rem;
@@ -247,7 +280,6 @@ ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
-    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
       <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
@@ -261,6 +293,9 @@ ${HTMX_LOADING_BAR}
 <div class="layout">
   <aside class="sidebar">
     <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} ${backLabel}</a>
+    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
+    </button>
     <div class="sidebar-label">Workspace</div>
     <nav class="tabs">
       ${tabHtml}
@@ -278,7 +313,7 @@ ${HTMX_LOADING_BAR}
 </div>
 <script>
 (function() {
-  // ── Tool banner (SSE) ──
+  // Tool banner (SSE)
   var banner = document.getElementById("tool-banner");
   if (banner) {
     var parts = window.location.pathname.split("/");
@@ -351,31 +386,16 @@ ${HTMX_LOADING_BAR}
     }
   }
 
-  // ── Sidebar toggle ──
+  // Sidebar toggle
+  var toggle = document.querySelector(".sidebar .sidebar-toggle");
   var layout = document.querySelector(".layout");
-  var toggle = document.querySelector(".sidebar-toggle");
-  if (layout && toggle) {
+  if (toggle && layout) {
     if (window.innerWidth <= 768) {
-      layout.classList.add("sidebar-closed");
+      layout.classList.add("sidebar-collapsed");
     }
-    updateToggleIcon();
-
     toggle.addEventListener("click", function() {
-      var isClosed = layout.classList.contains("sidebar-closed") ||
-        (window.innerWidth <= 768 && !layout.classList.contains("sidebar-open"));
-      if (isClosed) {
-        layout.classList.remove("sidebar-closed");
-        layout.classList.add("sidebar-open");
-      } else {
-        layout.classList.remove("sidebar-open");
-        layout.classList.add("sidebar-closed");
-      }
-      updateToggleIcon();
+      layout.classList.toggle("sidebar-collapsed");
     });
-
-    function updateToggleIcon() {
-      toggle.textContent = layout.classList.contains("sidebar-closed") ? "▶" : "◀";
-    }
   }
 })();
 </script>
