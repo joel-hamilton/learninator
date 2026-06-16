@@ -15,6 +15,7 @@ import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
 import { chatRoutes } from "./routes/chat.js";
 import { settingsApp } from "./routes/settings.js";
+import { browseRoutes } from "./routes/browse.js";
 
 const app = new Hono<{ Variables: AppVariables }>();
 
@@ -48,6 +49,7 @@ app.get("/favicon.ico", (c) => {
 app.use("*", auth.sessionMiddleware);
 app.route("/", auth.authApp);
 app.route("/", homeRoutes);
+app.route("/", browseRoutes);
 app.route("/missions", missionRoutes);
 app.route("/missions/:missionId/lessons", lessonRoutes);
 app.route("/missions/:missionId/chat", chatRoutes);
