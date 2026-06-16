@@ -187,6 +187,8 @@ ${HTMX_HEAD}
   .question-card .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .skip-btn { display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; text-decoration: none; }
   .skip-btn:hover { border-color: #ccc; color: var(--text-secondary); }
+  .skip-btn.htmx-request { opacity: 0.5; pointer-events: none; border-color: var(--warning); color: var(--warning); }
+  .skip-btn.htmx-request::after { content: " (working...)"; }
   .thinking-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: inline-block; }
   .thinking-dots { display: flex; gap: 0.3rem; }
   .thinking-dots span { width: 0.5em; height: 0.5em; background: #ccc; border-radius: 50%; animation: dotPulse 1.4s infinite ease-in-out; }
@@ -248,28 +250,50 @@ ${HTMX_HEAD}
   if (!banner) return;
   var missionId = ${mission.id};
   var activeTools = [];
+  var inFlight = 0;
   var shownAt = 0;
   var hideTimer = 0;
-  var MIN_SHOW_MS = 800;
+  var MIN_SHOW_MS = 1200;
+
+  document.addEventListener("htmx:beforeRequest", function() {
+    inFlight++;
+    showBanner("Working...");
+  });
+
+  document.addEventListener("htmx:afterRequest", function() {
+    inFlight--;
+    if (inFlight <= 0 && activeTools.length === 0) {
+      inFlight = 0;
+      hideBanner();
+    }
+  });
+
   var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
   es.addEventListener("message", function(e) {
     try {
       var event = JSON.parse(e.data);
       if (event.type === "tool_start") {
         event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
-        if (activeTools.length > 0) showBanner();
+        showBanner(activeTools.join(", "));
       } else if (event.type === "tool_end") {
         activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
-        if (activeTools.length === 0) hideBanner();
+        if (activeTools.length === 0) {
+          if (inFlight > 0) showBanner("Working...");
+          else hideBanner();
+        }
       }
     } catch(ex) {}
   });
-  function showBanner() {
+
+  es.addEventListener("error", function() {});
+
+  function showBanner(msg) {
     shownAt = Date.now();
     clearTimeout(hideTimer);
-    banner.innerHTML = '<span class="spinner"></span> ' + activeTools.join(", ");
+    banner.innerHTML = '<span class="spinner"></span> ' + (msg || activeTools.join(", "));
     banner.classList.add("visible");
   }
+
   function hideBanner() {
     var elapsed = Date.now() - shownAt;
     if (elapsed < MIN_SHOW_MS) {

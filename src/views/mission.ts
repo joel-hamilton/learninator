@@ -285,6 +285,7 @@ ${HTMX_LOADING_BAR}
     var missionId = parts[2];
     if (missionId && !isNaN(Number(missionId))) {
       var activeTools = [];
+      var inFlight = 0;
       var shownAt = 0;
       var hideTimer = 0;
       var MIN_SHOW_MS = 1200;
@@ -293,11 +294,21 @@ ${HTMX_LOADING_BAR}
         var el = e.target;
         var form = (el && el.closest) ? el.closest(".chat-form") : null;
         if (!form) form = document.querySelector(".chat-form");
-        if (form) showBanner("Working...");
+        if (form) {
+          inFlight++;
+          showBanner("Working...");
+        }
       });
 
       document.addEventListener("htmx:afterRequest", function(e) {
-        if (activeTools.length === 0) hideBanner();
+        var el = e.target;
+        var form = (el && el.closest) ? el.closest(".chat-form") : null;
+        if (!form) form = document.querySelector(".chat-form");
+        if (form) {
+          inFlight--;
+          if (inFlight <= 0) inFlight = 0;
+          if (inFlight <= 0 && activeTools.length === 0) hideBanner();
+        }
       });
 
       var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
@@ -310,7 +321,10 @@ ${HTMX_LOADING_BAR}
             showBanner(activeTools.join(", "));
           } else if (event.type === "tool_end") {
             activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
-            if (activeTools.length === 0) hideBanner();
+            if (activeTools.length === 0) {
+              if (inFlight > 0) showBanner("Working...");
+              else hideBanner();
+            }
           }
         } catch(ex) {}
       });

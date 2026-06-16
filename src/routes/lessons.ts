@@ -6,6 +6,8 @@ import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop } from "../ai/conversation.js";
+import { emit } from "../ai/events.js";
+import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 import { lessonPage } from "../views/lesson.js";
 import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
@@ -285,6 +287,8 @@ You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". 
         { role: "user" as const, content: userMessage },
       ];
 
+      let pendingToolNames: string[] = [];
+
       await conversationLoop({
         client: capturedAi,
         toolExecutor: capturedToolExecutor,
@@ -294,9 +298,16 @@ You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". 
         tools: TEACHER_TOOLS,
         hooks: {
           onBeforeToolExecution: async (toolUseBlocks) => {
+            pendingToolNames = [];
             for (const block of toolUseBlocks) {
-              job.messages.push(toolLabel(block.name, block.input as Record<string, unknown> | undefined));
+              const label = toolLabel(block.name, block.input as Record<string, unknown> | undefined);
+              job.messages.push(label);
+              pendingToolNames.push(TOOL_DISPLAY_NAMES[block.name] || block.name);
             }
+            emit(missionId, { type: "tool_start", names: pendingToolNames });
+          },
+          onAfterToolExecution: async (_results) => {
+            emit(missionId, { type: "tool_end", names: pendingToolNames });
           },
           onTruncated: async () => {
             job.messages.push("Response was cut short…");
@@ -420,6 +431,8 @@ You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review
 
       const messages = [{ role: "user" as const, content: userMessage }];
 
+      let pendingToolNames: string[] = [];
+
       await conversationLoop({
         client: capturedAi,
         toolExecutor: capturedToolExecutor,
@@ -429,9 +442,16 @@ You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review
         tools: TEACHER_TOOLS,
         hooks: {
           onBeforeToolExecution: async (toolUseBlocks) => {
+            pendingToolNames = [];
             for (const block of toolUseBlocks) {
-              job.messages.push(toolLabel(block.name, block.input as Record<string, unknown> | undefined));
+              const label = toolLabel(block.name, block.input as Record<string, unknown> | undefined);
+              job.messages.push(label);
+              pendingToolNames.push(TOOL_DISPLAY_NAMES[block.name] || block.name);
             }
+            emit(missionId, { type: "tool_start", names: pendingToolNames });
+          },
+          onAfterToolExecution: async (_results) => {
+            emit(missionId, { type: "tool_end", names: pendingToolNames });
           },
           onTruncated: async () => {
             job.messages.push("Response was cut short…");

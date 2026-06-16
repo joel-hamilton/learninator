@@ -62,13 +62,13 @@ export function generationPollingBar(missionId: number, number: number, subNumbe
   const lid = lessonIdStr(number, subNumber);
   const suffix = isSub ? "generate-sub-lesson" : "generate-next";
   const label = isSub ? "Creating sub-lesson…" : "Creating your next lesson…";
-  return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
        hx-get="/missions/${missionId}/lessons/${lid}/${suffix}/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
-    <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       Starting…
     </div>
@@ -79,36 +79,41 @@ export function generationRunningBar(missionId: number, number: number, subNumbe
   const lid = lessonIdStr(number, subNumber);
   const suffix = isSub ? "generate-sub-lesson" : "generate-next";
   const label = isSub ? "Creating sub-lesson…" : "Creating your next lesson…";
-  return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;"
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
        hx-get="/missions/${missionId}/lessons/${lid}/${suffix}/status"
        hx-trigger="every 1s"
        hx-swap="outerHTML"
        hx-target="#feedback-bar">
-    <span class="label"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
-    <div style="font-size:0.85rem;color:var(--text-muted);display:flex;align-items:center;gap:0.5rem;">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> ${label}</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
       <span class="thinking-dots"><span></span><span></span><span></span></span>
       ${latestMsg}
     </div>
   </div>`;
 }
 
+// Shared suffix to hide the tool banner when generation completes
+function hideBannerOnSettle(): string {
+  return ` hx-on::after-settle="var b=document.getElementById('tool-banner');if(b)b.classList.remove('visible')"`;
+}
+
 export function generationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar">
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
     <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
 export function generationErrorBar(missionId: number, error: string): string {
-  return `<div class="feedback-bar" id="feedback-bar">
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
     <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to generate next lesson: ${error}</span>
     <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
   </div>`;
 }
 
 export function generationMissingBar(missionId: number): string {
-  return `<div class="feedback-bar" id="feedback-bar"><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--primary);">Back to lessons &rarr;</a></span></div>`;
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--primary);">Back to lessons &rarr;</a></span></div>`;
 }
 
 // ── Empty states ──
