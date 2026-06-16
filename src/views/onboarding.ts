@@ -1,5 +1,4 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
-import { browseSectionHtml } from "./browse.js";
 
 /** Chat-focused page for onboarding missions. */
 export function onboardingLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string }, messagesHtml: string) {
@@ -162,7 +161,6 @@ ${HTMX_LOADING_BAR}
     <input type="hidden" name="mode" value="guided" id="mode-input">
     <button type="submit">Send</button>
   </form>
-  ${browseSectionHtml()}
 </div>
 <script>
 function selectMode(mode) {

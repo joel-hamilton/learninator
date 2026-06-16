@@ -467,23 +467,6 @@ export const BROWSE_STYLES = `<style>
   .browse-hint a { color: var(--primary); text-decoration: underline; }
   .browse-hint a:hover { color: var(--primary-hover); }
 
-  /* ── Embedded browse divider (used on missions/new and home empty state) ── */
-  .browse-divider {
-    display: flex; align-items: center; gap: 1rem;
-    margin: 2rem 0 1rem;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 500;
-  }
-  .browse-divider::before, .browse-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
   @keyframes spin { to { transform: rotate(360deg); } }
 
   @media (max-width: 640px) {
@@ -527,16 +510,3 @@ export const BROWSE_STYLES = `<style>
   };
 })();
 </script>`;
-
-/** Embedded browse section for missions/new and home empty state.
- *  Renders styles, a divider, and skeleton that auto-loads browse options via htmx. */
-export function browseSectionHtml(): string {
-  return BROWSE_STYLES + `<div class="browse-divider">
-    <span>Or browse topics</span>
-  </div>
-  <div class="browse-container">
-    <div class="browse-options-area">
-      ${skeletonOptions(6)}
-    </div>
-  </div>`;
-}

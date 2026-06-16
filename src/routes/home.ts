@@ -7,7 +7,6 @@ import type { AppVariables } from "../types.js";
 import type { User } from "../types.js";
 import { layout } from "../views/home.js";
 import { svgIcon } from "../views/shared.js";
-import { browseSectionHtml } from "../views/browse.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const homeRoutes = new Hono<{ Variables: AppVariables }>();
@@ -31,7 +30,9 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
           </div>
           <button type="submit">Start Learning</button>
         </form>
-        ${browseSectionHtml()}
+        <div class="browse-entry" style="margin-top:1.25rem">
+          <a href="/browse" class="btn btn-secondary">🧭 Browse topics</a>
+        </div>
         <div class="examples">
           <span style="font-size:0.8rem;color:var(--text-muted);margin-right:0.25rem;">Try:</span>
           <button type="button" class="example-btn" onclick="const ta=this.closest('.empty-state').querySelector('textarea');ta.value='Guitar fretboard fluency and improvisation';ta.focus()">Guitar soloing</button>
