@@ -41,6 +41,7 @@ src/
 - **DB queries**: Drizzle `and()` for multiple where conditions, `eq()` takes typed column values
 - **AI interaction**: Function tools (`TEACHER_TOOLS`) let the AI read/write DB. Tool calls are executed server-side via `executeTool`. Multi-turn conversations use `continueWithToolResults`.
 - **htmx**: All forms use htmx attributes (`hx-post`, `hx-target`, `hx-swap`). Server returns HTML fragments, not JSON.
+- **Immediate feedback**: Any user interaction that triggers an AI call (browse click, chat send, etc.) MUST show immediate visible feedback — the clicked element should dim/change instantly via CSS (`htmx-request` class), and a loading indicator should appear. Never leave the user staring at an unchanged screen while waiting for the AI. Even if the AI takes 2+ seconds, the user must know their click registered immediately.
 - **Lessons**: AI-generated HTML rendered in sandboxed iframes. Lesson HTML should be self-contained with inline CSS/JS.
 
 ## Database migrations

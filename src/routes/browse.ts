@@ -4,8 +4,9 @@ import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import type { AppVariables } from "../types.js";
 import { layout } from "../views/home.js";
-import { browsePage, browseOptionsFragment, errorState, BROWSE_STYLES } from "../views/browse.js";
+import { browsePage, browseOptionsFragment, refreshOptionsFragment, optionsOnly, errorState, BROWSE_STYLES } from "../views/browse.js";
 import { AIError } from "../ai/index.js";
+import { saveMessage } from "../shared/messages.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const browseRoutes = new Hono<{ Variables: AppVariables }>();
@@ -17,11 +18,11 @@ Return ONLY valid JSON (no markdown fences, no extra text):
 
 Rules:
 - First call (no path): 6-8 broad categories across diverse domains
-- Subsequent calls: 4-6 narrower sub-topics within the chosen area
-- By iteration 4-5, topics should be quite specific (e.g., "Pentatonic guitar soloing" not "Music")
-- Set is_specific_enough: true when the topic is specific enough for a focused learning mission
+- Second call: 4-6 narrower sub-topics within the chosen area
+- By the third call (iteration 2+), topics MUST be specific enough for a focused learning mission (e.g., "Yoga for back pain relief" not "Yoga and Flexibility"). Set is_specific_enough: true.
+- Do NOT go deeper than 3 iterations total. The user should be creating a mission by then.
 - suggested_title: compelling mission title (max 10 words) when is_specific_enough, empty string otherwise
-- Make options varied and interesting — each should feel like something real to learn
+- Make options varied and interesting — each should feel like something concrete to learn
 - Do not repeat options the user has already seen or chosen`;
 
 interface BrowseResult {
@@ -73,23 +74,60 @@ function parseBrowseResponse(raw: string, maxOptions: number): BrowseResult {
   }
 }
 
+async function createMissionAndRedirect(c: Ctx, topic: string, path: string[]): Promise<Response> {
+  const log = c.get("logger");
+  const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
+  const [mission] = await db
+    .insert(schema.missions)
+    .values({ userId: c.get("user")!.id, title: topic, slug, status: "onboarding", onboardingMode: "guided" })
+    .returning();
+
+  // Save a seed message so the guided onboarding has context
+  const pathStr = path.length > 0 ? `\n\nBrowse path: ${path.join(" → ")}` : "";
+  await saveMessage(mission.id, "user", `I want to learn about: ${topic}${pathStr}`);
+
+  log.debug("Created mission %d from browse: %s", mission.id, topic);
+  c.header("HX-Redirect", `/missions/${mission.id}`);
+  return c.body(null);
+}
+
 // ── GET /browse ──
+// Returns instantly with skeleton placeholders. The real options load via htmx GET /browse/options.
 browseRoutes.get("/browse", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  return c.html(layout(user, BROWSE_STYLES + browsePage()));
+});
+
+// ── GET /browse/options ──
+// Triggers on page load (hx-trigger="load") to fetch real topic options.
+browseRoutes.get("/browse/options", auth.requireAuth, async (c: Ctx) => {
   const ai = c.get("ai");
   const log = c.get("logger");
 
+  const pathRaw = c.req.query("path") || "[]";
+  const iterationStr = c.req.query("iteration") || "0";
+  let path: string[];
+  try { path = JSON.parse(pathRaw); if (!Array.isArray(path)) path = []; } catch { path = []; }
+  const iteration = parseInt(iterationStr) || 0;
+
   try {
     const response = await ai.chat(BROWSE_SYSTEM_PROMPT, [
-      { role: "user", content: "Generate the first set of broad learning categories. Return JSON with 6-8 diverse topic areas." },
+      { role: "user", content: path.length === 0
+        ? "Generate the first set of broad learning categories. Return JSON with 6-8 diverse topic areas."
+        : `The user's path: ${path.join(" → ")}. Generate sub-topics at this level. Return JSON.`
+      },
     ], { model: "low", maxTokens: 1024 });
 
-    const parsed = parseBrowseResponse(response, 8);
-    const options = parsed.options.length >= 3 ? parsed.options : FALLBACK_OPTIONS;
-    return c.html(layout(user, BROWSE_STYLES + browsePage(options, [])));
+    const maxOptions = path.length === 0 ? 8 : 6;
+    const parsed = parseBrowseResponse(response, maxOptions);
+    const fallback = path.length === 0 ? FALLBACK_OPTIONS : FALLBACK_NARROW_OPTIONS.slice(0, 6);
+    const options = parsed.options.length >= 2 ? parsed.options : fallback;
+    const isLastQuestion = iteration >= 2;
+    return c.html(optionsOnly(options, path, iteration, isLastQuestion));
   } catch (err) {
-    log.error("Browse initial AI error:", err);
-    return c.html(layout(user, BROWSE_STYLES + browsePage(FALLBACK_OPTIONS, [])));
+    log.error("Browse options AI error:", err);
+    const fallback = path.length === 0 ? FALLBACK_OPTIONS : FALLBACK_NARROW_OPTIONS.slice(0, 6);
+    return c.html(optionsOnly(fallback, path, iteration, false));
   }
 });
 
@@ -103,6 +141,7 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
   const selection = String(body.selection || "").trim();
   const pathRaw = String(body.path || "[]");
   const iterationStr = String(body.iteration || "0");
+  const isCustom = String(body.is_custom || "") === "true";
 
   if (!selection) return c.text("Missing selection", 400);
 
@@ -116,24 +155,19 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
   path.push(selection);
   const iteration = parseInt(iterationStr) + 1;
 
-  // Safety valve: force mission creation after 7 iterations
-  if (iteration >= 7) {
-    const topic = path[path.length - 1];
-    const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
-    const [mission] = await db
-      .insert(schema.missions)
-      .values({ userId: user.id, title: topic, slug, status: "onboarding" })
-      .returning();
-    c.header("HX-Redirect", `/missions/${mission.id}`);
-    return c.body(null);
+  // Safety valve: force mission creation after 3 iterations — skip for custom inputs
+  if (!isCustom && iteration >= 3) {
+    return createMissionAndRedirect(c, selection, path);
   }
 
   const pathDescription = path.map((p, i) => `Level ${i + 1}: ${p}`).join("\n");
 
   try {
-    const userMessage = iteration === 1
-      ? `The user chose "${selection}" from the broad categories. Generate 4-6 narrower sub-topics within this area. Return JSON.`
-      : `The user's exploration path so far:\n${pathDescription}\n\nIteration ${iteration} of up to 6. Generate the next set of narrower sub-topics within "${selection}". If this is now specific enough for a single focused learning mission, set is_specific_enough to true and provide a good suggested_title. Return JSON.`;
+    const userMessage = isCustom
+      ? `The user typed their own topic: "${selection}". Browse path so far:\n${pathDescription}\n\nGenerate 4-6 relevant sub-topics or alternative angles to explore within this topic. Always return options — do NOT set is_specific_enough for custom inputs, the user wants to keep browsing. Return JSON.`
+      : iteration === 1
+        ? `The user chose "${selection}" from the broad categories. Generate 4-6 narrower sub-topics within this area. Return JSON.`
+        : `The user's exploration path so far:\n${pathDescription}\n\nThis is iteration ${iteration} (the user has clicked ${iteration} times). You SHOULD return is_specific_enough: true now with a good suggested_title. If you return options, they should be very specific learning missions (not broad categories). Return JSON.`;
 
     const response = await ai.chat(BROWSE_SYSTEM_PROMPT, [
       { role: "user", content: userMessage },
@@ -141,36 +175,76 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
 
     const parsed = parseBrowseResponse(response, 6);
 
-    if (parsed.is_specific_enough && parsed.options.length === 0) {
-      // AI says we're specific enough — create the mission
-      const topic = parsed.suggested_title || selection;
-      const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
-      const [mission] = await db
-        .insert(schema.missions)
-        .values({ userId: user.id, title: topic, slug, status: "onboarding" })
-        .returning();
-      c.header("HX-Redirect", `/missions/${mission.id}`);
-      return c.body(null);
+    // For custom inputs, always show browse options — never create mission immediately
+    if (!isCustom) {
+      // If AI says we're specific enough with no options, create mission immediately
+      if (parsed.is_specific_enough && parsed.options.length === 0) {
+        const topic = parsed.suggested_title || selection;
+        return createMissionAndRedirect(c, topic, path);
+      }
+
+      // If AI returns both specific flag AND options at iteration 2+, create mission
+      if (parsed.is_specific_enough && iteration >= 2) {
+        const topic = parsed.suggested_title || selection;
+        return createMissionAndRedirect(c, topic, path);
+      }
     }
 
-    // If AI returned both specific flag AND options, show the options but also consider creating mission
-    // if we're deep enough
-    if (parsed.is_specific_enough && iteration >= 4) {
-      const topic = parsed.suggested_title || selection;
-      const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
-      const [mission] = await db
-        .insert(schema.missions)
-        .values({ userId: user.id, title: topic, slug, status: "onboarding" })
-        .returning();
-      c.header("HX-Redirect", `/missions/${mission.id}`);
-      return c.body(null);
-    }
-
+    const isLastQuestion = iteration >= 2;
     const options = parsed.options.length >= 2 ? parsed.options : FALLBACK_NARROW_OPTIONS.slice(0, 6);
-    return c.html(BROWSE_STYLES + browseOptionsFragment(options, path, iteration));
+    return c.html(BROWSE_STYLES + browseOptionsFragment(options, path, iteration, isLastQuestion));
   } catch (err) {
     log.error("Browse select AI error:", err);
     const msg = err instanceof AIError ? err.message : "Something went wrong. Please try again.";
     return c.html(BROWSE_STYLES + errorState(msg));
+  }
+});
+
+// ── POST /browse/refresh ──
+browseRoutes.post("/browse/refresh", auth.requireAuth, async (c: Ctx) => {
+  const ai = c.get("ai");
+  const log = c.get("logger");
+
+  const body = await c.req.parseBody();
+  const pathRaw = String(body.path || "[]");
+  const iterationStr = String(body.iteration || "0");
+
+  let path: string[];
+  try {
+    path = JSON.parse(pathRaw);
+    if (!Array.isArray(path)) path = [];
+  } catch {
+    path = [];
+  }
+  const iteration = parseInt(iterationStr);
+  const isLastQuestion = iteration >= 2;
+
+  try {
+    if (path.length === 0) {
+      // Root level: re-generate broad categories
+      const response = await ai.chat(BROWSE_SYSTEM_PROMPT, [
+        { role: "user", content: "Generate a fresh set of broad learning categories (different from before). Return JSON with 6-8 diverse topic areas." },
+      ], { model: "low", maxTokens: 1024 });
+
+      const parsed = parseBrowseResponse(response, 8);
+      const options = parsed.options.length >= 3 ? parsed.options : FALLBACK_OPTIONS;
+      return c.html(refreshOptionsFragment(options, path, iteration, isLastQuestion));
+    }
+
+    // Nested: re-generate at the same level
+    const parentPath = path.slice(0, -1);
+    const currentTopic = path[path.length - 1];
+    const pathDescription = path.map((p, i) => `Level ${i + 1}: ${p}`).join("\n");
+
+    const response = await ai.chat(BROWSE_SYSTEM_PROMPT, [
+      { role: "user", content: `The user is exploring "${currentTopic}" (path: ${pathDescription}). Generate DIFFERENT alternative sub-topics at the same level. Do NOT go deeper. Return JSON with ${iteration === 0 ? "6-8 broad categories" : "4-6 options"}.` },
+    ], { model: "low", maxTokens: 1024 });
+
+    const parsed = parseBrowseResponse(response, iteration === 0 ? 8 : 6);
+    const options = parsed.options.length >= 2 ? parsed.options : FALLBACK_NARROW_OPTIONS.slice(0, 6);
+    return c.html(refreshOptionsFragment(options, path, iteration, isLastQuestion));
+  } catch (err) {
+    log.error("Browse refresh AI error:", err);
+    return c.html(`<div id="browse-options" class="browse-error"><p>Couldn't refresh options. Please try again.</p></div>`);
   }
 });
