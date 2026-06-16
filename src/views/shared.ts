@@ -192,23 +192,57 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .input::placeholder { color: var(--text-muted); }
 
   /* ── Chat Messages ── */
-  .msg {
-    padding: 0.75rem 1rem; border-radius: var(--radius-lg); line-height: 1.55;
-    font-size: 0.9rem; max-width: 88%;
+  .msg-row {
+    position: relative; max-width: 88%;
     animation: fadeIn 0.25s ease-out;
+    padding-top: 8px;
   }
-  .msg.user {
-    background: var(--primary-light); color: var(--text);
-    align-self: flex-end;
-    border-bottom-right-radius: 6px;
-    border: 1px solid var(--border);
+  .msg-row.user { align-self: flex-end; }
+  .msg-row.assistant { align-self: flex-start; }
+
+  .msg-avatar {
+    position: absolute; top: 0;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; font-weight: 700; letter-spacing: 0.02em;
+    z-index: 2;
   }
-  .msg.assistant {
+  .msg-row.user .msg-avatar { right: 3px; background: var(--accent); color: #fff; border: 2px solid var(--surface); }
+  .msg-row.assistant .msg-avatar { left: 3px; background: var(--accent-light); color: var(--accent); border: 2px solid var(--surface); }
+
+  .msg {
+    padding: 0.65rem 0.9rem; border-radius: 14px; line-height: 1.55;
+    font-size: 0.9rem;
+  }
+  .msg-row.user .msg {
+    background: var(--accent); color: #fff;
+    border-bottom-right-radius: 4px;
+    border-top-right-radius: 8px;
+  }
+  .msg-row.assistant .msg {
     background: var(--surface); border: 1px solid var(--border);
-    align-self: flex-start;
-    border-bottom-left-radius: 6px;
+    color: var(--text); border-bottom-left-radius: 4px;
+    border-top-left-radius: 8px;
     box-shadow: var(--shadow-sm);
   }
+
+  /* Standalone .msg (no .msg-row wrapper) */
+  .msg.assistant:not(.msg-row .msg) {
+    max-width: 88%; align-self: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-bottom-left-radius: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .msg.user:not(.msg-row .msg) {
+    max-width: 88%; align-self: flex-end;
+    background: var(--accent); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  /* Markdown overrides inside accent user bubbles */
+  .msg-row.user .msg strong { color: #fff; }
+  .msg-row.user .msg code { background: rgba(255,255,255,0.2); color: #fff; }
+  .msg-row.user .msg a { color: #fff; text-decoration-color: rgba(255,255,255,0.6); }
 
   /* ── Chat Form ── */
   .chat-form {
@@ -300,6 +334,38 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .markdown-body em { font-style: italic; }
   .markdown-body a { color: var(--accent); text-decoration: underline; }
   .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 0.85em 0; }
+
+  /* ── User Menu ── */
+  .user-menu { position: relative; }
+  .user-menu-trigger {
+    background: none; border: none; cursor: pointer; padding: 0;
+    display: flex; align-items: center;
+  }
+  .user-menu-trigger .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em;
+    flex-shrink: 0; transition: transform var(--transition);
+  }
+  .user-menu-trigger:hover .avatar { transform: scale(1.05); }
+  .user-menu-dropdown {
+    position: absolute; right: 0; top: calc(100% + 8px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    min-width: 180px; padding: 0.35rem;
+    display: none; z-index: 200;
+    animation: fadeInUp 0.15s ease-out;
+  }
+  .user-menu-dropdown.open { display: block; }
+  .user-menu-dropdown a {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
+    font-size: 0.85rem; color: var(--text); text-decoration: none;
+    transition: background var(--transition); font-weight: 500;
+  }
+  .user-menu-dropdown a:hover { background: var(--surface-hover); }
+  .user-menu-dropdown a .svg-icon { width: 1em; height: 1em; color: var(--text-muted); }
 </style>
 
 <script>
@@ -311,15 +377,30 @@ function optimisticChat(form) {
   const targetId = form.getAttribute("hx-target") || "#chat-messages";
   const container = document.querySelector(targetId);
   if (!container) return;
-  const div = document.createElement("div");
-  div.className = "msg user";
-  div.textContent = msg;
-  container.appendChild(div);
 
-  const thinking = document.createElement("div");
-  thinking.className = "msg assistant thinking-bubble";
-  thinking.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
-  container.appendChild(thinking);
+  const row = document.createElement("div");
+  row.className = "msg-row user";
+  const avatar = document.createElement("div");
+  avatar.className = "msg-avatar";
+  avatar.textContent = document.body.dataset.userInitial || "Y";
+  const bubble = document.createElement("div");
+  bubble.className = "msg";
+  bubble.textContent = msg;
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  container.appendChild(row);
+
+  const thinkRow = document.createElement("div");
+  thinkRow.className = "msg-row assistant";
+  const thinkAvatar = document.createElement("div");
+  thinkAvatar.className = "msg-avatar";
+  thinkAvatar.textContent = "AI";
+  const thinkBubble = document.createElement("div");
+  thinkBubble.className = "msg thinking-bubble";
+  thinkBubble.innerHTML = '<span class="thinking-dots"><span></span><span></span><span></span></span>';
+  thinkRow.appendChild(thinkAvatar);
+  thinkRow.appendChild(thinkBubble);
+  container.appendChild(thinkRow);
   container.scrollTop = container.scrollHeight;
   input.value = "";
   input.style.height = "auto";
@@ -362,8 +443,18 @@ document.addEventListener("htmx:afterRequest", function(e) {
     const container = document.querySelector(targetId);
     if (container) {
       const thinking = container.querySelector(".thinking-bubble");
-      if (thinking) thinking.remove();
+      if (thinking) thinking.closest(".msg-row")?.remove();
     }
+  }
+});
+// User menu dropdown
+function toggleUserMenu(btn) {
+  var dd = btn.nextElementSibling;
+  dd.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.user-menu')) {
+    document.querySelectorAll('.user-menu-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
   }
 });
 // Guided question helpers
@@ -422,6 +513,7 @@ export function svgIcon(name: string, className: string = "svg-icon"): string {
     zap: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
     trash: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
     logOut: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+    settings: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   };
   return icons[name] || "";
 }
@@ -478,3 +570,23 @@ export const GUIDED_QUESTION_SCRIPT = '<script>\n' +
 
 /** Loading bar — add right after <body> in page layouts, NOT inside <head>. */
 export const HTMX_LOADING_BAR = '<div id="htmx-loading-bar" class="htmx-indicator"></div>';
+
+/** Get the first initial from a user's name or email. */
+export function userInitial(user: { name?: string | null; email: string }): string {
+  if (user.name?.trim()) return user.name.trim().charAt(0).toUpperCase();
+  return user.email.charAt(0).toUpperCase();
+}
+
+/** User dropdown menu for the header. */
+export function userMenu(user: { name?: string | null; email: string }): string {
+  const initial = userInitial(user);
+  return `<div class="user-menu">
+  <button class="user-menu-trigger" onclick="toggleUserMenu(this)" aria-label="User menu">
+    <span class="avatar" id="user-avatar">${initial}</span>
+  </button>
+  <div class="user-menu-dropdown">
+    <a href="/settings">${svgIcon("settings")} Preferences</a>
+    <a href="/logout">${svgIcon("logOut")} Log out</a>
+  </div>
+</div>`;
+}

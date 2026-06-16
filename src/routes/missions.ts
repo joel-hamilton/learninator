@@ -14,7 +14,7 @@ import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
-import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "../views/shared.js";
+import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "../views/shared.js";
 import { emit, subscribe } from "../ai/events.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 
@@ -126,7 +126,7 @@ async function runConversationLoop(
 
 /** Guided onboarding page with question card UI. */
 function guidedOnboardingLayout(
-  user: { email: string },
+  user: { email: string; name?: string | null },
   mission: { id: number; title: string },
   messagesHtml: string,
   questionId: number | null,
@@ -219,16 +219,14 @@ ${HTMX_HEAD}
 	}
 </style>
 </head>
-<body>
+<body data-user-initial="${userInitial(user)}">
 <div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;height:3px;background:var(--primary);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
 <header class="header">
   <div class="left">
     <a href="/" class="back">${svgIcon("arrowLeft")} Dashboard</a>
     <h1>${mission.title}</h1>
   </div>
-  <div class="right">
-    <span class="user">${user.email} <a href="/logout">Log out</a></span>
-  </div>
+  <div class="right">${userMenu(user)}</div>
 </header>
 	<div id="tool-banner" class="tool-banner"></div>
 <div class="container">
@@ -997,7 +995,7 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
       return c.body(null);
     }
 
-    return c.html(`<div class="msg assistant markdown-body" style="background:#fff;border:1px solid #e8e4dc;">${formatMarkdown(result.text || "Let us continue.")}</div>`);
+    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let us continue.")));
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>`

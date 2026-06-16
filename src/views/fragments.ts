@@ -13,11 +13,12 @@ function formatLessonNumber(num: number, sub: number | null): string {
 
 // ── Chat ──
 
-export function chatMessageBubble(role: "user" | "assistant", content: string): string {
+export function chatMessageBubble(role: "user" | "assistant", content: string, userInitial?: string): string {
+  const avatar = role === "user" ? (userInitial || "Y") : "AI";
   if (role === "user") {
-    return `<div class="msg user">${content}</div>`;
+    return `<div class="msg-row user"><div class="msg-avatar">${avatar}</div><div class="msg">${content}</div></div>`;
   }
-  return `<div class="msg assistant markdown-body">${content}</div>`;
+  return `<div class="msg-row assistant"><div class="msg-avatar">${avatar}</div><div class="msg markdown-body">${content}</div></div>`;
 }
 
 // ── Lesson action bars ──

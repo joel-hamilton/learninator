@@ -8,6 +8,7 @@ import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop } from "../ai/conversation.js";
 import { lessonPage } from "../views/lesson.js";
 import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble } from "../views/fragments.js";
+import { userInitial } from "../views/shared.js";
 import { saveMessage, contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { AIError } from "../ai/index.js";
@@ -542,7 +543,7 @@ If they ask for a new lesson, use create_lesson or create_sub_lesson as appropri
       },
     });
 
-    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…")));
+    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…"), userInitial(user)));
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>`

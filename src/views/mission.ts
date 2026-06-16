@@ -1,4 +1,4 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
 
 function tabIcon(key: string): string {
   switch (key) {
@@ -11,7 +11,7 @@ function tabIcon(key: string): string {
   }
 }
 
-export function missionLayout(user: { email: string }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
+export function missionLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
   const tabs = [
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
     { key: "chat", label: "Chat", href: `/missions/${mission.id}/chat` },
@@ -77,13 +77,6 @@ ${HTMX_HEAD}
   .tag-onboarding { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
   .tag-archived { background: var(--primary-light); color: var(--text-muted); }
   .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
-  .header-right .logout-link {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.76rem;
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    transition: all var(--transition);
-  }
-  .header-right .logout-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
 
   /* Layout */
   .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 56px); }
@@ -233,7 +226,7 @@ ${HTMX_HEAD}
   .empty a { color: var(--accent); }
 </style>
 </head>
-<body>
+<body data-user-initial="${userInitial(user)}">
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
@@ -245,10 +238,7 @@ ${HTMX_LOADING_BAR}
       <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
     </form>
   </div>
-  <div class="header-right">
-    ${user.email}
-    <a href="/logout" class="logout-link">${svgIcon("logOut")} Log out</a>
-  </div>
+  <div class="header-right">${userMenu(user)}</div>
 </header>
 <div id="tool-banner" class="tool-banner"></div>
 <div class="layout">

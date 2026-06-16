@@ -1,5 +1,5 @@
 import type { User } from "../types.js";
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
 
 export function layout(user: User, content: string) {
   return `<!DOCTYPE html>
@@ -31,15 +31,7 @@ ${HTMX_HEAD}
   }
   .header .logo:hover { color: var(--text); }
   .header .logo .svg-icon { width: 1.2em; height: 1.2em; color: var(--accent); }
-  .header .user { font-size: 0.78rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.75rem; }
-  .header .user a {
-    color: var(--text-secondary); text-decoration: none; font-weight: 500;
-    transition: all var(--transition); display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.76rem;
-  }
-  .header .user a:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
-  .header .user a .svg-icon { width: 0.85em; height: 0.85em; }
+  .header .user-area { display: flex; align-items: center; gap: 0.75rem; }
 
   .container { max-width: 860px; margin: 0 auto; padding: 3rem 2rem; }
 
@@ -119,11 +111,11 @@ ${HTMX_HEAD}
   .mission-card .actions .btn-primary { font-weight: 600; }
 </style>
 </head>
-<body>
+<body data-user-initial="${userInitial(user)}">
 ${HTMX_LOADING_BAR}
 <header class="header">
   <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
-  <div class="user">${user.email} <a href="/logout">${svgIcon("logOut")} Log out</a></div>
+  <div class="user-area">${userMenu(user)}</div>
 </header>
 <div class="container">
 ${content}

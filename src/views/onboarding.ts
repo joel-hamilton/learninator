@@ -1,7 +1,7 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
 
 /** Chat-focused page for onboarding missions. */
-export function onboardingLayout(user: { email: string }, mission: { id: number; title: string }, messagesHtml: string) {
+export function onboardingLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string }, messagesHtml: string) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,13 +41,6 @@ ${HTMX_HEAD}
   }
   .header .back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
   .header-right { font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.75rem; }
-  .header-right a {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.76rem;
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    transition: all var(--transition);
-  }
-  .header-right a:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
 
   .container { max-width: 700px; margin: 3rem auto; padding: 0 2rem; animation: fadeInUp 0.4s ease-out; }
   h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.03em; }
@@ -59,16 +52,14 @@ ${HTMX_HEAD}
   }
 </style>
 </head>
-<body>
+<body data-user-initial="${userInitial(user)}">
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
     <h1>${mission.title}</h1>
   </div>
-  <div class="header-right">
-    ${user.email} <a href="/logout">Log out</a>
-  </div>
+  <div class="header-right">${userMenu(user)}</div>
 </header>
 <div class="container">
   <h1>Mission Setup</h1>
