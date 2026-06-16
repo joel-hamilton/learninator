@@ -188,6 +188,16 @@ export async function executeTool(
       return `Updated learning record LR${String(input.number).padStart(4, "0")} status to ${input.status}.`;
     }
 
+    case "ask_guided_question": {
+      const options = Array.isArray(input.options) ? input.options : [];
+      await db.insert(schema.guidedQuestions).values({
+        missionId,
+        question: input.question as string,
+        options: JSON.stringify(options),
+      });
+      return `Question displayed to user: "${input.question}". The user is choosing an answer now. Wait for their response before asking another question.`;
+    }
+
     case "mark_mission_active": {
       await db
         .update(schema.missions)

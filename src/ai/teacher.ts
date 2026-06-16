@@ -283,6 +283,27 @@ export const TEACHER_TOOLS: Anthropic.Tool[] = [
     },
   },
 
+  // ── Guided onboarding ──
+  {
+    name: "ask_guided_question",
+    description: "Ask the user a single multiple-choice question during guided onboarding. The user will see the options and pick one, or type a custom answer if they choose 'Other'. Call this exactly ONCE per response — ask only the single most important next question. The user's answer will be returned to you so you can ask the next question.",
+    input_schema: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "The question to ask the user. Make it concise and specific.",
+        },
+        options: {
+          type: "array",
+          items: { type: "string" },
+          description: "3-5 single-select answer options. The LAST option MUST be 'Other (please specify)' to allow free-form input. Make options concrete and distinct.",
+        },
+      },
+      required: ["question", "options"],
+    },
+  },
+
   // ── Mission lifecycle ──
   {
     name: "mark_mission_active",
