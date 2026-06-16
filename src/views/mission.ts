@@ -11,7 +11,7 @@ function tabIcon(key: string): string {
   }
 }
 
-export function missionLayout(user: { email: string }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons") {
+export function missionLayout(user: { email: string }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
   const tabs = [
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
     { key: "chat", label: "Chat", href: `/missions/${mission.id}/chat` },
@@ -229,7 +229,7 @@ ${HTMX_HEAD}
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
-    <a href="/" class="header-back">${svgIcon("arrowLeft")} Dashboard</a>
+    <a href="${backHref}" class="header-back">${svgIcon("arrowLeft")} ${backLabel}</a>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
       <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">

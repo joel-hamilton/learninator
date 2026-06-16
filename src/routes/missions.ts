@@ -747,7 +747,7 @@ missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
     .orderBy(asc(schema.referenceDocs.createdAt));
 
   if (refs.length === 0) {
-    return c.html(missionLayout(user, mission, emptyReferencesMessage(), "reference"));
+    return c.html(missionLayout(user, mission, emptyReferencesMessage(), "reference", `/missions/${id}`, "Mission"));
   }
 
   const cards = refs.map((r) => referenceDocCard(id, r)).join("");
@@ -757,7 +757,7 @@ missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
       <h2>Reference Documents</h2>
     </div>
     <div class="ref-list stagger">${cards}</div>
-  `, "reference"));
+  `, "reference", `/missions/${id}`, "Mission"));
 });
 
 // ── View single reference doc ──
@@ -798,7 +798,7 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
       }
     });
     </script>
-  `, "reference"));
+  `, "reference", `/missions/${missionId}/reference`, "Reference"));
 });
 
 // ── Learning records ──
@@ -820,7 +820,7 @@ missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
     .orderBy(asc(schema.learningRecords.number));
 
   if (records.length === 0) {
-    return c.html(missionLayout(user, mission, emptyRecordsMessage(), "records"));
+    return c.html(missionLayout(user, mission, emptyRecordsMessage(), "records", `/missions/${id}`, "Mission"));
   }
 
   const cards = records.map((r) => learningRecordCard({
@@ -836,7 +836,7 @@ missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
       <h2>Learning Records</h2>
     </div>
     <div class="record-list stagger">${cards}</div>
-  `, "records"));
+  `, "records", `/missions/${id}`, "Mission"));
 });
 
 // ── Resources ──
@@ -867,7 +867,7 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
       <h2>Resources</h2>
     </div>
     <div class="resource-markdown markdown-body">${formatMarkdown(resources?.markdownContent || "No resources curated yet.")}</div>
-  `, "resources"));
+  `, "resources", `/missions/${id}`, "Mission"));
 });
 
 // ── Delete ──
@@ -964,7 +964,7 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
       </div>
       <button type="submit">Send</button>
     </form>
-  `, "chat"));
+  `, "chat", `/missions/${id}`, "Mission"));
 });
 
 // ── Chat message handler (all missions) ──
