@@ -11,39 +11,52 @@ ${HTMX_HEAD}
 <style>
   body {
     font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg); color: var(--text);
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(79,70,229,0.06), transparent),
+      radial-gradient(ellipse 40% 30% at 100% 100%, rgba(79,70,229,0.04), transparent),
+      var(--bg);
+    color: var(--text);
     display: flex; align-items: center; justify-content: center; min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
   .card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
-    padding: 2.5rem; width: 100%; max-width: 400px; box-shadow: var(--shadow-lg);
+    padding: 2.75rem; width: 100%; max-width: 420px; box-shadow: var(--shadow-xl);
+    animation: fadeInUp 0.5s ease-out;
   }
-  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.02em; }
-  .sub { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; }
-  label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.25rem; margin-top: 1rem; }
+  .brand { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+  .brand svg { width: 1.5em; height: 1.5em; color: var(--accent); }
+  h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .sub { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.75rem; line-height: 1.5; }
+  label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.3rem; margin-top: 1.1rem; color: var(--text); }
   input {
-    width: 100%; padding: 0.65rem 0.85rem; border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 0.95rem; font-family: inherit; transition: all var(--transition); outline: none;
+    width: 100%; padding: 0.7rem 0.9rem; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.95rem; font-family: inherit; transition: all var(--transition-slow); outline: none;
+    background: var(--surface);
   }
-  input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,45,45,0.1); }
+  input:hover { border-color: var(--border-hover); }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
   button {
-    width: 100%; padding: 0.7rem; background: var(--primary); color: #fff; border: none;
-    border-radius: var(--radius); font-size: 1rem; cursor: pointer; margin-top: 1.25rem;
-    font-family: inherit; font-weight: 500; transition: all var(--transition);
+    width: 100%; padding: 0.75rem; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-sm); font-size: 1rem; cursor: pointer; margin-top: 1.5rem;
+    font-family: inherit; font-weight: 600; transition: all var(--transition-slow);
+    box-shadow: 0 1px 3px rgba(79,70,229,0.2);
   }
-  button:hover { background: var(--primary-hover); }
+  button:hover { background: var(--accent-hover); box-shadow: 0 4px 14px rgba(79,70,229,0.35); }
   button:active { transform: scale(0.98); }
-  .error { background: var(--danger-bg); color: var(--danger); padding: 0.5rem 0.75rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-top: 0.5rem; border: 1px solid var(--danger-border); }
-  .alt-link { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-secondary); }
-  .alt-link a { color: var(--primary); font-weight: 500; }
-  .alt-link a:hover { text-decoration: underline; }
+  .error { background: var(--danger-bg); color: var(--danger); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm); font-size: 0.85rem; margin-top: 0.5rem; border: 1px solid var(--danger-border); }
+  .alt-link { text-align: center; margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); }
+  .alt-link a { color: var(--accent); font-weight: 600; }
+  .alt-link a:hover { color: var(--accent-hover); text-decoration: underline; }
 </style>
 </head>
 <body>
 ${HTMX_LOADING_BAR}
 <div class="card">
-  <h1>Learninator</h1>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <h1>Learninator</h1>
+  </div>
   <p class="sub">${subtitle}</p>
   ${formHtml}
   <p class="alt-link">${altHtml}</p>

@@ -40,73 +40,80 @@ export function missionLayout(user: { email: string }, mission: { id: number; ti
 <title>${mission.title} — Learninator</title>
 ${HTMX_HEAD}
 <style>
-  /* ── Header ── */
+  /* Header */
   .header {
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 54px;
+    height: 56px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
   .header-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
-  .header-back {
-    font-size: 0.82rem; color: var(--text-secondary); text-decoration: none;
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.25rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    transition: all var(--transition); white-space: nowrap;
+  .header .logo {
+    font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 0.4rem;
+    color: var(--text); text-decoration: none; flex-shrink: 0;
   }
-  .header-back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
-  .header-back .svg-icon { width: 0.9em; height: 0.9em; }
+  .header .logo:hover { color: var(--text); }
+  .header .logo .svg-icon { width: 1.15em; height: 1.15em; color: var(--accent); }
   .header-title {
     font-size: 0.9rem; font-weight: 600; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .status-tag {
     display: inline-block;
-    font-size: 0.62rem; font-weight: 500; padding: 0.12rem 0.4rem;
+    font-size: 0.62rem; font-weight: 600; padding: 0.18rem 0.5rem;
     border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
     margin-left: 0.5rem; vertical-align: middle;
   }
-  .tag-active { background: var(--success-bg); color: var(--success); }
-  .tag-onboarding { background: var(--warning-bg); color: var(--warning); }
+  .tag-active { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+  .tag-onboarding { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
   .tag-archived { background: var(--primary-light); color: var(--text-muted); }
   .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
   .header-right .logout-link {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.78rem;
+    color: var(--text-secondary); text-decoration: none; font-size: 0.76rem;
     display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.25rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition);
   }
   .header-right .logout-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
 
-  /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 54px); }
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: calc(100vh - 56px); }
 
-  /* ── Sidebar ── */
+  /* Sidebar */
   .sidebar {
     background: var(--surface); border-right: 1px solid var(--border);
-    padding: 1rem 0.75rem; display: flex; flex-direction: column;
-    position: sticky; top: 54px; height: calc(100vh - 54px); overflow-y: auto;
+    padding: 1.25rem 0.75rem; display: flex; flex-direction: column;
+    position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
   }
+  .sidebar-back {
+    font-size: 0.78rem; color: var(--text-secondary); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.35rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    transition: all var(--transition); margin-bottom: 0.85rem;
+  }
+  .sidebar-back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .sidebar-back .svg-icon { width: 0.8em; height: 0.8em; }
   .sidebar-label {
-    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.4rem;
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.35rem;
   }
-  .tabs { display: flex; flex-direction: column; gap: 1px; }
+  .tabs { display: flex; flex-direction: column; gap: 2px; }
   .tab {
-    display: flex; align-items: center; gap: 0.55rem;
-    padding: 0.5rem 0.7rem; border-radius: var(--radius-sm);
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);
     font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
     transition: all var(--transition); font-weight: 500;
   }
-  .tab:hover { background: var(--primary-light); color: var(--text); }
+  .tab:hover { background: var(--accent-ghost); color: var(--text); }
   .tab.active {
     background: var(--accent-light); color: var(--accent); font-weight: 600;
   }
@@ -114,34 +121,35 @@ ${HTMX_HEAD}
   .tab-icon .svg-icon { width: 1em; height: 1em; color: var(--text-muted); transition: color var(--transition); }
   .tab:hover .tab-icon .svg-icon, .tab.active .tab-icon .svg-icon { color: inherit; }
 
-  .sidebar-divider { height: 1px; background: var(--border); margin: 0.75rem 0.4rem; }
+  .sidebar-divider { height: 1px; background: var(--border); margin: 0.85rem 0.4rem; }
 
   .sidebar-footer {
-    margin-top: auto; padding: 0.75rem 0.7rem;
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-top: auto; padding: 0.85rem 0.75rem;
+    background: linear-gradient(135deg, var(--accent-ghost), var(--bg));
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
   }
   .sidebar-footer .label {
-    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--text-muted); font-weight: 600; margin-bottom: 0.2rem;
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 0.25rem;
   }
-  .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--text); font-weight: 500; margin-bottom: 0.1rem; }
+  .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--text); font-weight: 600; margin-bottom: 0.1rem; }
   .sidebar-footer .mission-status { font-size: 0.7rem; color: var(--text-muted); }
 
-  /* ── Main ── */
-  .main { padding: 2rem 2.5rem; overflow: auto; animation: fadeInUp 0.3s ease-out; }
+  /* Main */
+  .main { padding: 2rem 2.5rem; overflow: auto; animation: fadeInUp 0.35s ease-out; }
 
-  /* ── Lesson Cards ── */
+  /* Lesson Cards */
   .lesson-list { display: grid; gap: 0; }
-  .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 0.75rem; }
+  .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 0.65rem; }
   .lesson-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between;
+    padding: 0.85rem 1.15rem; display: flex; align-items: center; justify-content: space-between;
     text-decoration: none; color: inherit; cursor: pointer;
     transition: all var(--transition-slow);
   }
-  .lesson-card:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+  .lesson-card:hover { border-color: var(--border-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
   .lesson-card .info { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
-  .lesson-card .num { font-size: 0.7rem; color: var(--text-muted); font-family: ui-monospace, monospace; flex-shrink: 0; }
+  .lesson-card .num { font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace; flex-shrink: 0; font-weight: 500; }
   .lesson-card h3 {
     font-size: 0.85rem; font-weight: 500; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
@@ -161,18 +169,18 @@ ${HTMX_HEAD}
     border-bottom-right-radius: var(--radius);
   }
 
-  /* ── Reference Cards ── */
+  /* Reference Cards */
   .ref-list { display: grid; gap: 0.4rem; }
   .ref-card {
     display: block; text-decoration: none; color: inherit;
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 1rem 1.1rem; transition: all var(--transition-slow);
+    padding: 1rem 1.15rem; transition: all var(--transition-slow);
   }
-  .ref-card:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+  .ref-card:hover { border-color: var(--border-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
   .ref-card h3 { font-size: 0.9rem; font-weight: 500; }
-  .ref-card .type { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 0.15rem; }
+  .ref-card .type { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 0.2rem; }
 
-  /* ── Learning Records (text-only, not clickable) ── */
+  /* Learning Records (text-only, not clickable) */
   .record-list { display: flex; flex-direction: column; }
   .record-card {
     padding: 1rem 0;
@@ -184,22 +192,22 @@ ${HTMX_HEAD}
   .record-card .content { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; }
   .record-card .content.markdown-body { font-size: 0.85rem; }
 
-  /* ── Resources ── */
+  /* Resources */
   .resource-markdown {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 1.5rem; line-height: 1.6; font-size: 0.88rem;
   }
 
-  /* ── Chat ── */
+  /* Chat */
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem;
     margin-bottom: 1rem; max-height: 60vh; overflow-y: auto; padding: 0.25rem;
   }
 
-  /* ── Tool Banner ── */
+  /* Tool Banner */
   .tool-banner {
     position: sticky;
-    top: 54px;
+    top: 56px;
     z-index: 99;
     background: var(--warning-bg);
     border-bottom: 1px solid var(--warning-border);
@@ -216,11 +224,11 @@ ${HTMX_HEAD}
     gap: 0.5rem;
   }
   .tool-banner.visible {
-    max-height: 36px;
-    padding: 0.4rem 1.5rem;
+    max-height: 38px;
+    padding: 0.45rem 1.5rem;
   }
 
-  /* ── Empty ── */
+  /* Empty */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--accent); }
 </style>
@@ -229,12 +237,12 @@ ${HTMX_HEAD}
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
-    <a href="${backHref}" class="header-back">${svgIcon("arrowLeft")} ${backLabel}</a>
+    <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
-      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.2rem 0.5rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
-      <button type="submit" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Save</button>
-      <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.2rem 0.5rem;">Cancel</button>
+      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
+      <button type="submit" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;">Save</button>
+      <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
     </form>
   </div>
   <div class="header-right">
@@ -245,6 +253,7 @@ ${HTMX_LOADING_BAR}
 <div id="tool-banner" class="tool-banner"></div>
 <div class="layout">
   <aside class="sidebar">
+    <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} ${backLabel}</a>
     <div class="sidebar-label">Workspace</div>
     <nav class="tabs">
       ${tabHtml}

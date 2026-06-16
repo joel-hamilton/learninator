@@ -11,40 +11,47 @@ export function onboardingLayout(user: { email: string }, mission: { id: number;
 ${HTMX_HEAD}
 <style>
   .header {
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 54px;
+    height: 56px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
   .header-left { display: flex; align-items: center; gap: 0.75rem; }
   .header h1 { font-size: 0.95rem; font-weight: 600; }
+  .header .logo {
+    font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 0.35rem;
+    color: var(--text); text-decoration: none; flex-shrink: 0;
+  }
+  .header .logo:hover { color: var(--text); }
+  .header .logo .svg-icon { width: 1.1em; height: 1.1em; color: var(--accent); }
   .header .back {
-    font-size: 0.82rem; color: var(--text-secondary); text-decoration: none;
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.25rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.8rem; color: var(--text-secondary); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition);
   }
   .header .back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
   .header-right { font-size: 0.8rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.75rem; }
   .header-right a {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.78rem;
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.25rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text-secondary); text-decoration: none; font-size: 0.76rem;
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.3rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition);
   }
   .header-right a:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
 
-  .container { max-width: 700px; margin: 2.5rem auto; padding: 0 2rem; animation: fadeInUp 0.35s ease-out; }
-  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
-  .subtitle { color: var(--text-secondary); margin-bottom: 0.3rem; font-size: 0.9rem; }
+  .container { max-width: 700px; margin: 3rem auto; padding: 0 2rem; animation: fadeInUp 0.4s ease-out; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.03em; }
+  .subtitle { color: var(--text-secondary); margin-bottom: 0.4rem; font-size: 0.9rem; line-height: 1.5; }
 
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
@@ -56,7 +63,7 @@ ${HTMX_HEAD}
 ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
-    <a href="/" class="back">${svgIcon("arrowLeft")} Dashboard</a>
+    <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
     <h1>${mission.title}</h1>
   </div>
   <div class="header-right">
@@ -66,7 +73,7 @@ ${HTMX_LOADING_BAR}
 <div class="container">
   <h1>Mission Setup</h1>
   <p class="subtitle">Your AI teacher will interview you to define your learning goals.</p>
-  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:2rem;"><input type="hidden" name="mode" value="guided"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);font-size:0.82rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer structured questions instead?</button></form>
+  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:2rem;"><input type="hidden" name="mode" value="guided"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--accent);font-size:0.82rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;font-weight:500;">Prefer structured questions instead?</button></form>
   <div id="chat-messages">
     ${messagesHtml}
   </div>
@@ -92,45 +99,50 @@ export function newMissionPage(): string {
 ${HTMX_HEAD}
 <style>
   .header {
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
-    height: 54px;
+    height: 56px;
   }
-  .header a {
-    color: var(--text-secondary); text-decoration: none; font-size: 0.82rem;
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    transition: all var(--transition);
+  .header .logo {
+    font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 0.35rem;
+    color: var(--text); text-decoration: none;
   }
-  .header a:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .header .logo:hover { color: var(--text); }
+  .header .logo .svg-icon { width: 1.15em; height: 1.15em; color: var(--accent); }
 
-  .container { max-width: 700px; margin: 2.5rem auto; padding: 0 2rem; animation: fadeInUp 0.35s ease-out; }
-  h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
-  .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; }
+  .container { max-width: 700px; margin: 3rem auto; padding: 0 2rem; animation: fadeInUp 0.4s ease-out; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: -0.03em; }
+  .subtitle { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.9rem; line-height: 1.5; }
 
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
     max-height: 50vh; overflow-y: auto; padding: 0.25rem;
   }
 
-  .mode-select { display: flex; gap: 0.6rem; margin-bottom: 1.5rem; }
-  .mode-option { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 1rem; cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s; }
-  .mode-option:hover { border-color: var(--border-hover); background: var(--surface-hover); }
-  .mode-option.selected { border-color: var(--accent); background: var(--accent-light); }
-  .mode-option h3 { font-size: 0.95rem; margin-bottom: 0.2rem; font-weight: 600; }
-  .mode-option p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; }
+  .mode-select { display: flex; gap: 0.75rem; margin-bottom: 1.75rem; }
+  .mode-option {
+    flex: 1; background: var(--surface); border: 2px solid var(--border);
+    border-radius: var(--radius-lg); padding: 1.25rem; cursor: pointer;
+    text-align: center; transition: all var(--transition-slow);
+    box-shadow: var(--shadow-sm);
+  }
+  .mode-option:hover { border-color: var(--border-hover); background: var(--surface-hover); transform: translateY(-1px); }
+  .mode-option.selected { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 4px rgba(79,70,229,0.06); }
+  .mode-option h3 { font-size: 0.95rem; margin-bottom: 0.25rem; font-weight: 600; }
+  .mode-option p { font-size: 0.78rem; color: var(--text-secondary); margin: 0; line-height: 1.4; }
   .mode-option input[type="radio"] { display: none; }
 </style>
 </head>
 <body>
 ${HTMX_LOADING_BAR}
 <header class="header">
-  <a href="/">${svgIcon("arrowLeft")} Dashboard</a>
+  <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
 </header>
 <div class="container">
   <h1>Start a new mission</h1>

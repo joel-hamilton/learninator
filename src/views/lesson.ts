@@ -34,26 +34,33 @@ export function lessonPage(params: {
 <title>${lessonTitle} — ${missionTitle} — Learninator</title>
 ${HTMX_HEAD}
 <style>
-  /* ── Toolbar ── */
+  /* Toolbar */
   .toolbar {
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-bottom: 1px solid var(--border);
     padding: 0 1.25rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 50px;
+    height: 52px;
     position: sticky;
     top: 0;
     z-index: 100;
   }
-  .toolbar .left { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .toolbar .left { display: flex; align-items: center; gap: 0.65rem; min-width: 0; }
+  .toolbar .logo {
+    font-size: 0.85rem; font-weight: 700; letter-spacing: -0.02em;
+    display: flex; align-items: center; gap: 0.3rem;
+    color: var(--text); text-decoration: none; flex-shrink: 0;
+  }
+  .toolbar .logo:hover { color: var(--text); }
+  .toolbar .logo .svg-icon { width: 1em; height: 1em; color: var(--accent); }
   .toolbar .back-link {
     font-size: 0.8rem; color: var(--text-secondary); text-decoration: none;
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     transition: all var(--transition); white-space: nowrap;
   }
   .toolbar .back-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
@@ -61,42 +68,45 @@ ${HTMX_HEAD}
   .toolbar h1 { font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .toolbar .nav { display: flex; gap: 0.4rem; flex-shrink: 0; }
   .toolbar .nav a {
-    display: inline-flex; align-items: center; gap: 0.2rem;
-    padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; transition: all var(--transition);
+    font-weight: 500;
   }
   .toolbar .nav a:hover { background: var(--surface-hover); border-color: var(--border-hover); color: var(--text); }
   .toolbar .nav .disabled {
-    display: inline-flex; align-items: center; gap: 0.2rem;
-    padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.78rem; color: var(--text-muted); opacity: 0.4; pointer-events: none;
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-size: 0.78rem; color: var(--text-muted); opacity: 0.35; pointer-events: none;
   }
   .toolbar .nav .svg-icon { width: 0.8em; height: 0.8em; }
 
-  /* ── Lesson Container ── */
+  /* Lesson Container */
   .lesson-container { max-width: 800px; margin: 0 auto; padding: 1.75rem 1.5rem 6rem; animation: fadeInUp 0.35s ease-out; }
 
-  /* ── Lesson Header ── */
-  .lesson-header { margin-bottom: 1.25rem; }
+  /* Lesson Header */
+  .lesson-header { margin-bottom: 1.5rem; }
   .lesson-header .lesson-num {
-    font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace;
-    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; margin-bottom: 0.2rem;
+    font-size: 0.7rem; color: var(--accent); font-family: ui-monospace, monospace;
+    text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.2rem;
   }
-  .lesson-header h2 { font-size: 1.2rem; font-weight: 600; letter-spacing: -0.02em; }
+  .lesson-header h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
 
-  /* ── Iframe Container ── */
+  /* Iframe Container */
   .iframe-container {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
     overflow: hidden; margin-bottom: 1.25rem;
+    box-shadow: var(--shadow-md);
   }
   #lesson-frame { width: 100%; border: none; display: block; }
 
-  /* ── Feedback Bar ── */
+  /* Feedback Bar */
   .feedback-bar {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 1rem 1.1rem; margin-bottom: 1.25rem; display: flex; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1rem 1.2rem; margin-bottom: 1.25rem; display: flex; align-items: center;
     gap: 0.6rem; flex-wrap: wrap;
     animation: fadeInUp 0.3s ease-out;
+    box-shadow: var(--shadow-sm);
   }
   .feedback-bar .label { font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; }
   .feedback-bar .fb-btn {
@@ -106,31 +116,32 @@ ${HTMX_HEAD}
   }
   .feedback-bar .fb-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
   .feedback-bar .done-btn {
-    padding: 0.45rem 1.1rem; background: var(--primary);
+    padding: 0.5rem 1.2rem; background: var(--accent);
     color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer;
-    font-size: 0.82rem; font-weight: 500; transition: all var(--transition); font-family: inherit;
+    font-size: 0.82rem; font-weight: 600; transition: all var(--transition); font-family: inherit;
+    box-shadow: 0 1px 3px rgba(79,70,229,0.2);
   }
-  .feedback-bar .done-btn:hover { background: var(--primary-hover); }
+  .feedback-bar .done-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
 
-  /* ── FAB ── */
+  /* FAB */
   .fab {
-    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 200;
-    width: 48px; height: 48px; border-radius: 50%;
-    background: var(--primary); color: #fff; border: none;
+    position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 200;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: none;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 24px rgba(79,70,229,0.25);
     transition: all var(--transition-slow);
   }
-  .fab:hover { background: var(--primary-hover); transform: scale(1.05); box-shadow: 0 6px 28px rgba(0,0,0,0.2); }
+  .fab:hover { background: var(--accent-hover); transform: scale(1.05); box-shadow: 0 8px 32px rgba(79,70,229,0.35); }
   .fab .svg-icon { width: 1.2em; height: 1.2em; }
   .fab.hidden { display: none; }
 
-  /* ── Chat Panel ── */
+  /* Chat Panel */
   .chat-panel {
-    position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 199;
+    position: fixed; bottom: 6rem; right: 1.75rem; z-index: 199;
     width: 380px; max-height: 520px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.12);
     display: none; flex-direction: column;
     animation: fadeInUp 0.25s ease-out;
     overflow: hidden;
@@ -139,15 +150,16 @@ ${HTMX_HEAD}
 
   .chat-panel-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1.1rem;
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+    background: var(--bg);
   }
   .chat-panel-header h4 { font-size: 0.85rem; font-weight: 600; }
   .chat-panel-header .header-actions { display: flex; gap: 0.3rem; }
   .chat-panel-header button {
     background: none; border: none; cursor: pointer; color: var(--text-muted);
-    padding: 0.2rem; border-radius: 4px; transition: all var(--transition);
+    padding: 0.25rem; border-radius: 6px; transition: all var(--transition);
   }
   .chat-panel-header button:hover { color: var(--text); background: var(--primary-light); }
   .chat-panel-header button .svg-icon { width: 0.95em; height: 0.95em; }
@@ -162,11 +174,14 @@ ${HTMX_HEAD}
   .chat-panel-footer {
     padding: 0.5rem; border-top: 1px solid var(--border);
     flex-shrink: 0;
+    background: var(--bg);
   }
   .chat-panel-footer .chat-form {
-    border: none; padding: 0;
+    border: 1px solid var(--border); padding: 0.4rem;
     box-shadow: none;
+    border-radius: var(--radius);
   }
+  .chat-panel-footer .chat-form:focus-within { box-shadow: 0 0 0 3px rgba(79,70,229,0.06); }
   .chat-panel-footer .chat-form textarea {
     font-size: 0.82rem;
     padding: 0.3rem 0.4rem;
@@ -181,19 +196,19 @@ ${HTMX_HEAD}
     left: 5px;
   }
 
-  /* ── Quick action chips inside chat panel ── */
-  .quick-actions { display: flex; gap: 0.35rem; padding: 0.5rem 0.75rem 0; flex-wrap: wrap; }
+  /* Quick action chips inside chat panel */
+  .quick-actions { display: flex; gap: 0.35rem; padding: 0.6rem 0.75rem 0.25rem; flex-wrap: wrap; }
   .quick-chip {
-    padding: 0.25rem 0.6rem; font-size: 0.7rem; font-weight: 500;
-    background: var(--primary-light); border: 1px solid var(--border);
+    padding: 0.3rem 0.7rem; font-size: 0.7rem; font-weight: 500;
+    background: var(--surface); border: 1px solid var(--border);
     border-radius: 999px; cursor: pointer; font-family: inherit;
     color: var(--text-secondary); transition: all var(--transition);
   }
   .quick-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
-  /* ── Responsive ── */
+  /* Responsive */
   @media (max-width: 480px) {
-    .chat-panel { width: calc(100vw - 2rem); right: 1rem; bottom: 4.5rem; }
+    .chat-panel { width: calc(100vw - 2rem); right: 1rem; bottom: 5rem; }
   }
 </style>
 </head>
@@ -201,6 +216,7 @@ ${HTMX_HEAD}
 ${HTMX_LOADING_BAR}
 <div class="toolbar">
   <div class="left">
+    <a href="/" class="logo">${svgIcon("zap")}</a>
     <a href="/missions/${missionId}" class="back-link">${svgIcon("arrowLeft")} ${missionTitle}</a>
     <h1>${displayNum} &mdash; ${lessonTitle}</h1>
   </div>

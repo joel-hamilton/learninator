@@ -48,13 +48,12 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
   };
 
   const cards = missionRows.map((m) => `
-    <div class="mission-card">
+    <div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
       <div class="info">
         <h3>${m.title}</h3>
         <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
       </div>
-      <div class="actions">
-        <a href="/missions/${m.id}" class="btn btn-primary btn-sm">Continue ${svgIcon("arrowRight")}</a>
+      <div class="actions" onclick="event.stopPropagation()">
         <form hx-post="/missions/${m.id}/delete" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
           <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this mission?')">${svgIcon("trash")} Delete</button>
         </form>

@@ -7,54 +7,59 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
 <style>
   /* ── Design Tokens ── */
   :root {
-    --bg: #f8f7f5;
+    --bg: #fafaf8;
+    --bg-alt: #f4f2ee;
     --surface: #ffffff;
-    --surface-hover: #f5f4f1;
-    --border: #e6e3dd;
-    --border-hover: #d4d0c8;
-    --text: #1a1a1a;
-    --text-secondary: #5c5c5c;
-    --text-muted: #999999;
-    --primary: #1a1a1a;
-    --primary-hover: #3d3d3d;
-    --primary-light: #f3f1ec;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #eff6ff;
-    --success: #166534;
+    --surface-hover: #f7f6f3;
+    --border: #e8e5df;
+    --border-hover: #d7d3ca;
+    --text: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #a1a1aa;
+    --primary: #18181b;
+    --primary-hover: #3f3f46;
+    --primary-light: #f4f4f5;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-light: #eef2ff;
+    --accent-ghost: #f5f3ff;
+    --success: #15803d;
     --success-bg: #f0fdf4;
     --success-border: #bbf7d0;
-    --warning: #854d0e;
+    --warning: #92400e;
     --warning-bg: #fffbeb;
     --warning-border: #fde68a;
-    --danger: #991b1b;
+    --danger: #b91c1c;
     --danger-bg: #fef2f2;
     --danger-border: #fecaca;
-    --info: #1e40af;
+    --info: #1d4ed8;
     --info-bg: #eff6ff;
     --radius-sm: 8px;
     --radius: 10px;
     --radius-lg: 14px;
     --radius-xl: 18px;
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
-    --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+    --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.05);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.07);
+    --shadow-xl: 0 12px 48px rgba(0,0,0,0.09);
     --transition: 150ms ease;
     --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* ── Reset ── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   body {
     font-family: "Inter", system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     font-size: 15px;
     line-height: 1.5;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(79,70,229,0.04), transparent),
+      radial-gradient(ellipse 50% 40% at 100% 50%, rgba(79,70,229,0.02), transparent);
   }
   a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
   a:hover { color: var(--accent-hover); }
@@ -62,27 +67,27 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   /* ── Focus Ring ── */
   input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--accent);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
 
   /* ── Selection ── */
-  ::selection { background: rgba(37, 99, 235, 0.15); }
+  ::selection { background: rgba(79, 70, 229, 0.15); color: var(--text); }
 
   /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
   /* ── Loading Bar ── */
   #htmx-loading-bar {
-    position: fixed; top: 0; left: 0; height: 2px;
-    background: var(--accent);
+    position: fixed; top: 0; left: 0; height: 2.5px;
+    background: linear-gradient(90deg, var(--accent), #818cf8);
     z-index: 9999; opacity: 0; transition: opacity 150ms; width: 0;
   }
-  .htmx-request#htmx-loading-bar { opacity: 1; animation: htmx-load 2s ease-out; }
+  .htmx-request#htmx-loading-bar { opacity: 1; animation: htmx-load 2.5s ease-out; }
   @keyframes htmx-load {
-    0% { width: 0; } 10% { width: 30%; } 50% { width: 60%; } 80% { width: 85%; } 100% { width: 95%; }
+    0% { width: 0; } 15% { width: 25%; } 40% { width: 55%; } 70% { width: 80%; } 100% { width: 94%; }
   }
 
   /* ── HTMX Indicator Toggle ── */
@@ -97,30 +102,31 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Thinking Dots ── */
-  .thinking-dots { display: flex; gap: 3px; align-items: center; padding: 2px 0; }
-  .thinking-dots span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: dot-bounce 1.4s infinite ease-in-out both; opacity: 0.4; }
+  .thinking-dots { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
+  .thinking-dots span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: dot-bounce 1.4s infinite ease-in-out both; opacity: 0.5; }
   .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
   .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
-  @keyframes dot-bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.2; } 40% { transform: scale(1); opacity: 0.8; } }
+  @keyframes dot-bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.2; } 40% { transform: scale(1); opacity: 0.85; } }
 
   /* ── Animations ── */
-  @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
   .fade-in { animation: fadeIn 0.25s ease-out; }
-  .fade-in-up { animation: fadeInUp 0.35s ease-out; }
+  .fade-in-up { animation: fadeInUp 0.4s ease-out; }
 
   /* ── Staggered card entrance ── */
-  .stagger > * { animation: fadeInUp 0.35s ease-out backwards; }
+  .stagger > * { animation: fadeInUp 0.4s ease-out backwards; }
   .stagger > *:nth-child(1) { animation-delay: 0.00s; }
-  .stagger > *:nth-child(2) { animation-delay: 0.04s; }
-  .stagger > *:nth-child(3) { animation-delay: 0.08s; }
-  .stagger > *:nth-child(4) { animation-delay: 0.12s; }
-  .stagger > *:nth-child(5) { animation-delay: 0.16s; }
-  .stagger > *:nth-child(6) { animation-delay: 0.20s; }
-  .stagger > *:nth-child(7) { animation-delay: 0.24s; }
-  .stagger > *:nth-child(8) { animation-delay: 0.28s; }
-  .stagger > *:nth-child(9) { animation-delay: 0.32s; }
-  .stagger > *:nth-child(10) { animation-delay: 0.36s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.10s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.15s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.20s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.25s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.30s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.35s; }
+  .stagger > *:nth-child(9) { animation-delay: 0.40s; }
+  .stagger > *:nth-child(10) { animation-delay: 0.45s; }
 
   /* ── SVG Icon Library ── */
   .svg-icon { width: 1.1em; height: 1.1em; display: inline-block; vertical-align: -0.15em; flex-shrink: 0; stroke-width: 1.75; }
@@ -128,22 +134,22 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   /* ── Badges ── */
   .badge {
     display: inline-flex; align-items: center;
-    padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.7rem;
-    font-weight: 500; line-height: 1.5; letter-spacing: 0.02em;
+    padding: 0.18rem 0.65rem; border-radius: 999px; font-size: 0.68rem;
+    font-weight: 500; line-height: 1.4; letter-spacing: 0.02em;
   }
   .badge-default { background: var(--primary-light); color: var(--text-secondary); }
   .badge-active { background: var(--accent-light); color: var(--accent); }
-  .badge-in-progress { background: var(--warning-bg); color: var(--warning); }
-  .badge-completed { background: var(--success-bg); color: var(--success); }
+  .badge-in-progress { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
+  .badge-completed { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
   .badge-superseded { background: var(--danger-bg); color: var(--danger); }
   .badge-info { background: var(--info-bg); color: var(--info); }
-  .badge-ready { background: var(--success-bg); color: var(--success); }
-  .badge-error { background: var(--danger-bg); color: var(--danger); }
+  .badge-ready { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+  .badge-error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
 
   /* ── Buttons ── */
   .btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.45rem 0.9rem; border-radius: var(--radius-sm); font-size: 0.85rem;
+    padding: 0.5rem 1rem; border-radius: var(--radius-sm); font-size: 0.85rem;
     font-weight: 500; cursor: pointer; transition: all var(--transition);
     border: 1px solid transparent; font-family: inherit; line-height: 1.4;
     text-decoration: none; white-space: nowrap; letter-spacing: 0.01em;
@@ -151,10 +157,12 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .btn:active { transform: scale(0.97); }
   .btn-primary {
     background: var(--primary); color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
   }
-  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
   .btn-secondary {
     background: var(--surface); color: var(--text); border-color: var(--border);
+    box-shadow: var(--shadow-sm);
   }
   .btn-secondary:hover { background: var(--surface-hover); border-color: var(--border-hover); }
   .btn-ghost {
@@ -164,48 +172,53 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .btn-danger {
     background: var(--surface); color: var(--danger); border-color: var(--border);
   }
-  .btn-danger:hover { background: var(--danger-bg); border-color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-bg); border-color: var(--danger-border); }
   .btn-accent {
     background: var(--accent); color: #fff;
+    box-shadow: 0 1px 3px rgba(79,70,229,0.25);
   }
-  .btn-accent:hover { background: var(--accent-hover); }
-  .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; border-radius: 6px; }
-  .btn-lg { padding: 0.65rem 1.4rem; font-size: 0.95rem; border-radius: var(--radius-lg); }
+  .btn-accent:hover { background: var(--accent-hover); box-shadow: 0 4px 14px rgba(79,70,229,0.35); }
+  .btn-sm { padding: 0.32rem 0.7rem; font-size: 0.78rem; border-radius: 6px; }
+  .btn-lg { padding: 0.7rem 1.5rem; font-size: 0.95rem; border-radius: var(--radius-lg); font-weight: 600; }
 
   /* ── Form Elements ── */
   .input {
-    padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.6rem 0.85rem; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
     font-size: 0.9rem; font-family: inherit; background: var(--surface);
-    color: var(--text); transition: all var(--transition); outline: none; width: 100%;
+    color: var(--text); transition: all var(--transition-slow); outline: none; width: 100%;
   }
-  .input:focus { border-color: var(--accent); }
+  .input:hover { border-color: var(--border-hover); }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
   .input::placeholder { color: var(--text-muted); }
 
   /* ── Chat Messages ── */
   .msg {
-    padding: 0.7rem 0.95rem; border-radius: var(--radius); line-height: 1.55;
+    padding: 0.75rem 1rem; border-radius: var(--radius-lg); line-height: 1.55;
     font-size: 0.9rem; max-width: 88%;
     animation: fadeIn 0.25s ease-out;
   }
   .msg.user {
     background: var(--primary-light); color: var(--text);
     align-self: flex-end;
-    border-bottom-right-radius: 4px;
+    border-bottom-right-radius: 6px;
+    border: 1px solid var(--border);
   }
   .msg.assistant {
     background: var(--surface); border: 1px solid var(--border);
     align-self: flex-start;
-    border-bottom-left-radius: 4px;
+    border-bottom-left-radius: 6px;
+    box-shadow: var(--shadow-sm);
   }
 
   /* ── Chat Form ── */
   .chat-form {
     display: flex; gap: 0.5rem; align-items: flex-end;
-    background: var(--surface); border: 1px solid var(--border);
+    background: var(--surface); border: 1.5px solid var(--border);
     border-radius: var(--radius-lg); padding: 0.5rem;
-    transition: border-color var(--transition);
+    transition: all var(--transition-slow);
+    box-shadow: var(--shadow-sm);
   }
-  .chat-form:focus-within { border-color: var(--border-hover); }
+  .chat-form:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(79,70,229,0.06); }
   .chat-form .textarea-wrapper { position: relative; flex: 1; }
   .chat-form textarea {
     width: 100%; box-sizing: border-box; border: none; padding: 0.35rem 0.5rem; padding-bottom: 1.4rem;
@@ -227,19 +240,20 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   }
   .chat-form button {
     padding: 0.5rem 1.1rem;
-    background: var(--primary); color: #fff; border: none;
-    border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 500;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600;
     cursor: pointer; transition: all var(--transition);
     flex-shrink: 0; font-family: inherit;
+    box-shadow: 0 1px 3px rgba(79,70,229,0.2);
   }
-  .chat-form button:hover { background: var(--primary-hover); }
+  .chat-form button:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
   .chat-form button:active { transform: scale(0.97); }
 
   /* ── Section Label ── */
   .section-label {
     display: flex; align-items: center; gap: 0.75rem;
-    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--text-muted); font-weight: 600; margin-bottom: 0.75rem;
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-muted); font-weight: 600; margin-bottom: 0.85rem;
   }
   .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
@@ -252,36 +266,40 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
 
   /* ── Markdown Body ── */
   .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-    margin: 0.5em 0 0.2em; font-weight: 600; line-height: 1.3;
+    margin: 0.6em 0 0.25em; font-weight: 600; line-height: 1.3;
   }
-  .markdown-body h1 { font-size: 1.35em; }
-  .markdown-body h2 { font-size: 1.2em; }
+  .markdown-body h1 { font-size: 1.4em; letter-spacing: -0.02em; }
+  .markdown-body h2 { font-size: 1.2em; letter-spacing: -0.01em; }
   .markdown-body h3 { font-size: 1.05em; }
-  .markdown-body p { margin: 0.2em 0 0.5em; }
-  .markdown-body ul, .markdown-body ol { margin: 0.2em 0 0.5em; padding-left: 1.5em; }
-  .markdown-body li { margin: 0.1em 0; }
+  .markdown-body p { margin: 0.25em 0 0.55em; }
+  .markdown-body ul, .markdown-body ol { margin: 0.25em 0 0.55em; padding-left: 1.6em; }
+  .markdown-body li { margin: 0.15em 0; }
   .markdown-body code {
-    background: var(--primary-light); padding: 0.1em 0.35em; border-radius: 3px;
+    background: var(--primary-light); padding: 0.15em 0.4em; border-radius: 4px;
     font-size: 0.88em; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--accent-hover);
   }
   .markdown-body pre {
-    background: #1e1e1e; color: #e0e0e0; padding: 0.75rem 1rem;
-    border-radius: var(--radius); overflow-x: auto; margin: 0.5em 0;
+    background: #1a1a2e; color: #e2e8f0; padding: 1rem 1.25rem;
+    border-radius: var(--radius); overflow-x: auto; margin: 0.6em 0;
+    border: 1px solid #2d2d44;
   }
   .markdown-body pre code { background: none; padding: 0; font-size: 0.85em; color: inherit; }
   .markdown-body blockquote {
-    border-left: 3px solid var(--border-hover); margin: 0.4em 0;
-    padding: 0.2em 0.75em; color: var(--text-secondary);
+    border-left: 3px solid var(--accent); margin: 0.5em 0;
+    padding: 0.25em 0.85em; color: var(--text-secondary);
+    background: var(--accent-ghost);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
-  .markdown-body table { border-collapse: collapse; margin: 0.4em 0; width: 100%; }
+  .markdown-body table { border-collapse: collapse; margin: 0.5em 0; width: 100%; }
   .markdown-body th, .markdown-body td {
-    border: 1px solid var(--border); padding: 0.35em 0.7em; text-align: left;
+    border: 1px solid var(--border); padding: 0.4em 0.75em; text-align: left;
   }
-  .markdown-body th { background: var(--primary-light); font-weight: 600; }
-  .markdown-body strong { font-weight: 600; }
+  .markdown-body th { background: var(--primary-light); font-weight: 600; font-size: 0.88em; }
+  .markdown-body strong { font-weight: 600; color: var(--text); }
   .markdown-body em { font-style: italic; }
   .markdown-body a { color: var(--accent); text-decoration: underline; }
-  .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 0.75em 0; }
+  .markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 0.85em 0; }
 </style>
 
 <script>
