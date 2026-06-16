@@ -1,5 +1,6 @@
 import type { User } from "../types.js";
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
+import { browseSectionHtml, BROWSE_CSS } from "./browse.js";
 
 export function layout(user: User, content: string) {
   return `<!DOCTYPE html>
@@ -91,6 +92,7 @@ ${HTMX_HEAD}
   .mission-card .info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.2rem; }
   .mission-card .info .meta { font-size: 0.8rem; color: var(--text-muted); }
   .mission-card .actions { display: flex; gap: 0.5rem; align-items: center; }
+  ${BROWSE_CSS}
 </style>
 </head>
 <body>

@@ -1,4 +1,5 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR } from "./shared.js";
+import { browseSectionHtml, BROWSE_CSS } from "./browse.js";
 
 /** Chat-focused page for onboarding missions. */
 export function onboardingLayout(user: { email: string }, mission: { id: number; title: string }, messagesHtml: string) {
@@ -99,6 +100,7 @@ ${HTMX_HEAD}
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
     max-height: 55vh; overflow-y: auto; padding: 0.25rem;
   }
+  ${BROWSE_CSS}
 </style>
 </head>
 <body>
@@ -119,6 +121,7 @@ ${HTMX_LOADING_BAR}
     </div>
     <button type="submit">Send</button>
   </form>
+  ${browseSectionHtml()}
 </div>
 </body>
 </html>`;

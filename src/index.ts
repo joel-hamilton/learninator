@@ -14,6 +14,7 @@ import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
 import { chatRoutes } from "./routes/chat.js";
+import { browseRoutes } from "./routes/browse.js";
 
 const app = new Hono<{ Variables: AppVariables }>();
 
@@ -50,6 +51,7 @@ app.route("/", homeRoutes);
 app.route("/missions", missionRoutes);
 app.route("/missions/:missionId/lessons", lessonRoutes);
 app.route("/missions/:missionId/chat", chatRoutes);
+app.route("/browse", browseRoutes);
 
 const port = parseInt(process.env.PORT || "3000");
 console.log(`Learninator running on http://localhost:${port}`);

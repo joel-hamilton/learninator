@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import type { User } from "../types.js";
 import { layout } from "../views/home.js";
+import { browseSectionHtml } from "../views/browse.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const homeRoutes = new Hono<{ Variables: AppVariables }>();
@@ -35,6 +36,7 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
           <button type="button" class="example-btn" onclick="const ta=this.closest('.empty-state').querySelector('textarea');ta.value='Cooking fundamentals';ta.focus()">Cooking</button>
           <button type="button" class="example-btn" onclick="const ta=this.closest('.empty-state').querySelector('textarea');ta.value='Drawing and sketching';ta.focus()">Drawing</button>
         </div>
+        ${browseSectionHtml()}
       </div>
     `));
   }
