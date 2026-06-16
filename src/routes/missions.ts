@@ -17,6 +17,7 @@ import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRe
 import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "../views/shared.js";
 import { emit, subscribe } from "../ai/events.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
+import { createOnboarding } from "../onboarding/index.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const missionRoutes = new Hono<{ Variables: AppVariables }>();
@@ -383,26 +384,14 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     .returning();
   const missionId = mission.id;
 
-  const systemPrompt = getOnboardingPrompt(missionId, mode);
+  const onboarding = createOnboarding({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
-  try {
-    const messages: AiMessageParam[] = [
-      { role: "user", content: message },
-    ];
-
-    await saveMessage(missionId, "user", message);
-
-    const opts = mode === "guided" ? { pauseOnTools: new Set(["ask_guided_question"]) } : undefined;
-    const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS, opts);
-
-    if (result.didActivate) {
-      await generateMissionTitle(c, missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
-      return c.body(null);
-    }
-  } catch (err: unknown) {
-    // Mission and user message are saved; redirect to the onboarding page even on AI error.
-  }
+  await onboarding.start(missionId, message, mode);
 
   c.header("HX-Redirect", `/missions/${missionId}`);
   return c.body(null);
@@ -546,44 +535,25 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
     .limit(1);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
-  const systemPrompt = getOnboardingPrompt(missionId, "guided");
-  const messages = await loadMessages(missionId);
+  const onboarding = createOnboarding({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
-  try {
-    const result = await runConversationLoop(
-      c, missionId, systemPrompt, messages, TEACHER_TOOLS,
-      { pauseOnTools: new Set(["ask_guided_question"]) }
-    );
+  const result = await onboarding.continueGuided(missionId);
 
-    if (result.didActivate) {
-      await generateMissionTitle(c, missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
+  switch (result.type) {
+    case "redirect":
+      c.header("HX-Redirect", result.url);
       return c.body(null);
-    }
-
-    // Check for paused question
-    if (result.pausedToolUse) {
-      const input = result.pausedToolUse.input as Record<string, unknown>;
-      const [pq] = await db
-        .select()
-        .from(schema.guidedQuestions)
-        .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-        .orderBy(asc(schema.guidedQuestions.createdAt))
-        .limit(1);
-
-      if (pq) {
-        const options: string[] = JSON.parse(pq.options as string);
-        return c.html(guidedQuestionSection(missionId, pq.id, pq.question as string, options));
-      }
-    }
-
-    // No question generated — AI must have sent text. Trigger again.
-    return c.html(guidedThinkingSection(missionId));
-  } catch (err: unknown) {
-    const msg = err instanceof AIError
-      ? err.message
-      : "Something went wrong. Please try again.";
-    return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${msg}</p></div></div>`);
+    case "question":
+      return c.html(guidedQuestionSection(missionId, result.questionId, result.question, result.options));
+    case "thinking":
+      return c.html(guidedThinkingSection(missionId));
+    case "error":
+      return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${result.message}</p></div></div>`);
   }
 });
 
@@ -603,63 +573,25 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
     .limit(1);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
-  // Mark the question as answered
-  const finalAnswer = otherText || selectedAnswer;
-  if (questionId && finalAnswer) {
-    await db
-      .update(schema.guidedQuestions)
-      .set({ answer: selectedAnswer, answerText: otherText || null, status: "answered" })
-      .where(eq(schema.guidedQuestions.id, questionId));
-  }
+  const onboarding = createOnboarding({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
-  // Feed answer into conversation
-  const questionText = await db
-    .select()
-    .from(schema.guidedQuestions)
-    .where(eq(schema.guidedQuestions.id, questionId))
-    .limit(1);
+  const result = await onboarding.answerQuestion(missionId, questionId, selectedAnswer, otherText);
 
-  const qText = questionText[0]?.question || "Previous question";
-  const userMessage = `Question: ${qText}\nAnswer: ${finalAnswer}`;
-  await saveMessage(missionId, "user", userMessage);
-
-  const systemPrompt = getOnboardingPrompt(missionId, "guided");
-  const messages = await loadMessages(missionId);
-
-  try {
-    const result = await runConversationLoop(
-      c, missionId, systemPrompt, messages, TEACHER_TOOLS,
-      { pauseOnTools: new Set(["ask_guided_question"]) }
-    );
-
-    if (result.didActivate) {
-      await generateMissionTitle(c, missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
+  switch (result.type) {
+    case "redirect":
+      c.header("HX-Redirect", result.url);
       return c.body(null);
-    }
-
-    if (result.pausedToolUse) {
-      const input = result.pausedToolUse.input as Record<string, unknown>;
-      const [pq] = await db
-        .select()
-        .from(schema.guidedQuestions)
-        .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-        .orderBy(asc(schema.guidedQuestions.createdAt))
-        .limit(1);
-
-      if (pq) {
-        const options: string[] = JSON.parse(pq.options as string);
-        return c.html(guidedQuestionSection(missionId, pq.id, pq.question as string, options));
-      }
-    }
-
-    // Fallback: trigger another turn
-    return c.html(guidedThinkingSection(missionId));
-  } catch (err: unknown) {
-    const msg = err instanceof AIError
-      ? err.message
-      : "Something went wrong. Please try again.";
-    return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${msg}</p></div></div>`);
+    case "question":
+      return c.html(guidedQuestionSection(missionId, result.questionId, result.question, result.options));
+    case "thinking":
+      return c.html(guidedThinkingSection(missionId));
+    case "error":
+      return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${result.message}</p></div></div>`);
   }
 });
 
@@ -675,35 +607,16 @@ missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) =
     .limit(1);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
-  // Mark any pending questions as answered
-  await db
-    .update(schema.guidedQuestions)
-    .set({ answer: "(skipped)", status: "answered" })
-    .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")));
+  const onboarding = createOnboarding({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
-  const systemPrompt = getOnboardingPrompt(missionId, "guided") + `\n\nThe user has requested that you stop asking questions and proceed immediately. Use your best judgment for all remaining decisions. Write MISSION.md and NOTES.md if you haven't already, call mark_mission_active, and create the first lesson. Do NOT ask any more questions or prompt the user for input.`;
+  const result = await onboarding.skipQuestions(missionId);
 
-  // Remove ask_guided_question so the AI can't use it
-  const skipTools = TEACHER_TOOLS.filter((t) => t.name !== "ask_guided_question");
-
-  const messages = await loadMessages(missionId);
-  const skipMessage = "[I've answered enough questions. Please use your best judgment for the rest and create the mission and first lesson.]";
-  await saveMessage(missionId, "user", skipMessage);
-  const allMessages = await loadMessages(missionId);
-
-  try {
-    const result = await runConversationLoop(c, missionId, systemPrompt, allMessages, skipTools);
-
-    if (result.didActivate) {
-      await generateMissionTitle(c, missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
-      return c.body(null);
-    }
-  } catch (err: unknown) {
-    // Continue to redirect even on error — mission exists
-  }
-
-  c.header("HX-Redirect", `/missions/${missionId}`);
+  c.header("HX-Redirect", (result as { url: string }).url);
   return c.body(null);
 });
 
@@ -721,30 +634,14 @@ missionRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
     .limit(1);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
-  // When switching from guided to chat, inject any pending question as a message
-  if (mission.onboardingMode === "guided" && newMode === "chat") {
-    const pendingQuestions = await db
-      .select()
-      .from(schema.guidedQuestions)
-      .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-      .orderBy(asc(schema.guidedQuestions.createdAt));
+  const onboarding = createOnboarding({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
-    for (const pq of pendingQuestions) {
-      const options: string[] = JSON.parse(pq.options as string);
-      const optionsText = options.map((o: string) => `- ${o}`).join("\n");
-      const questionMsg = `**${pq.question}**\n\n${optionsText}`;
-      await saveMessage(missionId, "assistant", questionMsg);
-      await db
-        .update(schema.guidedQuestions)
-        .set({ answer: "(switched to chat)", status: "answered" })
-        .where(eq(schema.guidedQuestions.id, pq.id));
-    }
-  }
-
-  await db
-    .update(schema.missions)
-    .set({ onboardingMode: newMode, updatedAt: new Date().toISOString() })
-    .where(eq(schema.missions.id, missionId));
+  await onboarding.switchMode(missionId, newMode);
 
   // Re-render the page by redirecting to the same URL
   return c.redirect(`/missions/${missionId}`);
