@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
+import { DrizzleMissionStore } from "../db/store.js";
 import { createOnboarding } from "./index.js";
 import type { OnboardingModule } from "./index.js";
 import type { AiClient, AiMessage } from "../ai/types.js";
@@ -161,7 +162,7 @@ describe("onboarding module", () => {
 
   beforeEach(() => {
     db = createTestDb();
-    executor = createToolExecutor(db);
+    executor = createToolExecutor(new DrizzleMissionStore(db));
   });
 
   describe("start", () => {

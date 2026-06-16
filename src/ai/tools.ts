@@ -1,83 +1,31 @@
-import { schema, db } from "../db/index.js"
-import { eq, and, asc, count, isNull, max } from "drizzle-orm"
 import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam } from "./types.js"
+import type { MissionStore } from "../db/store.js"
 
 // ── Individual tool handlers ──────────────────────────────────────────
 
 async function readMissionContent(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [row] = await db
-    .select()
-    .from(schema.missionContent)
-    .where(
-      and(
-        eq(schema.missionContent.missionId, missionId),
-        eq(
-          schema.missionContent.contentType,
-          input.content_type as "mission" | "notes" | "resources" | "glossary"
-        )
-      )
-    )
-    .limit(1)
-  return row?.markdownContent || "(empty)"
+  const content = await db.readMissionContent(missionId, input.content_type as string)
+  return content ?? "(empty)"
 }
 
 async function writeMissionContent(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [existing] = await db
-    .select()
-    .from(schema.missionContent)
-    .where(
-      and(
-        eq(schema.missionContent.missionId, missionId),
-        eq(
-          schema.missionContent.contentType,
-          input.content_type as "mission" | "notes" | "resources" | "glossary"
-        )
-      )
-    )
-    .limit(1)
-
-  if (existing) {
-    await db
-      .update(schema.missionContent)
-      .set({
-        markdownContent: input.markdown_content as string,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(schema.missionContent.id, existing.id))
-  } else {
-    await db.insert(schema.missionContent).values({
-      missionId,
-      contentType: input.content_type as "mission" | "notes" | "resources" | "glossary",
-      markdownContent: input.markdown_content as string,
-    })
-  }
+  await db.upsertMissionContent(missionId, input.content_type as string, input.markdown_content as string)
   return `Saved ${input.content_type} content.`
 }
 
 async function createLesson(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [lastMain] = await db
-    .select({ count: count() })
-    .from(schema.lessons)
-    .where(
-      and(
-        eq(schema.lessons.missionId, missionId),
-        isNull(schema.lessons.parentLessonId),
-      )
-    )
-
-  const num = (lastMain?.count || 0) + 1
-
-  await db.insert(schema.lessons).values({
+  const count = await db.getMainLessonCount(missionId)
+  const num = count + 1
+  await db.insertLesson({
     missionId,
     number: num,
     title: input.title as string,
     slug: input.slug as string,
     htmlContent: input.html_content as string,
   })
-
   return `Created lesson ${String(num).padStart(4, "0")}: "${input.title}". The user can now view it.`
 }
 
@@ -85,27 +33,13 @@ async function createSubLesson(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
   const parentNumber = input.parent_lesson_number as number
 
-  const [parent] = await db
-    .select()
-    .from(schema.lessons)
-    .where(
-      and(
-        eq(schema.lessons.missionId, missionId),
-        eq(schema.lessons.number, parentNumber),
-        isNull(schema.lessons.parentLessonId),
-      )
-    )
-    .limit(1)
+  const parent = await db.getMainLessonByNumber(missionId, parentNumber)
   if (!parent) return `Parent lesson ${parentNumber} not found.`
 
-  const [lastSub] = await db
-    .select({ max: max(schema.lessons.subNumber) })
-    .from(schema.lessons)
-    .where(eq(schema.lessons.parentLessonId, parent.id))
+  const maxSub = await db.getMaxSubNumber(parent.id)
+  const subNum = (maxSub ?? 0) + 1
 
-  const subNum = (lastSub?.max || 0) + 1
-
-  await db.insert(schema.lessons).values({
+  await db.insertLesson({
     missionId,
     number: parentNumber,
     subNumber: subNum,
@@ -124,23 +58,9 @@ async function readLesson(ctx: ToolHandlerContext): Promise<string> {
   const lessonNumber = input.number as number
   const subNumber = input.sub_number as number | undefined
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, lessonNumber),
-  ]
-  if (subNumber !== undefined) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber))
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId))
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1)
-
+  const lesson = await db.getLesson(missionId, lessonNumber, subNumber)
   if (!lesson) return "Lesson not found."
+
   return JSON.stringify({
     number: lesson.number,
     sub_number: lesson.subNumber,
@@ -153,62 +73,34 @@ async function readLesson(ctx: ToolHandlerContext): Promise<string> {
 
 async function listLessons(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId } = ctx
-  const rows = await db
-    .select({
-      number: schema.lessons.number,
-      subNumber: schema.lessons.subNumber,
-      title: schema.lessons.title,
-      slug: schema.lessons.slug,
-      status: schema.lessons.status,
-      createdAt: schema.lessons.createdAt,
-    })
-    .from(schema.lessons)
-    .where(eq(schema.lessons.missionId, missionId))
-    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber))
-
+  const rows = await db.listLessons(missionId)
   return JSON.stringify(rows)
 }
 
 async function createReferenceDoc(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  await db.insert(schema.referenceDocs).values({
+  await db.insertReferenceDoc({
     missionId,
     title: input.title as string,
     slug: input.slug as string,
     htmlContent: input.html_content as string,
-    docType:
-      (input.doc_type as "cheatsheet" | "algorithm" | "routine" | "sequence" | "other") || "other",
+    docType: (input.doc_type as string) || "other",
   })
   return `Created reference doc: "${input.title}" (${input.doc_type}).`
 }
 
 async function listReferenceDocs(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId } = ctx
-  const rows = await db
-    .select({
-      id: schema.referenceDocs.id,
-      title: schema.referenceDocs.title,
-      slug: schema.referenceDocs.slug,
-      docType: schema.referenceDocs.docType,
-      createdAt: schema.referenceDocs.createdAt,
-    })
-    .from(schema.referenceDocs)
-    .where(eq(schema.referenceDocs.missionId, missionId))
-    .orderBy(asc(schema.referenceDocs.createdAt))
-
+  const rows = await db.listReferenceDocs(missionId)
   return JSON.stringify(rows)
 }
 
 async function createLearningRecord(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const [last] = await db
-    .select({ count: count() })
-    .from(schema.learningRecords)
-    .where(eq(schema.learningRecords.missionId, missionId))
+  const count = await db.getLearningRecordCount(missionId)
+  const num = count + 1
 
-  const num = (last?.count || 0) + 1
-
-  await db.insert(schema.learningRecords).values({
+  await db.insertLearningRecord({
     missionId,
     number: num,
     title: input.title as string,
@@ -220,48 +112,23 @@ async function createLearningRecord(ctx: ToolHandlerContext): Promise<string> {
 
 async function listLearningRecords(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId } = ctx
-  const rows = await db
-    .select({
-      number: schema.learningRecords.number,
-      title: schema.learningRecords.title,
-      status: schema.learningRecords.status,
-      supersededBy: schema.learningRecords.supersededBy,
-      createdAt: schema.learningRecords.createdAt,
-    })
-    .from(schema.learningRecords)
-    .where(eq(schema.learningRecords.missionId, missionId))
-    .orderBy(asc(schema.learningRecords.number))
-
+  const rows = await db.listLearningRecords(missionId)
   return JSON.stringify(rows)
 }
 
 async function updateLearningRecord(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
-  const updateData: Record<string, unknown> = { status: input.status }
-  if (input.status === "superseded" && input.superseded_by) {
-    updateData.supersededBy = input.superseded_by
-  }
-
-  await db
-    .update(schema.learningRecords)
-    .set(updateData)
-    .where(
-      and(
-        eq(schema.learningRecords.missionId, missionId),
-        eq(schema.learningRecords.number, input.number as number)
-      )
-    )
+  await db.updateLearningRecord(missionId, input.number as number, {
+    status: input.status as string,
+    supersededBy: input.superseded_by as number | undefined,
+  })
 
   return `Updated learning record LR${String(input.number).padStart(4, "0")} status to ${input.status}.`
 }
 
 async function markMissionActive(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId } = ctx
-  await db
-    .update(schema.missions)
-    .set({ status: "active", updatedAt: new Date().toISOString() })
-    .where(eq(schema.missions.id, missionId))
-
+  await db.updateMissionStatus(missionId, "active")
   return "Mission is now active. You can begin creating lessons."
 }
 
@@ -276,7 +143,7 @@ async function writeResources(ctx: ToolHandlerContext): Promise<string> {
 async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
   const options = [...(input.options as string[]), "Other (please specify)"]
-  await db.insert(schema.guidedQuestions).values({
+  await db.insertGuidedQuestion({
     missionId,
     question: input.question as string,
     options: JSON.stringify(options),
@@ -328,7 +195,7 @@ function buildHandlerMap(): Map<string, ToolHandler> {
 
 // ── Factory ───────────────────────────────────────────────────────────
 
-export function createToolExecutor(database: typeof db): ToolExecutor {
+export function createToolExecutor(store: MissionStore): ToolExecutor {
   const handlers = buildHandlerMap()
 
   return {
@@ -340,7 +207,7 @@ export function createToolExecutor(database: typeof db): ToolExecutor {
       const handler = handlers.get(toolName)
       if (!handler) return `Unknown tool: ${toolName}`
       try {
-        return await handler({ db: database, missionId, input })
+        return await handler({ db: store, missionId, input })
       } catch (err) {
         return `Error executing ${toolName}: ${err}`
       }

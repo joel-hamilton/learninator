@@ -1,103 +1,13 @@
 import { describe, it, expect, beforeAll } from "vitest"
-import Database from "better-sqlite3"
-import { drizzle } from "drizzle-orm/better-sqlite3"
-import * as schema from "../db/schema.js"
 import { createToolExecutor } from "./tools.js"
+import { InMemoryMissionStore } from "../db/store.js"
 import type { AiToolUseBlock } from "./types.js"
 
 describe("tool handlers", () => {
   let executor: ReturnType<typeof createToolExecutor>
 
   beforeAll(() => {
-    const sqlite = new Database(":memory:")
-    sqlite.pragma("journal_mode = WAL")
-    sqlite.pragma("foreign_keys = ON")
-
-    // Create tables matching the Drizzle schema
-    sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS missions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        title TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'onboarding',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS mission_content (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mission_id INTEGER NOT NULL REFERENCES missions(id),
-        content_type TEXT NOT NULL,
-        markdown_content TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS lessons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mission_id INTEGER NOT NULL REFERENCES missions(id),
-        number INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        html_content TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        parent_lesson_id INTEGER REFERENCES lessons(id),
-        sub_number INTEGER,
-        feedback_rating TEXT,
-        feedback_text TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        completed_at TEXT
-      );
-
-      CREATE TABLE IF NOT EXISTS reference_docs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mission_id INTEGER NOT NULL REFERENCES missions(id),
-        title TEXT NOT NULL,
-        slug TEXT NOT NULL,
-        html_content TEXT NOT NULL,
-        doc_type TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS learning_records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mission_id INTEGER NOT NULL REFERENCES missions(id),
-        number INTEGER NOT NULL,
-        title TEXT NOT NULL,
-        markdown_content TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        superseded_by INTEGER,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        mission_id INTEGER NOT NULL REFERENCES missions(id),
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-    `)
-
-    // Seed a user and mission for FK constraints
-    sqlite.exec(
-      "INSERT INTO users (id, email, password_hash) VALUES (1, 'test@test.com', 'hash');"
-    )
-    sqlite.exec(
-      "INSERT INTO missions (id, user_id, title, slug) VALUES (1, 1, 'Test', 'test');"
-    )
-
-    const testDb = drizzle(sqlite, { schema })
-    executor = createToolExecutor(testDb)
+    executor = createToolExecutor(new InMemoryMissionStore())
   })
 
   it("read_mission_content returns empty for missing content", async () => {
@@ -326,9 +236,9 @@ describe("tool handlers", () => {
 
   it("handles tool execution errors gracefully with invalid input", async () => {
     const result = await executor.executeTool(1, "read_lesson", {
-      number: "not-a-number",
+      number: "not-a-number" as any,
     })
-    // Drizzle/better-sqlite3 coerces the type, so the query just finds no match
+    // The store just doesn't find a match
     expect(result).toBe("Lesson not found.")
   })
 })

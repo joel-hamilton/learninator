@@ -5,18 +5,16 @@ import { auth } from "../auth/index.js";
 import { db, schema } from "../db/index.js";
 import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
-import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { conversationLoop } from "../ai/conversation.js";
 import type { AppVariables } from "../types.js";
+import { createMissionConversation } from "../ai/mission-conversation.js";
 
-import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";
+import { contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "../views/shared.js";
-import { emit, subscribe } from "../ai/events.js";
-import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
+import { subscribe } from "../ai/events.js";
 import { createOnboarding } from "../onboarding/index.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -814,86 +812,27 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  await saveMessage(missionId, "user", message);
-  const messages = await loadMessages(missionId);
-
-  const log = c.get("logger");
-
-  // Build system prompt based on mission status
-  let systemPrompt: string;
-  let didActivate = false;
-
-  if (mission.status === "onboarding") {
-    const mode = (mission as Record<string, unknown>).onboardingMode as string || "guided";
-    const modeInstructions = mode === "guided"
-      ? `\n\n## Guided Onboarding Mode\n\nThe user has chosen guided onboarding. You will interview them one question at a time. Use the ask_guided_question tool to ask a SINGLE multiple-choice question. After the user answers, you'll receive their answer and can ask the next question.\n\nAsk 3-5 questions to understand:\n- What they want to learn (be specific)\n- Why they want to learn it (concrete outcomes)\n- Their current experience level\n- Constraints (time, budget, etc.)\n- What success looks like\n\nAfter you have enough information, write MISSION.md and NOTES.md, then call mark_mission_active. Do NOT create lessons during onboarding — wait until the mission is active.\n\nKeep questions concise. Make each option distinct and concrete. Always include "Other (please specify)" as the last option.`
-      : `\n\n## Chat Onboarding Mode\n\nThe user has chosen free-form chat onboarding. Have a natural conversation to understand their learning goals. When you have enough information, write MISSION.md and NOTES.md, then call mark_mission_active.`;
-    systemPrompt = TEACHER_SYSTEM_PROMPT + modeInstructions;
-  } else {
-    systemPrompt = TEACHER_SYSTEM_PROMPT;
-  }
+  const mc = createMissionConversation({
+    ai: c.get("ai"),
+    toolExecutor: c.get("toolExecutor"),
+    db,
+    logger: c.get("logger"),
+  });
 
   try {
-    let pendingToolNames: string[] = [];
-
-    const result = await conversationLoop({
-      client: c.get("ai"),
-      toolExecutor: c.get("toolExecutor"),
+    const result = await mc.run({
       missionId,
-      systemPrompt,
-      initialMessages: messages,
-      tools: TEACHER_TOOLS,
-      logger: log,
-      hooks: {
-        onAssistantMessage: async (content) => {
-          await saveMessage(missionId, "assistant", content);
-        },
-        onBeforeToolExecution: async (toolUseBlocks) => {
-          pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
-          emit(missionId, { type: "tool_start", names: pendingToolNames });
-          if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
-            didActivate = true;
-          }
-          log.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
-        },
-        onAfterToolExecution: async (results) => {
-          emit(missionId, { type: "tool_end", names: pendingToolNames });
-          await saveMessage(missionId, "user", results);
-        },
-      },
+      missionStatus: mission.status,
+      onboardingMode: (mission as Record<string, unknown>).onboardingMode as "guided" | "chat" | undefined,
+      userMessage: message,
     });
 
-    if (didActivate) {
-      // Generate title from conversation
-      try {
-        const titleMessages = await loadMessages(missionId);
-        const conversationText = titleMessages.map((m) => {
-          const text = typeof m.content === "string" ? m.content : (Array.isArray(m.content) ? m.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("") : "");
-          return `${m.role}: ${text}`;
-        }).join("\n\n");
-
-        const title = await c.get("ai").chat(
-          "Generate a short, descriptive title (max 8 words) for a learning mission based on this conversation. Return ONLY the title, no quotes, no punctuation at the end. Make it specific and concrete.",
-          [{ role: "user", content: `Here is the conversation:\n\n${conversationText.slice(-3000)}` }],
-          { model: "low", maxTokens: 50, disableThinking: true }
-        );
-
-        const cleanTitle = title.trim().replace(/^["']|["']$/g, "").slice(0, 120);
-        if (cleanTitle) {
-          await db
-            .update(schema.missions)
-            .set({ title: cleanTitle, updatedAt: new Date().toISOString() })
-            .where(eq(schema.missions.id, missionId));
-        }
-      } catch {
-        // Title generation is non-critical
-      }
-
-      c.header("HX-Redirect", `/missions/${missionId}`);
+    if (result.type === "activated") {
+      c.header("HX-Redirect", result.redirectUrl);
       return c.body(null);
     }
 
-    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let us continue.")));
+    return c.html(chatMessageBubble("assistant", formatMarkdown(result.text)));
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>`

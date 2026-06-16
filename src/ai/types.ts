@@ -73,8 +73,10 @@ export interface AiClient {
   ): Promise<AiMessage>
 }
 
+import type { MissionStore } from "../db/store.js";
+
 export interface ToolHandlerContext {
-  db: any
+  db: MissionStore
   missionId: number
   input: Record<string, unknown>
 }

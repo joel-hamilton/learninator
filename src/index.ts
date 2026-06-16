@@ -9,6 +9,7 @@ import { createLogger } from "./logger.js";
 import { AnthropicAiClient } from "./ai/anthropic.js";
 import { createToolExecutor } from "./ai/tools.js";
 import { db } from "./db/index.js";
+import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
@@ -28,7 +29,7 @@ app.use("*", async (c, next) => {
 // AI client + tool executor injection
 app.use("*", async (c, next) => {
   c.set("ai", new AnthropicAiClient());
-  c.set("toolExecutor", createToolExecutor(db));
+  c.set("toolExecutor", createToolExecutor(new DrizzleMissionStore(db)));
   await next();
 });
 
