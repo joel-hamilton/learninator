@@ -83,8 +83,24 @@ ${HTMX_HEAD}
   }
   .header-right .logout-link:hover { border-color: var(--primary); color: var(--text); }
 
+  /* ── Sidebar toggle ── */
+  .sidebar-toggle {
+    background: none; border: none; cursor: pointer;
+    font-size: 1.1rem; color: var(--text-secondary);
+    padding: 0.25rem 0.4rem; border-radius: var(--radius-sm);
+    line-height: 1; transition: all var(--transition);
+    flex-shrink: 0;
+  }
+  .sidebar-toggle:hover { color: var(--text); background: var(--primary-light); }
   /* ── Layout ── */
-  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); }
+  .layout { display: grid; grid-template-columns: 250px 1fr; min-height: calc(100vh - 56px); transition: grid-template-columns 0.25s ease; }
+  .layout.sidebar-closed { grid-template-columns: 0 1fr; }
+  .layout.sidebar-closed .sidebar { overflow: hidden; padding: 0; border-right: none; min-width: 0; }
+
+  @media (max-width: 768px) {
+    .layout:not(.sidebar-open) { grid-template-columns: 0 1fr; }
+    .layout:not(.sidebar-open) .sidebar { overflow: hidden; padding: 0; border-right: none; min-width: 0; }
+  }
 
   /* ── Sidebar ── */
   .sidebar {
@@ -186,6 +202,7 @@ ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="header-back">&larr; Dashboard</a>
+    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">☰</button>
     <span class="header-title">${mission.title}${statusTag}</span>
   </div>
   <div class="header-right">
@@ -210,6 +227,35 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
+<script>
+(function() {
+  var layout = document.querySelector(".layout");
+  var toggle = document.querySelector(".sidebar-toggle");
+  if (!layout || !toggle) return;
+
+  if (window.innerWidth <= 768) {
+    layout.classList.add("sidebar-closed");
+  }
+  updateToggleIcon();
+
+  toggle.addEventListener("click", function() {
+    var isClosed = layout.classList.contains("sidebar-closed") ||
+      (window.innerWidth <= 768 && !layout.classList.contains("sidebar-open"));
+    if (isClosed) {
+      layout.classList.remove("sidebar-closed");
+      layout.classList.add("sidebar-open");
+    } else {
+      layout.classList.remove("sidebar-open");
+      layout.classList.add("sidebar-closed");
+    }
+    updateToggleIcon();
+  });
+
+  function updateToggleIcon() {
+    toggle.textContent = layout.classList.contains("sidebar-closed") ? "\u25b6" : "\u25c0";
+  }
+})();
+</script>
 </body>
 </html>`;
 }
