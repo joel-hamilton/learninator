@@ -10,6 +10,8 @@ import type {
   AiContentBlock,
 } from "./types.js";
 import type { Logger } from "../logger.js";
+import type { ToolEvent } from "./events.js";
+import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
 export interface ConversationHooks {
   /** Called for every assistant message (both text-only and tool_use messages). */
@@ -45,6 +47,37 @@ export interface ConversationLoopResult {
   toolCallsExecuted: number;
   /** If the loop paused because of a pauseOnTools match, the tool_use block that triggered it. */
   pausedToolUse?: AiToolUseBlock;
+}
+
+/** Dependencies for the standard conversation hooks factory. */
+export interface StandardHooksDeps {
+  missionId: number;
+  saveMessage: (missionId: number, role: "assistant" | "user", content: unknown) => Promise<void>;
+  emit?: (missionId: number, event: ToolEvent) => void;
+  logger?: Pick<Logger, "debug">;
+}
+
+/**
+ * Creates the standard set of conversation hooks used by chat and onboarding callers.
+ * Callers can spread and override individual hooks for non-standard behavior.
+ */
+export function createStandardHooks(deps: StandardHooksDeps): ConversationHooks {
+  let pendingToolNames: string[] = [];
+
+  return {
+    onAssistantMessage: async (content) => {
+      await deps.saveMessage(deps.missionId, "assistant", content);
+    },
+    onBeforeToolExecution: async (toolUseBlocks) => {
+      pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
+      deps.emit?.(deps.missionId, { type: "tool_start", names: pendingToolNames });
+      deps.logger?.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+    },
+    onAfterToolExecution: async (results) => {
+      deps.emit?.(deps.missionId, { type: "tool_end", names: pendingToolNames });
+      await deps.saveMessage(deps.missionId, "user", results);
+    },
+  };
 }
 
 /**

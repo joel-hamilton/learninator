@@ -5,7 +5,7 @@ import { db, schema } from "../db/index.js";
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { conversationLoop } from "../ai/conversation.js";
+import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { emit } from "../ai/events.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 import { lessonPage } from "../views/lesson.js";
@@ -280,28 +280,6 @@ function jobKey(missionId: number, number: number, subNumber: number | null, typ
   return `${missionId}-${number}-${subNumber ?? "m"}-${type}`;
 }
 
-function toolLabel(name: string, input: Record<string, unknown> | undefined): string {
-  switch (name) {
-    case "list_lessons":
-      return "Looking at previous lessons…";
-    case "read_lesson":
-      return `Reviewing lesson ${input?.number || ""}…`;
-    case "list_reference_docs":
-      return "Checking reference documents…";
-    case "list_learning_records":
-      return "Reviewing learning records…";
-    case "create_lesson":
-      return `Writing lesson: ${input?.title || "new lesson"}…`;
-    case "create_sub_lesson":
-      return `Writing sub-lesson: ${input?.title || "new sub-lesson"}…`;
-    case "create_reference_doc":
-      return `Creating reference: ${input?.title || "new doc"}…`;
-    case "read_mission_content":
-      return "Reading mission notes…";
-    default:
-      return `Working (${name.replace(/_/g, " ")})…`;
-  }
-}
 
 lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -396,12 +374,8 @@ You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". 
         tools: TEACHER_TOOLS,
         hooks: {
           onBeforeToolExecution: async (toolUseBlocks) => {
-            pendingToolNames = [];
-            for (const block of toolUseBlocks) {
-              const label = toolLabel(block.name, block.input as Record<string, unknown> | undefined);
-              job.messages.push(label);
-              pendingToolNames.push(TOOL_DISPLAY_NAMES[block.name] || block.name);
-            }
+            pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
+            job.messages.push(...pendingToolNames);
             emit(missionId, { type: "tool_start", names: pendingToolNames });
           },
           onAfterToolExecution: async (_results) => {
@@ -540,12 +514,8 @@ You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review
         tools: TEACHER_TOOLS,
         hooks: {
           onBeforeToolExecution: async (toolUseBlocks) => {
-            pendingToolNames = [];
-            for (const block of toolUseBlocks) {
-              const label = toolLabel(block.name, block.input as Record<string, unknown> | undefined);
-              job.messages.push(label);
-              pendingToolNames.push(TOOL_DISPLAY_NAMES[block.name] || block.name);
-            }
+            pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
+            job.messages.push(...pendingToolNames);
             emit(missionId, { type: "tool_start", names: pendingToolNames });
           },
           onAfterToolExecution: async (_results) => {
@@ -651,14 +621,7 @@ If they ask for a new lesson, use create_lesson or create_sub_lesson as appropri
         { role: "user" as const, content: `[The user is on Lesson ${lessonNumber}: "${lessonTitle}". They said:] ${message}` },
       ],
       tools: TEACHER_TOOLS,
-      hooks: {
-        onAssistantMessage: async (content) => {
-          await saveMessage(missionId, "assistant", content);
-        },
-        onAfterToolExecution: async (results) => {
-          await saveMessage(missionId, "user", results);
-        },
-      },
+      hooks: createStandardHooks({ missionId, saveMessage }),
     });
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…"), userInitial(user)));

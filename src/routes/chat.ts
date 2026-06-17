@@ -5,7 +5,7 @@ import { db, schema } from "../db/index.js";
 import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { conversationLoop } from "../ai/conversation.js";
+import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import type { AppVariables } from "../types.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
@@ -61,17 +61,7 @@ Remember: read existing content before creating new material. Use list_lessons a
       initialMessages: messages,
       tools: TEACHER_TOOLS,
       logger: log,
-      hooks: {
-        onAssistantMessage: async (content) => {
-          await saveMessage(missionId, "assistant", content);
-        },
-        onBeforeToolExecution: async (toolUseBlocks) => {
-          log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
-        },
-        onAfterToolExecution: async (results) => {
-          await saveMessage(missionId, "user", results);
-        },
-      },
+      hooks: createStandardHooks({ missionId, saveMessage, logger: log }),
     });
 
     const text = result.text || "Done! Anything else you'd like to work on?";

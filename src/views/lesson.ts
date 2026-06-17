@@ -1,4 +1,4 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, toolBannerScript } from "./shared.js";
 import { lessonActionBar, completedLessonBar } from "./fragments.js";
 
 function formatLessonNumber(num: number, sub: number | null): string {
@@ -316,83 +316,7 @@ ${HTMX_LOADING_BAR}
     </div>
   </div>
 </div>
-<script>
-(function() {
-  var banner = document.getElementById("tool-banner");
-  if (!banner) return;
-  var activeTools = [];
-  var inFlight = 0;
-  var shownAt = 0;
-  var hideTimer = 0;
-  var MIN_SHOW_MS = 1200;
-
-  document.addEventListener("htmx:beforeRequest", function(e) {
-    var el = e.target;
-    // Only for POST submissions (chat, generate buttons), not polling GETs
-    var form = (el && el.closest) ? el.closest(".chat-form") : null;
-    if (!form) {
-      // Check if it's a generate button POST inside feedback-bar
-      var fbBtn = (el && el.closest) ? el.closest("#feedback-bar button[hx-post]") : null;
-      if (fbBtn) form = fbBtn.closest("#feedback-bar");
-    }
-    if (form) {
-      inFlight++;
-      showBanner("Working...");
-    }
-  });
-
-  document.addEventListener("htmx:afterRequest", function(e) {
-    var el = e.target;
-    var form = (el && el.closest) ? el.closest(".chat-form") : null;
-    if (!form) {
-      var fbBtn = (el && el.closest) ? el.closest("#feedback-bar button[hx-post]") : null;
-      if (fbBtn) form = fbBtn.closest("#feedback-bar");
-    }
-    if (form) {
-      inFlight--;
-      if (inFlight <= 0) inFlight = 0;
-      if (inFlight <= 0 && activeTools.length === 0) hideBanner();
-    }
-  });
-
-  var es = new EventSource("/missions/${missionId}/chat/tool-events");
-  es.addEventListener("message", function(e) {
-    try {
-      var event = JSON.parse(e.data);
-      if (event.type === "tool_start") {
-        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
-        showBanner(activeTools.join(", "));
-      } else if (event.type === "tool_end") {
-        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
-        if (activeTools.length === 0) {
-          if (inFlight > 0) showBanner("Working...");
-          else hideBanner();
-        }
-      }
-    } catch(ex) {}
-  });
-
-  es.addEventListener("error", function() {});
-
-  function showBanner(msg) {
-    shownAt = Date.now();
-    clearTimeout(hideTimer);
-    banner.innerHTML = '<span class="spinner"></span> ' + (msg || activeTools.join(", "));
-    banner.classList.add("visible");
-  }
-
-  function hideBanner() {
-    // Don't hide if a generation bar is still on screen
-    if (document.querySelector(".generation-bar")) return;
-    var elapsed = Date.now() - shownAt;
-    if (elapsed < MIN_SHOW_MS) {
-      hideTimer = setTimeout(function() { banner.classList.remove("visible"); }, MIN_SHOW_MS - elapsed);
-    } else {
-      banner.classList.remove("visible");
-    }
-  }
-})();
-</script>
+${toolBannerScript(missionId, { checkGenerationBar: true })}
 <script>
 const frame = document.getElementById('lesson-frame');
 frame.style.minHeight = (window.innerHeight - 250) + 'px';

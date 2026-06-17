@@ -1,4 +1,4 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu, toolBannerScript } from "./shared.js";
 
 function tabIcon(key: string): string {
   switch (key) {
@@ -311,81 +311,9 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
+${toolBannerScript(mission.id)}
 <script>
 (function() {
-  // Tool banner (SSE)
-  var banner = document.getElementById("tool-banner");
-  if (banner) {
-    var parts = window.location.pathname.split("/");
-    var missionId = parts[2];
-    if (missionId && !isNaN(Number(missionId))) {
-      var activeTools = [];
-      var inFlight = 0;
-      var shownAt = 0;
-      var hideTimer = 0;
-      var MIN_SHOW_MS = 1200;
-
-      document.addEventListener("htmx:beforeRequest", function(e) {
-        var el = e.target;
-        var form = (el && el.closest) ? el.closest(".chat-form") : null;
-        if (!form) form = document.querySelector(".chat-form");
-        if (form) {
-          inFlight++;
-          showBanner("Working...");
-        }
-      });
-
-      document.addEventListener("htmx:afterRequest", function(e) {
-        var el = e.target;
-        var form = (el && el.closest) ? el.closest(".chat-form") : null;
-        if (!form) form = document.querySelector(".chat-form");
-        if (form) {
-          inFlight--;
-          if (inFlight <= 0) inFlight = 0;
-          if (inFlight <= 0 && activeTools.length === 0) hideBanner();
-        }
-      });
-
-      var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
-
-      es.addEventListener("message", function(e) {
-        try {
-          var event = JSON.parse(e.data);
-          if (event.type === "tool_start") {
-            event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
-            showBanner(activeTools.join(", "));
-          } else if (event.type === "tool_end") {
-            activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
-            if (activeTools.length === 0) {
-              if (inFlight > 0) showBanner("Working...");
-              else hideBanner();
-            }
-          }
-        } catch(ex) {}
-      });
-
-      es.addEventListener("error", function() {});
-
-      function showBanner(msg) {
-        shownAt = Date.now();
-        clearTimeout(hideTimer);
-        banner.innerHTML = '<span class="spinner"></span> ' + msg;
-        banner.classList.add("visible");
-      }
-
-      function hideBanner() {
-        var elapsed = Date.now() - shownAt;
-        if (elapsed < MIN_SHOW_MS) {
-          hideTimer = setTimeout(function() {
-            banner.classList.remove("visible");
-          }, MIN_SHOW_MS - elapsed);
-        } else {
-          banner.classList.remove("visible");
-        }
-      }
-    }
-  }
-
   // Sidebar toggle
   var toggle = document.querySelector(".sidebar .sidebar-toggle");
   var layout = document.querySelector(".layout");

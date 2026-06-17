@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/better-sqlite3"
 import * as schema from "../db/schema.js"
 import { createToolExecutor } from "./tools.js"
 import type { AiToolUseBlock } from "./types.js"
+import { DrizzleMissionStore } from "../db/store.js"
 
 describe("tool handlers", () => {
   let executor: ReturnType<typeof createToolExecutor>
@@ -97,7 +98,7 @@ describe("tool handlers", () => {
     )
 
     const testDb = drizzle(sqlite, { schema })
-    executor = createToolExecutor(testDb)
+    executor = createToolExecutor(new DrizzleMissionStore(testDb))
   })
 
   it("read_mission_content returns empty for missing content", async () => {

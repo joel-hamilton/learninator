@@ -5,6 +5,7 @@ import * as schema from "../db/schema.js";
 import { FakeAiClient } from "./fake.js";
 import { conversationLoop } from "./conversation.js";
 import { createToolExecutor } from "./tools.js";
+import { DrizzleMissionStore } from "../db/store.js";
 
 describe("conversationLoop", () => {
   let executor: ReturnType<typeof createToolExecutor>;
@@ -96,7 +97,8 @@ describe("conversationLoop", () => {
     );
 
     const testDb = drizzle(sqlite, { schema });
-    executor = createToolExecutor(testDb);
+    const testStore = new DrizzleMissionStore(testDb);
+    executor = createToolExecutor(testStore);
   });
 
   it("returns text when AI gives text-only response", async () => {

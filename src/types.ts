@@ -2,6 +2,8 @@ import type { InferSelectModel } from "drizzle-orm"
 import type { users } from "./db/schema.js"
 import type { Logger } from "./logger.js"
 import type { AiClient, ToolExecutor } from "./ai/types.js"
+import type { MissionStore } from "./db/store.js"
+import type { EventBus } from "./ai/events.js"
 
 export type User = InferSelectModel<typeof users>
 
@@ -11,4 +13,6 @@ export type AppVariables = {
   logger: Logger
   ai: AiClient
   toolExecutor: ToolExecutor
+  store: MissionStore
+  events: EventBus
 }

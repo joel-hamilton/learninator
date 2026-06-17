@@ -649,6 +649,82 @@ export function userInitial(user: { name?: string | null; email: string }): stri
   return user.email.charAt(0).toUpperCase();
 }
 
+/** SSE tool-execution banner script. Tracks htmx requests and tool events to show/hide a sticky banner. */
+export function toolBannerScript(missionId: number, opts?: { bannerId?: string; trackAllHtmx?: boolean; checkGenerationBar?: boolean }): string {
+  const bannerId = opts?.bannerId ?? "tool-banner";
+  const trackAll = opts?.trackAllHtmx ?? false;
+  const checkGenBar = opts?.checkGenerationBar ?? false;
+  const formCheck = trackAll
+    ? "true"
+    : `(function(el) { var form = (el && el.closest) ? el.closest(".chat-form") : null; if (!form) { var fbBtn = (el && el.closest) ? el.closest("#feedback-bar button[hx-post]") : null; if (fbBtn) form = fbBtn.closest("#feedback-bar"); } return !!form; })()`;
+  const genBarCheck = checkGenBar
+    ? `if (document.querySelector(".generation-bar")) return;`
+    : "";
+
+  return `<script>
+(function() {
+  var banner = document.getElementById("${bannerId}");
+  if (!banner) return;
+  var activeTools = [];
+  var inFlight = 0;
+  var shownAt = 0;
+  var hideTimer = 0;
+  var MIN_SHOW_MS = 1200;
+
+  document.addEventListener("htmx:beforeRequest", function(e) {
+    if (${formCheck}) {
+      inFlight++;
+      showBanner("Working...");
+    }
+  });
+
+  document.addEventListener("htmx:afterRequest", function(e) {
+    if (${formCheck}) {
+      inFlight--;
+      if (inFlight <= 0) inFlight = 0;
+      if (inFlight <= 0 && activeTools.length === 0) hideBanner();
+    }
+  });
+
+  var es = new EventSource("/missions/${missionId}/chat/tool-events");
+  es.addEventListener("message", function(e) {
+    try {
+      var event = JSON.parse(e.data);
+      if (event.type === "tool_start") {
+        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
+        showBanner(activeTools.join(", "));
+      } else if (event.type === "tool_end") {
+        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
+        if (activeTools.length === 0) {
+          if (inFlight > 0) showBanner("Working...");
+          else hideBanner();
+        }
+      }
+    } catch(ex) {}
+  });
+
+  es.addEventListener("error", function() {});
+
+  function showBanner(msg) {
+    shownAt = Date.now();
+    clearTimeout(hideTimer);
+    banner.innerHTML = '<span class="spinner"></span> ' + (msg || activeTools.join(", "));
+    banner.classList.add("visible");
+  }
+
+  function hideBanner() {
+    ${genBarCheck}
+    var elapsed = Date.now() - shownAt;
+    if (elapsed < MIN_SHOW_MS) {
+      hideTimer = setTimeout(function() { banner.classList.remove("visible"); }, MIN_SHOW_MS - elapsed);
+    } else {
+      banner.classList.remove("visible");
+    }
+  }
+})();
+</script>`;
+}
+
 /** User dropdown menu for the header. */
 export function userMenu(user: { name?: string | null; email: string }): string {
   const initial = userInitial(user);

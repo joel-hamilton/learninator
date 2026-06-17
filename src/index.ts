@@ -8,7 +8,9 @@ import type { AppVariables } from "./types.js";
 import { createLogger } from "./logger.js";
 import { AnthropicAiClient } from "./ai/anthropic.js";
 import { createToolExecutor } from "./ai/tools.js";
+import { createEventBus } from "./ai/events.js";
 import { db } from "./db/index.js";
+import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
@@ -19,16 +21,21 @@ import { browseRoutes } from "./routes/browse.js";
 
 const app = new Hono<{ Variables: AppVariables }>();
 
-// Logger injection
+const store = new DrizzleMissionStore(db);
+const eventBus = createEventBus();
+
+// Store + logger + events injection
 app.use("*", async (c, next) => {
+  c.set("store", store);
   c.set("logger", createLogger("http"));
+  c.set("events", eventBus);
   await next();
 });
 
 // AI client + tool executor injection
 app.use("*", async (c, next) => {
   c.set("ai", new AnthropicAiClient());
-  c.set("toolExecutor", createToolExecutor(db));
+  c.set("toolExecutor", createToolExecutor(store));
   await next();
 });
 
