@@ -64,61 +64,61 @@ function guidedOnboardingLayout(
 <title>${mission.title} — Learninator</title>
 ${HTMX_HEAD}
 <style>
-  :root { --bg: #fdfcf9; --surface: #ffffff; --border: #e8e4dc; --border-hover: #d4cdbc; --text: #2d2d2d; --text-secondary: #6b6b6b; --text-muted: #a3a3a3; --primary: #2d2d2d; --primary-hover: #444444; --primary-light: #f5f2eb; --warning: #8b6914; --warning-bg: #fef5e7; --radius: 8px; --radius-lg: 12px; --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --transition: 150ms ease; --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1); }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
-  .header { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+
+
+    body { font-family: var(--font-body); background: var(--paper); color: var(--ink); }
+    .header { background: var(--paper); border-bottom: 1px solid var(--rule); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
   .header .left { display: flex; align-items: center; gap: 1rem; }
   .header h1 { font-size: 1.1rem; font-weight: 600; }
-  .header .back { font-size: 0.85rem; color: var(--text-secondary); text-decoration: none; }
-  .header .back:hover { color: var(--text); }
+  .header .back { font-size: 0.85rem; color: var(--ink-secondary); text-decoration: none; }
+  .header .back:hover { color: var(--ink); }
   .header .right { display: flex; align-items: center; gap: 0.75rem; }
-  .header .user { font-size: 0.85rem; color: var(--text-secondary); }
-  .header .user a { color: var(--text-secondary); text-decoration: none; margin-left: 0.5rem; }
-  .header .user a:hover { color: var(--text); }
+  .header .user { font-size: 0.85rem; color: var(--ink-secondary); }
+  .header .user a { color: var(--ink-secondary); text-decoration: none; margin-left: 0.5rem; }
+  .header .user a:hover { color: var(--ink); }
   .container { max-width: 700px; margin: 2rem auto; padding: 0 2rem; }
   h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-  .subtitle { color: var(--text-secondary); margin-bottom: 0.3rem; }
+  .subtitle { color: var(--ink-secondary); margin-bottom: 0.3rem; }
   #chat-messages { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; max-height: 30vh; overflow-y: auto; padding: 0.25rem; }
   .msg { padding: 0.6rem 0.9rem; border-radius: 8px; line-height: 1.5; font-size: 0.9rem; }
-  .msg.assistant { background: var(--surface); border: 1px solid var(--border); align-self: flex-start; max-width: 90%; }
-  .msg.user { background: var(--primary-light); align-self: flex-end; max-width: 90%; }
-  .question-card { background: var(--surface); border: 2px solid var(--border-hover); border-radius: 12px; padding: 1.75rem; animation: fadeInUp 0.3s ease-out; }
+  .msg.assistant { background: var(--surface); border: 1px solid var(--rule); align-self: flex-start; max-width: 90%; }
+  .msg.user { background: var(--margin); align-self: flex-end; max-width: 90%; }
+  .question-card { background: var(--surface); border: 2px solid var(--rule-hover); border-radius: 12px; padding: 1.75rem; animation: fadeInUp 0.3s ease-out; }
   .question-card h2 { font-size: 1.15rem; margin-bottom: 1.25rem; line-height: 1.4; }
-  .option-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.85rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-  .option-row:hover { border-color: var(--primary); background: var(--primary-light); }
+  .option-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.85rem; border: 1px solid var(--rule); border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .option-row:hover { border-color: var(--ink); background: var(--margin); }
   .option-row.selected { border-color: var(--warning); background: var(--warning-bg); }
   .option-row input[type="radio"] { accent-color: var(--warning); width: 1.1em; height: 1.1em; cursor: pointer; }
   .option-row label { flex: 1; cursor: pointer; font-size: 0.95rem; }
   .other-input { margin-top: 0.5rem; margin-bottom: 0.75rem; display: none; }
   .other-input.visible { display: block; }
-  .other-input input { width: 100%; padding: 0.6rem 0.85rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
-  .other-input input:focus { outline: none; border-color: var(--primary); }
-  .question-card .submit-btn { margin-top: 1rem; padding: 0.7rem 2rem; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-  .question-card .submit-btn:hover { background: var(--primary-hover); }
+  .other-input input { width: 100%; padding: 0.6rem 0.85rem; border: 1px solid var(--rule); border-radius: 8px; font-size: 0.95rem; font-family: inherit; }
+  .other-input input:focus { outline: none; border-color: var(--ink); }
+  .question-card .submit-btn { margin-top: 1rem; padding: 0.7rem 2rem; background: var(--rubric); color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+  .question-card .submit-btn:hover { background: var(--rubric-hover); }
   .question-card .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .skip-btn { display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer; text-decoration: none; }
-  .skip-btn:hover { border-color: #ccc; color: var(--text-secondary); }
+  .skip-btn { display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: transparent; border: 1px solid var(--rule); border-radius: 6px; font-size: 0.85rem; color: var(--ink-muted); cursor: pointer; text-decoration: none; }
+  .skip-btn:hover { border-color: var(--rule-hover); color: var(--ink-secondary); }
   .skip-btn.htmx-request { opacity: 0.5; pointer-events: none; border-color: var(--warning); color: var(--warning); }
   .skip-btn.htmx-request::after { content: " (working...)"; }
-  .thinking-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: inline-block; }
+  .thinking-bubble { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 0.75rem 1rem; display: inline-block; }
   .thinking-dots { display: flex; gap: 0.3rem; }
-  .thinking-dots span { width: 0.5em; height: 0.5em; background: #ccc; border-radius: 50%; animation: dotPulse 1.4s infinite ease-in-out; }
+  .thinking-dots span { width: 0.5em; height: 0.5em; background: var(--rule); border-radius: 50%; animation: dotPulse 1.4s infinite ease-in-out; }
   .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
   .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes dotPulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #ccc; border-top-color: #888; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.5rem; }
+  .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid var(--rule); border-top-color: var(--ink-muted); border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.5rem; }
   @keyframes spin { to { transform: rotate(360deg); } }
 	.tool-banner {
 	  position: sticky;
 	  top: 0;
 	  z-index: 99;
 	  background: var(--warning-bg);
-	  border-bottom: 1px solid var(--warning);
+	  border-bottom: 1px solid var(--warning-border);
 	  font-size: 0.75rem;
 	  color: var(--warning);
-	  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	  font-family: var(--font-mono);
 	  max-height: 0;
 	  overflow: hidden;
 	  transition: all 0.2s ease;
@@ -134,7 +134,7 @@ ${HTMX_HEAD}
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
-<div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;height:3px;background:var(--primary);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
+<div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;height:3px;background:var(--rubric);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
 <header class="header">
   <div class="left">
     <a href="/" class="back">${svgIcon("arrowLeft")} Dashboard</a>
@@ -146,7 +146,7 @@ ${HTMX_HEAD}
 <div class="container">
   <h1>Mission Setup</h1>
   <p class="subtitle">Answer each question to define your learning goals.</p>
-  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:1.5rem;"><input type="hidden" name="mode" value="chat"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);font-size:0.85rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer free-form chat instead?</button></form>
+  <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:1.5rem;"><input type="hidden" name="mode" value="chat"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--ink-secondary);font-size:0.85rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer free-form chat instead?</button></form>
   <div id="chat-messages">${messagesHtml}</div>
   <div id="question-section">
     ${questionCardHtml}
@@ -616,7 +616,7 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
       <h2 style="font-size:1.15rem;font-weight:600;">${ref.title}</h2>
       <span class="badge badge-default">${ref.docType}</span>
     </div>
-    <div class="ref-iframe-container" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+    <div class="ref-iframe-container" style="background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius-lg);overflow:hidden;">
       <iframe id="ref-frame" scrolling="no" srcdoc="${safeHtml}" style="width:100%;border:none;display:block;min-height:400px;"></iframe>
     </div>
     <script>

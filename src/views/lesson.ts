@@ -36,10 +36,8 @@ ${HTMX_HEAD}
 <style>
   /* Toolbar */
   .toolbar {
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
     padding: 0 1.25rem;
     display: flex;
     align-items: center;
@@ -53,31 +51,32 @@ ${HTMX_HEAD}
   .toolbar .logo {
     font-size: 0.85rem; font-weight: 700; letter-spacing: -0.02em;
     display: flex; align-items: center; gap: 0.3rem;
-    color: var(--text); text-decoration: none; flex-shrink: 0;
+    color: var(--ink); text-decoration: none; flex-shrink: 0;
+    font-family: var(--font-display);
   }
-  .toolbar .logo:hover { color: var(--text); }
-  .toolbar .logo .svg-icon { width: 1em; height: 1em; color: var(--accent); }
+  .toolbar .logo:hover { color: var(--ink); }
+  .toolbar .logo .svg-icon { width: 1em; height: 1em; color: var(--rubric); }
   .toolbar .back-link {
-    font-size: 0.8rem; color: var(--text-secondary); text-decoration: none;
+    font-size: 0.8rem; color: var(--ink-secondary); text-decoration: none;
     display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.3rem 0.6rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.3rem 0.6rem; border: 1px solid var(--rule); border-radius: var(--radius-sm);
     transition: all var(--transition); white-space: nowrap;
   }
-  .toolbar .back-link:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .toolbar .back-link:hover { border-color: var(--rule-hover); color: var(--ink); background: var(--surface-hover); }
   .toolbar .back-link .svg-icon { width: 0.85em; height: 0.85em; }
   .toolbar h1 { font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .toolbar .nav { display: flex; gap: 0.4rem; flex-shrink: 0; }
   .toolbar .nav a {
     display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.78rem; color: var(--text-secondary); text-decoration: none; transition: all var(--transition);
+    padding: 0.35rem 0.75rem; border: 1px solid var(--rule); border-radius: var(--radius-sm);
+    font-size: 0.78rem; color: var(--ink-secondary); text-decoration: none; transition: all var(--transition);
     font-weight: 500;
   }
-  .toolbar .nav a:hover { background: var(--surface-hover); border-color: var(--border-hover); color: var(--text); }
+  .toolbar .nav a:hover { background: var(--surface-hover); border-color: var(--rule-hover); color: var(--ink); }
   .toolbar .nav .disabled {
     display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
-    font-size: 0.78rem; color: var(--text-muted); opacity: 0.35; pointer-events: none;
+    padding: 0.35rem 0.75rem; border: 1px solid var(--rule); border-radius: var(--radius-sm);
+    font-size: 0.78rem; color: var(--ink-muted); opacity: 0.35; pointer-events: none;
   }
   .toolbar .nav .svg-icon { width: 0.8em; height: 0.8em; }
 
@@ -87,14 +86,14 @@ ${HTMX_HEAD}
   /* Lesson Header */
   .lesson-header { margin-bottom: 1.5rem; }
   .lesson-header .lesson-num {
-    font-size: 0.7rem; color: var(--accent); font-family: ui-monospace, monospace;
+    font-size: 0.7rem; color: var(--rubric); font-family: var(--font-mono);
     text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.2rem;
   }
-  .lesson-header h2 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+  .lesson-header h2 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.3; font-family: var(--font-display); }
 
   /* Iframe Container */
   .iframe-container {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-lg);
     overflow: hidden; margin-bottom: 1.25rem;
     box-shadow: var(--shadow-md);
   }
@@ -102,26 +101,26 @@ ${HTMX_HEAD}
 
   /* Feedback Bar */
   .feedback-bar {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-lg);
     padding: 1rem 1.2rem; margin-bottom: 1.25rem; display: flex; align-items: center;
     gap: 0.6rem; flex-wrap: wrap;
     animation: fadeInUp 0.3s ease-out;
     box-shadow: var(--shadow-sm);
   }
-  .feedback-bar .label { font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; }
+  .feedback-bar .label { font-size: 0.82rem; color: var(--ink-secondary); font-weight: 500; }
   .feedback-bar .fb-btn {
-    padding: 0.35rem 0.85rem; border: 1px solid var(--border); border-radius: 999px;
+    padding: 0.35rem 0.85rem; border: 1px solid var(--rule); border-radius: 999px;
     background: var(--surface); cursor: pointer; font-size: 0.8rem;
-    transition: all var(--transition); color: var(--text-secondary); font-family: inherit;
+    transition: all var(--transition); color: var(--ink-secondary); font-family: inherit;
   }
-  .feedback-bar .fb-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .feedback-bar .fb-btn:hover { border-color: var(--ink); color: var(--ink); background: var(--margin); }
   .feedback-bar .done-btn {
-    padding: 0.5rem 1.2rem; background: var(--accent);
+    padding: 0.5rem 1.2rem; background: var(--rubric);
     color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer;
     font-size: 0.82rem; font-weight: 600; transition: all var(--transition); font-family: inherit;
-    box-shadow: 0 1px 3px rgba(79,70,229,0.2);
+    box-shadow: 0 1px 3px rgba(192,57,43,0.2);
   }
-  .feedback-bar .done-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+  .feedback-bar .done-btn:hover { background: var(--rubric-hover); box-shadow: 0 4px 12px rgba(192,57,43,0.3); }
 
   /* Tool Banner */
   .tool-banner {
@@ -129,10 +128,10 @@ ${HTMX_HEAD}
     top: 52px;
     z-index: 99;
     background: var(--warning-bg);
-    border-bottom: 1px solid var(--warning);
+    border-bottom: 1px solid var(--warning-border);
     font-size: 0.78rem;
     color: var(--warning);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-weight: 500;
     max-height: 0;
     overflow: hidden;
@@ -154,12 +153,12 @@ ${HTMX_HEAD}
   .fab {
     position: fixed; bottom: 1.75rem; right: 1.75rem; z-index: 200;
     width: 52px; height: 52px; border-radius: 50%;
-    background: var(--accent); color: #fff; border: none;
+    background: var(--ink); color: #fff; border: none;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 24px rgba(79,70,229,0.25);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
     transition: all var(--transition-slow);
   }
-  .fab:hover { background: var(--accent-hover); transform: scale(1.05); box-shadow: 0 8px 32px rgba(79,70,229,0.35); }
+  .fab:hover { background: #3d3832; transform: scale(1.05); box-shadow: 0 8px 32px rgba(0,0,0,0.22); }
   .fab .svg-icon { width: 1.2em; height: 1.2em; }
   .fab.hidden { display: none; }
 
@@ -167,7 +166,7 @@ ${HTMX_HEAD}
   .chat-panel {
     position: fixed; bottom: 6rem; right: 1.75rem; z-index: 199;
     width: 380px; max-height: 520px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius-xl);
     box-shadow: 0 12px 48px rgba(0,0,0,0.12);
     display: none; flex-direction: column;
     animation: fadeInUp 0.25s ease-out;
@@ -178,17 +177,17 @@ ${HTMX_HEAD}
   .chat-panel-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 0.85rem 1.1rem;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--rule);
     flex-shrink: 0;
-    background: var(--bg);
+    background: var(--margin);
   }
   .chat-panel-header h4 { font-size: 0.85rem; font-weight: 600; }
   .chat-panel-header .header-actions { display: flex; gap: 0.3rem; }
   .chat-panel-header button {
-    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    background: none; border: none; cursor: pointer; color: var(--ink-muted);
     padding: 0.25rem; border-radius: 6px; transition: all var(--transition);
   }
-  .chat-panel-header button:hover { color: var(--text); background: var(--primary-light); }
+  .chat-panel-header button:hover { color: var(--ink); background: var(--margin); }
   .chat-panel-header button .svg-icon { width: 0.95em; height: 0.95em; }
 
   .chat-panel-messages {
@@ -199,16 +198,16 @@ ${HTMX_HEAD}
   }
 
   .chat-panel-footer {
-    padding: 0.5rem; border-top: 1px solid var(--border);
+    padding: 0.5rem; border-top: 1px solid var(--rule);
     flex-shrink: 0;
-    background: var(--bg);
+    background: var(--margin);
   }
   .chat-panel-footer .chat-form {
-    border: 1px solid var(--border); padding: 0.4rem;
+    border: 1px solid var(--rule); padding: 0.4rem;
     box-shadow: none;
     border-radius: var(--radius);
   }
-  .chat-panel-footer .chat-form:focus-within { box-shadow: 0 0 0 3px rgba(79,70,229,0.06); }
+  .chat-panel-footer .chat-form:focus-within { box-shadow: 0 0 0 3px rgba(30,27,24,0.05); }
   .chat-panel-footer .chat-form textarea {
     font-size: 0.82rem;
     padding: 0.3rem 0.4rem;
@@ -227,11 +226,11 @@ ${HTMX_HEAD}
   .quick-actions { display: flex; gap: 0.35rem; padding: 0.6rem 0.75rem 0.25rem; flex-wrap: wrap; }
   .quick-chip {
     padding: 0.3rem 0.7rem; font-size: 0.7rem; font-weight: 500;
-    background: var(--surface); border: 1px solid var(--border);
+    background: var(--surface); border: 1px solid var(--rule);
     border-radius: 999px; cursor: pointer; font-family: inherit;
-    color: var(--text-secondary); transition: all var(--transition);
+    color: var(--ink-secondary); transition: all var(--transition);
   }
-  .quick-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .quick-chip:hover { border-color: var(--ink); color: var(--ink); background: var(--margin); }
 
   /* Responsive */
   @media (max-width: 480px) {
@@ -328,10 +327,8 @@ ${HTMX_LOADING_BAR}
 
   document.addEventListener("htmx:beforeRequest", function(e) {
     var el = e.target;
-    // Only for POST submissions (chat, generate buttons), not polling GETs
     var form = (el && el.closest) ? el.closest(".chat-form") : null;
     if (!form) {
-      // Check if it's a generate button POST inside feedback-bar
       var fbBtn = (el && el.closest) ? el.closest("#feedback-bar button[hx-post]") : null;
       if (fbBtn) form = fbBtn.closest("#feedback-bar");
     }
@@ -382,7 +379,6 @@ ${HTMX_LOADING_BAR}
   }
 
   function hideBanner() {
-    // Don't hide if a generation bar is still on screen
     if (document.querySelector(".generation-bar")) return;
     var elapsed = Date.now() - shownAt;
     if (elapsed < MIN_SHOW_MS) {

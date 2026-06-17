@@ -129,7 +129,7 @@ export function generationDoneBar(missionId: number, number: number, subNumber: 
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
-    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
+    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--rubric);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
@@ -141,7 +141,7 @@ export function generationErrorBar(missionId: number, error: string): string {
 }
 
 export function generationMissingBar(missionId: number): string {
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--primary);">Back to lessons &rarr;</a></span></div>`;
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--ink);">Back to lessons &rarr;</a></span></div>`;
 }
 
 // ── Empty states ──
