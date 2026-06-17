@@ -174,3 +174,7 @@ SESSION_SECRET=change-me
 ```
 
 `ai.chat()` and `ai.chatWithTools()` accept `model: "high" | "low"` in options. Defaults to `"high"` if not specified. Use `"low"` for simple title generation or summary tasks. Use `"high"` for teaching, lesson generation, and chat.
+
+## Temporary files (screenshots, snapshots, logs)
+
+**Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.

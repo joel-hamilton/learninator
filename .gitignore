@@ -7,3 +7,11 @@ data/*.db-shm
 .claude/worktrees/
 .env
 *.log
+*.png
+*.jpg
+*snapshot*
+*.yml
+!compose.yml
+!*.config.yml
+!*.config.yaml
+!*.github*.yml
