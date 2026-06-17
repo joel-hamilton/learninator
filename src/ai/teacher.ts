@@ -81,9 +81,16 @@ Lesson HTML should be self-contained with inline CSS and JS. Style it beautifull
 ## Zone of Proximal Development
 
 Each lesson should challenge the user 'just enough'. To find their zone:
+- Call **list_feedback_history** to see how past lessons were rated
 - Read their learning records
 - Figure out the right thing to teach based on their mission
 - Teach the most relevant thing that fits
+
+Use feedback patterns to calibrate difficulty:
+- Multiple "too_easy" ratings → increase challenge, add depth, pick harder topics
+- Multiple "too_hard" ratings → slow down, add foundational context, simpler examples
+- Mix of "just_right" → maintain current calibration
+- When a clear pattern emerges, write a learning record capturing the student's demonstrated level
 
 ## Learning Records
 
@@ -354,4 +361,106 @@ export const TEACHER_TOOLS: AiTool[] = [
       required: [],
     },
   },
+
+  // ── Feedback & regeneration ──
+  {
+    name: "list_feedback_history",
+    description: "List all feedback ratings (too_easy/just_right/too_hard) and accompanying text for lessons in the current mission, ordered by lesson number. Use this to gauge the student's demonstrated difficulty level before creating new lessons.",
+    input_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "regenerate_lesson",
+    description: "Replace an existing lesson's content with a new version at a different difficulty level. Use this when the student found a lesson too easy or too hard — rewrite it at the appropriate level. This updates the lesson in-place; the lesson number does not change.",
+    input_schema: {
+      type: "object",
+      properties: {
+        number: {
+          type: "number",
+          description: "The lesson number to regenerate (e.g., 3 for lesson 0003)",
+        },
+        title: {
+          type: "string",
+          description: "New or updated title for the regenerated lesson",
+        },
+        slug: {
+          type: "string",
+          description: "URL-safe slug for the regenerated lesson",
+        },
+        html_content: {
+          type: "string",
+          description: "The full, self-contained HTML of the regenerated lesson. Must include inline CSS and any JS needed.",
+        },
+      },
+      required: ["number", "title", "slug", "html_content"],
+    },
+  },
 ];
+
+/**
+ * System prompt for regenerating a lesson at a different difficulty level.
+ * The AI is instructed to use regenerate_lesson (not create_lesson) to replace content in-place.
+ */
+export function getRegenerateSystemPrompt(params: {
+  missionId: number;
+  missionTitle: string;
+  lessonNumber: number;
+  lessonTitle: string;
+  direction: "harder" | "easier";
+}): string {
+  const { missionId, missionTitle, lessonNumber, lessonTitle, direction } = params;
+  const displayNum = String(lessonNumber).padStart(4, "0");
+  const difficultyDesc = direction === "harder"
+    ? "The student found this lesson TOO EASY. Make it more challenging: add depth, advanced techniques, edge cases, or expert-level content. Keep the same core topic."
+    : "The student found this lesson TOO HARD. Make it easier: simplify the language, add foundational context, break down complex ideas into smaller pieces, add more concrete examples. Keep the same core topic.";
+
+  return `You are a teacher modifying an existing lesson to match the student's level.
+
+Mission: ${missionTitle} (ID: ${missionId})
+Current lesson: ${displayNum} — "${lessonTitle}"
+
+${difficultyDesc}
+
+CRITICAL RULES:
+- Use regenerate_lesson with number: ${lessonNumber} to update the lesson in-place. Do NOT use create_lesson.
+- Keep the same core topic — do not change what the lesson teaches, only how it teaches it.
+- Read the current lesson content with read_lesson first so you know what to improve.
+- Use list_feedback_history to understand the student's overall difficulty pattern.
+- Make the title reflect the adjusted difficulty if appropriate.
+- Write self-contained HTML with inline CSS and JS, following the same design guidelines as all lessons.
+- After regenerating, the student will reload the lesson page to see your changes.`;
+}
+
+/**
+ * System prompt for creating a bridging sub-lesson when the student found a lesson too hard.
+ * The AI uses create_sub_lesson to build prerequisite content under the parent lesson.
+ */
+export function getBridgingSystemPrompt(params: {
+  missionId: number;
+  missionTitle: string;
+  lessonNumber: number;
+  lessonTitle: string;
+}): string {
+  const { missionId, missionTitle, lessonNumber, lessonTitle } = params;
+  const displayNum = String(lessonNumber).padStart(4, "0");
+
+  return `You are a teacher creating a bridging lesson for a student who found the main lesson too difficult.
+
+Mission: ${missionTitle} (ID: ${missionId})
+
+The student struggled with Lesson ${displayNum}: "${lessonTitle}".
+
+Create a sub-lesson (use create_sub_lesson with parent_lesson_number: ${lessonNumber}) that:
+- Covers the foundational concepts and prerequisites needed to understand the main lesson
+- Breaks down the key ideas more simply, with more examples and step-by-step explanations
+- Assumes the student is new to or struggling with this topic — start from the beginning
+- Prepares them to successfully re-attempt the main lesson afterward
+- Has a title that clearly indicates it's a foundational/prerequisite lesson
+
+This is a SUB-LESSON — it displays as ${displayNum}.1 under the main lesson card. The student will study it and then return to the main lesson.
+
+Read the parent lesson content first with read_lesson so you understand what prerequisites are needed. Use list_feedback_history to understand the student's overall pattern.`;
+}

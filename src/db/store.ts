@@ -74,6 +74,15 @@ export interface InsertGuidedQuestionData {
   options: string;
 }
 
+export interface LessonFeedbackRow {
+  number: number;
+  subNumber: number | null;
+  title: string;
+  status: string;
+  feedbackRating: string | null;
+  feedbackText: string | null;
+}
+
 // ── MissionStore interface ───────────────────────────────────────
 
 export interface MissionStore {
@@ -126,6 +135,14 @@ export interface MissionStore {
   updateMissionStatus(missionId: number, status: string): Promise<void>;
 
   insertGuidedQuestion(data: InsertGuidedQuestionData): Promise<void>;
+
+  listLessonFeedback(missionId: number): Promise<LessonFeedbackRow[]>;
+
+  updateLesson(
+    missionId: number,
+    number: number,
+    data: { title: string; slug: string; htmlContent: string },
+  ): Promise<void>;
 }
 
 // ── Drizzle adapter ──────────────────────────────────────────────
@@ -382,6 +399,47 @@ export class DrizzleMissionStore implements MissionStore {
       options: data.options,
     });
   }
+
+  async listLessonFeedback(
+    missionId: number,
+  ): Promise<LessonFeedbackRow[]> {
+    const rows = await this.db
+      .select({
+        number: schema.lessons.number,
+        subNumber: schema.lessons.subNumber,
+        title: schema.lessons.title,
+        status: schema.lessons.status,
+        feedbackRating: schema.lessons.feedbackRating,
+        feedbackText: schema.lessons.feedbackText,
+      })
+      .from(schema.lessons)
+      .where(eq(schema.lessons.missionId, missionId))
+      .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber));
+    return rows;
+  }
+
+  async updateLesson(
+    missionId: number,
+    number: number,
+    data: { title: string; slug: string; htmlContent: string },
+  ): Promise<void> {
+    await this.db
+      .update(schema.lessons)
+      .set({
+        title: data.title,
+        slug: data.slug,
+        htmlContent: data.htmlContent,
+        feedbackRating: null,
+        feedbackText: null,
+      })
+      .where(
+        and(
+          eq(schema.lessons.missionId, missionId),
+          eq(schema.lessons.number, number),
+          isNull(schema.lessons.parentLessonId),
+        ),
+      );
+  }
 }
 
 // ── In-memory adapter (for tests) ────────────────────────────────
@@ -629,5 +687,42 @@ export class InMemoryMissionStore implements MissionStore {
       question: data.question,
       options: data.options,
     });
+  }
+
+  async listLessonFeedback(
+    missionId: number,
+  ): Promise<LessonFeedbackRow[]> {
+    return this.lessons
+      .filter((l) => l.missionId === missionId)
+      .sort((a, b) => {
+        if (a.number !== b.number) return a.number - b.number;
+        return (a.subNumber ?? -1) - (b.subNumber ?? -1);
+      })
+      .map((l) => ({
+        number: l.number,
+        subNumber: l.subNumber,
+        title: l.title,
+        status: l.status,
+        feedbackRating: null as string | null,
+        feedbackText: null as string | null,
+      }));
+  }
+
+  async updateLesson(
+    missionId: number,
+    number: number,
+    data: { title: string; slug: string; htmlContent: string },
+  ): Promise<void> {
+    const lesson = this.lessons.find(
+      (l) =>
+        l.missionId === missionId &&
+        l.number === number &&
+        l.parentLessonId === null,
+    );
+    if (lesson) {
+      lesson.title = data.title;
+      lesson.slug = data.slug;
+      lesson.htmlContent = data.htmlContent;
+    }
   }
 }

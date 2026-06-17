@@ -8,7 +8,7 @@ import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop } from "../ai/conversation.js";
 import { LessonGenerator, buildJobKey } from "../lessons/generator.js";
 import { lessonPage } from "../views/lesson.js";
-import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble, feedbackThanksBar, feedbackModal } from "../views/fragments.js";
+import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble, feedbackThanksBar, feedbackModal, regenerationPollingBar, regenerationRunningBar, regenerationDoneBar, regenerationErrorBar, bridgingPollingBar, bridgingRunningBar, bridgingDoneBar, bridgingErrorBar } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { saveMessage, contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
@@ -412,6 +412,135 @@ lessonRoutes.get("/:number/generate-sub-lesson/status", auth.requireAuth, (c: Ct
   }
 
   return c.html(generationRunningBar(missionId, number, subNumber, true, status.message));
+});
+
+// ── Regenerate lesson ──
+
+lessonRoutes.post("/:number/regenerate", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const body = await c.req.parseBody();
+  const direction = (String(body.direction || "") || "easier") as "harder" | "easier";
+
+  const [mission] = await c.get("db")
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const conditions = [
+    eq(schema.lessons.missionId, missionId),
+    eq(schema.lessons.number, number),
+  ];
+  if (subNumber !== null) {
+    conditions.push(eq(schema.lessons.subNumber, subNumber));
+  } else {
+    conditions.push(isNull(schema.lessons.parentLessonId));
+  }
+
+  const [lesson] = await c.get("db")
+    .select()
+    .from(schema.lessons)
+    .where(and(...conditions))
+    .limit(1);
+  if (!lesson) return c.text("Lesson not found", 404);
+
+  const generator = initGenerator(c);
+  generator.generateRegenerate(
+    missionId,
+    { number: lesson.number, subNumber: lesson.subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+    direction,
+  );
+
+  return c.html(regenerationPollingBar(missionId, number, subNumber));
+});
+
+lessonRoutes.get("/:number/regenerate/status", auth.requireAuth, (c: Ctx) => {
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const key = buildJobKey(missionId, number, subNumber, "regenerate");
+  const generator = initGenerator(c);
+  const status = generator.getJobStatus(key);
+
+  if (status.status === "not_found") {
+    return c.html(generationMissingBar(missionId));
+  }
+
+  if (status.status === "error") {
+    return c.html(regenerationErrorBar(missionId, status.error));
+  }
+
+  if (status.status === "done") {
+    return c.html(regenerationDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle));
+  }
+
+  return c.html(regenerationRunningBar(missionId, number, subNumber, status.message));
+});
+
+// ── Generate bridging lesson ──
+
+lessonRoutes.post("/:number/generate-bridging", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+
+  const [mission] = await c.get("db")
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const conditions = [
+    eq(schema.lessons.missionId, missionId),
+    eq(schema.lessons.number, number),
+  ];
+  if (subNumber !== null) {
+    conditions.push(eq(schema.lessons.subNumber, subNumber));
+  } else {
+    conditions.push(isNull(schema.lessons.parentLessonId));
+  }
+
+  const [lesson] = await c.get("db")
+    .select()
+    .from(schema.lessons)
+    .where(and(...conditions))
+    .limit(1);
+  if (!lesson) return c.text("Lesson not found", 404);
+
+  const generator = initGenerator(c);
+  generator.generateBridging(
+    missionId,
+    { number: lesson.number, subNumber: lesson.subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+  );
+
+  return c.html(bridgingPollingBar(missionId, number, subNumber));
+});
+
+lessonRoutes.get("/:number/generate-bridging/status", auth.requireAuth, (c: Ctx) => {
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const key = buildJobKey(missionId, number, subNumber, "bridge");
+  const generator = initGenerator(c);
+  const status = generator.getJobStatus(key);
+
+  if (status.status === "not_found") {
+    return c.html(generationMissingBar(missionId));
+  }
+
+  if (status.status === "error") {
+    return c.html(bridgingErrorBar(missionId, status.error));
+  }
+
+  if (status.status === "done") {
+    return c.html(bridgingDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle));
+  }
+
+  return c.html(bridgingRunningBar(missionId, number, subNumber, status.message));
 });
 
 // ── Lesson chat ──

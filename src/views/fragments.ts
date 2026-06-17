@@ -26,10 +26,19 @@ export function chatMessageBubble(role: "user" | "assistant", content: string, u
 export function lessonActionBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
   return `<div class="feedback-bar" id="feedback-bar">
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
+      hx-target="#feedback-bar" hx-swap="outerHTML"
+      hx-vals='{"rating":"too_easy"}'>😴 Too Easy</button>
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
+      hx-target="#feedback-bar" hx-swap="outerHTML"
+      hx-vals='{"rating":"just_right"}'>👍 Just Right</button>
+    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
+      hx-target="#feedback-bar" hx-swap="outerHTML"
+      hx-vals='{"rating":"too_hard"}'>🤯 Too Hard</button>
+    <span style="flex:1"></span>
     <button class="btn btn-ghost btn-sm"
       hx-post="/missions/${missionId}/lessons/${lid}/complete"
       hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
-    <span style="flex:1"></span>
     <button class="btn btn-secondary btn-sm"
       hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
       hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
@@ -41,11 +50,31 @@ export function lessonActionBar(missionId: number, number: number, subNumber: nu
 
 export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
+  const ratingLabel = rating.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+  let extraButtons = "";
+  if (rating === "too_easy") {
+    extraButtons = `<button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/regenerate"
+      hx-target="#feedback-bar" hx-swap="outerHTML"
+      hx-vals='{"direction":"harder"}'>Make Harder</button>`;
+  } else if (rating === "too_hard") {
+    extraButtons = `<button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/regenerate"
+      hx-target="#feedback-bar" hx-swap="outerHTML"
+      hx-vals='{"direction":"easier"}'>Make Easier</button>
+    <button class="btn btn-secondary btn-sm"
+      hx-post="/missions/${missionId}/lessons/${lid}/generate-bridging"
+      hx-target="#feedback-bar" hx-swap="outerHTML">Bridge First</button>`;
+  }
+
   return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Thanks! You rated this: <strong>${rating.replace("_", " ")}</strong></span>
-    <form hx-post="/missions/${missionId}/lessons/${lid}/complete" hx-target="#feedback-bar" hx-swap="outerHTML" style="margin-left:auto;">
-      <button type="submit" class="done-btn">Mark Complete</button>
-    </form>
+    <span class="label">Thanks! You rated this: <strong>${ratingLabel}</strong></span>
+    ${extraButtons}
+    <span style="flex:1"></span>
+    <button class="done-btn"
+      hx-post="/missions/${missionId}/lessons/${lid}/complete"
+      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
   </div>`;
 }
 
@@ -142,6 +171,100 @@ export function generationErrorBar(missionId: number, error: string): string {
 
 export function generationMissingBar(missionId: number): string {
   return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--ink);">Back to lessons &rarr;</a></span></div>`;
+}
+
+// ── Lesson regeneration ──
+
+export function regenerationPollingBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
+       hx-get="/missions/${missionId}/lessons/${lid}/regenerate/status"
+       hx-trigger="every 1s"
+       hx-swap="outerHTML"
+       hx-target="#feedback-bar">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Regenerating</span> Rewriting lesson at new difficulty…</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
+      <span class="thinking-dots"><span></span><span></span><span></span></span>
+      Starting…
+    </div>
+  </div>`;
+}
+
+export function regenerationRunningBar(missionId: number, number: number, subNumber: number | null, latestMsg: string): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
+       hx-get="/missions/${missionId}/lessons/${lid}/regenerate/status"
+       hx-trigger="every 1s"
+       hx-swap="outerHTML"
+       hx-target="#feedback-bar">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Regenerating</span> Rewriting lesson at new difficulty…</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
+      <span class="thinking-dots"><span></span><span></span><span></span></span>
+      ${latestMsg}
+    </div>
+  </div>`;
+}
+
+export function regenerationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
+  const lid = lessonIdStr(number, subNumber);
+  const displayNum = formatLessonNumber(number, subNumber);
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Updated</span> Lesson regenerated! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">View Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
+  </div>`;
+}
+
+export function regenerationErrorBar(missionId: number, error: string): string {
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+    <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to regenerate lesson: ${error}</span>
+    <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
+  </div>`;
+}
+
+// ── Bridging lesson generation ──
+
+export function bridgingPollingBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
+       hx-get="/missions/${missionId}/lessons/${lid}/generate-bridging/status"
+       hx-trigger="every 1s"
+       hx-swap="outerHTML"
+       hx-target="#feedback-bar">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating bridging lesson…</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
+      <span class="thinking-dots"><span></span><span></span><span></span></span>
+      Starting…
+    </div>
+  </div>`;
+}
+
+export function bridgingRunningBar(missionId: number, number: number, subNumber: number | null, latestMsg: string): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="feedback-bar generation-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.5rem;background:var(--warning-bg);border-color:var(--warning);"
+       hx-get="/missions/${missionId}/lessons/${lid}/generate-bridging/status"
+       hx-trigger="every 1s"
+       hx-swap="outerHTML"
+       hx-target="#feedback-bar">
+    <span class="label" style="color:var(--warning);"><span class="badge badge-in-progress" style="margin-right:0.5rem;">Generating</span> Creating bridging lesson…</span>
+    <div style="font-size:0.85rem;color:var(--warning);display:flex;align-items:center;gap:0.5rem;">
+      <span class="thinking-dots"><span></span><span></span><span></span></span>
+      ${latestMsg}
+    </div>
+  </div>`;
+}
+
+export function bridgingDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
+  const lid = lessonIdStr(number, subNumber);
+  const displayNum = formatLessonNumber(number, subNumber);
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+    <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Bridging lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
+  </div>`;
+}
+
+export function bridgingErrorBar(missionId: number, error: string): string {
+  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+    <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to create bridging lesson: ${error}</span>
+    <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
+  </div>`;
 }
 
 // ── Empty states ──

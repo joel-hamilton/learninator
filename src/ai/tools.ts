@@ -140,6 +140,38 @@ async function writeResources(ctx: ToolHandlerContext): Promise<string> {
   return writeMissionContent({ ...ctx, input: { ...ctx.input, content_type: "resources" } })
 }
 
+async function listFeedbackHistory(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId } = ctx
+  const rows = await db.listLessonFeedback(missionId)
+
+  const withFeedback = rows.filter(r => r.feedbackRating !== null)
+  if (withFeedback.length === 0) return "No feedback has been recorded yet."
+
+  return JSON.stringify(withFeedback.map(r => ({
+    lesson: `${String(r.number).padStart(4, "0")}${r.subNumber !== null ? `.${r.subNumber}` : ""}`,
+    title: r.title,
+    status: r.status,
+    rating: r.feedbackRating,
+    text: r.feedbackText || null,
+  })))
+}
+
+async function regenerateLesson(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId, input } = ctx
+  const lessonNumber = input.number as number
+
+  const lesson = await db.getLesson(missionId, lessonNumber)
+  if (!lesson) return `Lesson ${lessonNumber} not found.`
+
+  await db.updateLesson(missionId, lessonNumber, {
+    title: input.title as string,
+    slug: input.slug as string,
+    htmlContent: input.html_content as string,
+  })
+
+  return `Updated lesson ${String(lessonNumber).padStart(4, "0")}: "${input.title}". The new content is ready — the student should reload the lesson page to see it.`
+}
+
 async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
   const options = [...(input.options as string[]), "Other (please specify)"]
@@ -169,6 +201,8 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   read_resources: "Reading resources",
   write_resources: "Writing resources",
   ask_guided_question: "Asking question",
+  list_feedback_history: "Checking feedback history",
+  regenerate_lesson: "Regenerating lesson",
 };
 
 // ── Handler map ───────────────────────────────────────────────────────
@@ -190,6 +224,8 @@ function buildHandlerMap(): Map<string, ToolHandler> {
     ["read_resources", readResources],
     ["write_resources", writeResources],
     ["ask_guided_question", askGuidedQuestion],
+    ["list_feedback_history", listFeedbackHistory],
+    ["regenerate_lesson", regenerateLesson],
   ])
 }
 
