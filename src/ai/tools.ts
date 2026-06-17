@@ -273,6 +273,65 @@ async function writeResources(ctx: ToolHandlerContext): Promise<string> {
   return writeMissionContent({ ...ctx, input: { ...ctx.input, content_type: "resources" } })
 }
 
+async function listFeedbackHistory(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId } = ctx
+  const rows = await db
+    .select({
+      number: schema.lessons.number,
+      subNumber: schema.lessons.subNumber,
+      title: schema.lessons.title,
+      status: schema.lessons.status,
+      feedbackRating: schema.lessons.feedbackRating,
+      feedbackText: schema.lessons.feedbackText,
+    })
+    .from(schema.lessons)
+    .where(eq(schema.lessons.missionId, missionId))
+    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber))
+
+  const withFeedback = rows.filter((r: { feedbackRating: string | null }) => r.feedbackRating !== null)
+  if (withFeedback.length === 0) return "No feedback has been recorded yet."
+
+  return JSON.stringify(withFeedback.map((r: { number: number; subNumber: number | null; title: string; status: string; feedbackRating: string | null; feedbackText: string | null }) => ({
+    lesson: `${String(r.number).padStart(4, "0")}${r.subNumber !== null ? `.${r.subNumber}` : ""}`,
+    title: r.title,
+    status: r.status,
+    rating: r.feedbackRating,
+    text: r.feedbackText || null,
+  })))
+}
+
+async function regenerateLesson(ctx: ToolHandlerContext): Promise<string> {
+  const { db, missionId, input } = ctx
+  const lessonNumber = input.number as number
+
+  const [lesson] = await db
+    .select()
+    .from(schema.lessons)
+    .where(
+      and(
+        eq(schema.lessons.missionId, missionId),
+        eq(schema.lessons.number, lessonNumber),
+        isNull(schema.lessons.parentLessonId),
+      )
+    )
+    .limit(1)
+
+  if (!lesson) return `Lesson ${lessonNumber} not found.`
+
+  await db
+    .update(schema.lessons)
+    .set({
+      title: input.title as string,
+      slug: input.slug as string,
+      htmlContent: input.html_content as string,
+      feedbackRating: null,
+      feedbackText: null,
+    })
+    .where(eq(schema.lessons.id, lesson.id))
+
+  return `Updated lesson ${String(lessonNumber).padStart(4, "0")}: "${input.title}". The new content is ready — the student should reload the lesson page to see it.`
+}
+
 async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   const { db, missionId, input } = ctx
   const options = [...(input.options as string[]), "Other (please specify)"]
@@ -302,6 +361,8 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   read_resources: "Reading resources",
   write_resources: "Writing resources",
   ask_guided_question: "Asking question",
+  list_feedback_history: "Checking feedback history",
+  regenerate_lesson: "Regenerating lesson",
 };
 
 // ── Handler map ───────────────────────────────────────────────────────
@@ -323,6 +384,8 @@ function buildHandlerMap(): Map<string, ToolHandler> {
     ["read_resources", readResources],
     ["write_resources", writeResources],
     ["ask_guided_question", askGuidedQuestion],
+    ["list_feedback_history", listFeedbackHistory],
+    ["regenerate_lesson", regenerateLesson],
   ])
 }
 
