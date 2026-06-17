@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { AppVariables, User } from "../types.js";
@@ -20,7 +20,7 @@ settingsApp.post("/profile", async (c: SettingsContext) => {
   const body = await c.req.parseBody();
   const name = String(body.name || "").trim();
 
-  await db
+  await c.get("db")
     .update(schema.users)
     .set({ name })
     .where(eq(schema.users.id, user.id));
@@ -50,7 +50,7 @@ settingsApp.post("/password", async (c: SettingsContext) => {
   }
 
   // Re-fetch user to get current password hash
-  const [freshUser] = await db
+  const [freshUser] = await c.get("db")
     .select()
     .from(schema.users)
     .where(eq(schema.users.id, user.id))
@@ -61,7 +61,7 @@ settingsApp.post("/password", async (c: SettingsContext) => {
   }
 
   const hash = await bcrypt.hash(newPassword, 10);
-  await db
+  await c.get("db")
     .update(schema.users)
     .set({ passwordHash: hash })
     .where(eq(schema.users.id, user.id));

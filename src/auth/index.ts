@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import bcrypt from "bcryptjs";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import type { AppVariables, User } from "../types.js";
 import { loginPage, signupPage, loginForm, signupForm } from "../views/auth.js";
@@ -16,7 +16,7 @@ const sessionMiddleware = async (c: AuthContext, next: () => Promise<void>) => {
   if (userId) {
     const id = parseInt(userId);
     if (!isNaN(id)) {
-      const [user] = await db
+      const [user] = await c.get("db")
         .select()
         .from(schema.users)
         .where(eq(schema.users.id, id))
@@ -53,7 +53,7 @@ authApp.post("/login", async (c) => {
     return c.html(loginForm(email, "Email and password are required."));
   }
 
-  const [user] = await db
+  const [user] = await c.get("db")
     .select()
     .from(schema.users)
     .where(eq(schema.users.email, email))
@@ -99,7 +99,7 @@ authApp.post("/signup", async (c) => {
     return c.html(signupForm(email, "Password must be at least 6 characters."));
   }
 
-  const [existing] = await db
+  const [existing] = await c.get("db")
     .select()
     .from(schema.users)
     .where(eq(schema.users.email, email))
@@ -110,7 +110,7 @@ authApp.post("/signup", async (c) => {
   }
 
   const hash = await bcrypt.hash(password, 10);
-  const [newUser] = await db
+  const [newUser] = await c.get("db")
     .insert(schema.users)
     .values({ email, passwordHash: hash })
     .returning();

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
@@ -26,7 +26,7 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     return c.html(`<div class="msg assistant">I didn't catch that — what would you like to work on?</div>`);
   }
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -40,7 +40,7 @@ Mission status: ${mission.status}
 
 Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
 
-  const messages = await loadMessages(missionId);
+  const messages = await loadMessages(missionId, c.get("db"));
 
   let userContent = message;
   if (context) {
@@ -51,7 +51,7 @@ Remember: read existing content before creating new material. Use list_lessons a
   const log = c.get("logger");
 
   try {
-    await saveMessage(missionId, "user", userContent);
+    await saveMessage(missionId, "user", userContent, c.get("db"));
 
     const result = await conversationLoop({
       client: c.get("ai"),
@@ -63,13 +63,13 @@ Remember: read existing content before creating new material. Use list_lessons a
       logger: log,
       hooks: {
         onAssistantMessage: async (content) => {
-          await saveMessage(missionId, "assistant", content);
+          await saveMessage(missionId, "assistant", content, c.get("db"));
         },
         onBeforeToolExecution: async (toolUseBlocks) => {
           log.debug("Executing tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
         },
         onAfterToolExecution: async (results) => {
-          await saveMessage(missionId, "user", results);
+          await saveMessage(missionId, "user", results, c.get("db"));
         },
       },
     });

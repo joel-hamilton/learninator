@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
 import type { AppVariables } from "../types.js";
@@ -28,7 +28,7 @@ missionRoutes.put("/:missionId/title", auth.requireAuth, async (c: Ctx) => {
   const newTitle = String(body.title || "").trim();
   if (!newTitle) return c.text("Title required", 400);
 
-  await db
+  await c.get("db")
     .update(schema.missions)
     .set({ title: newTitle, updatedAt: new Date().toISOString() })
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)));
@@ -289,7 +289,7 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 
   const slug = message.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   const title = message.length > 80 ? message.slice(0, 80) + "…" : message;
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .insert(schema.missions)
     .values({ userId: user.id, title, slug, status: "onboarding", onboardingMode: mode })
     .returning();
@@ -298,7 +298,7 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const onboarding = createOnboarding({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 
@@ -317,7 +317,7 @@ missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
 
   const mode = (String(body.mode || "") === "chat" ? "chat" : "guided") as "guided" | "chat";
   const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .insert(schema.missions)
     .values({ userId: user.id, title: topic, slug, status: "onboarding", onboardingMode: mode })
     .returning();
@@ -330,7 +330,7 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
@@ -340,14 +340,14 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
 
   // ── Onboarding: show appropriate page based on mode ──
   if (mission.status === "onboarding") {
-    const chatRows = await db
+    const chatRows = await c.get("db")
       .select()
       .from(schema.chatMessages)
       .where(eq(schema.chatMessages.missionId, id))
       .orderBy(asc(schema.chatMessages.createdAt));
 
     // Check for pending guided question
-    const [pendingQuestion] = await db
+    const [pendingQuestion] = await c.get("db")
       .select()
       .from(schema.guidedQuestions)
       .where(and(eq(schema.guidedQuestions.missionId, id), eq(schema.guidedQuestions.status, "pending")))
@@ -390,7 +390,7 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   }
 
   // ── Active / archived: show tabbed layout ──
-  const lessonRows = await db
+  const lessonRows = await c.get("db")
     .select({
       number: schema.lessons.number,
       subNumber: schema.lessons.subNumber,
@@ -439,7 +439,7 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
   const user = c.get("user")!;
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -449,7 +449,7 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
   const onboarding = createOnboarding({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 
@@ -477,7 +477,7 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
   const selectedAnswer = String(body.answer || "").trim();
   const otherText = String(body.other_text || "").trim();
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -487,7 +487,7 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
   const onboarding = createOnboarding({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 
@@ -511,7 +511,7 @@ missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) =
   const user = c.get("user")!;
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -521,7 +521,7 @@ missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) =
   const onboarding = createOnboarding({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 
@@ -538,7 +538,7 @@ missionRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const newMode = String(body.mode || "guided") as "guided" | "chat";
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -548,7 +548,7 @@ missionRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
   const onboarding = createOnboarding({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 
@@ -563,14 +563,14 @@ missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  const refs = await db
+  const refs = await c.get("db")
     .select()
     .from(schema.referenceDocs)
     .where(eq(schema.referenceDocs.missionId, id))
@@ -596,14 +596,14 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
   const missionId = parseInt(c.req.param("missionId")!);
   const refId = parseInt(c.req.param("refId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  const [ref] = await db
+  const [ref] = await c.get("db")
     .select()
     .from(schema.referenceDocs)
     .where(and(eq(schema.referenceDocs.id, refId), eq(schema.referenceDocs.missionId, missionId)))
@@ -636,14 +636,14 @@ missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  const records = await db
+  const records = await c.get("db")
     .select()
     .from(schema.learningRecords)
     .where(eq(schema.learningRecords.missionId, id))
@@ -674,14 +674,14 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  const [resources] = await db
+  const [resources] = await c.get("db")
     .select()
     .from(schema.missionContent)
     .where(
@@ -705,20 +705,20 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  await db.delete(schema.chatMessages).where(eq(schema.chatMessages.missionId, id));
-  await db.delete(schema.guidedQuestions).where(eq(schema.guidedQuestions.missionId, id));
-  await db.delete(schema.lessons).where(eq(schema.lessons.missionId, id));
-  await db.delete(schema.referenceDocs).where(eq(schema.referenceDocs.missionId, id));
-  await db.delete(schema.learningRecords).where(eq(schema.learningRecords.missionId, id));
-  await db.delete(schema.missionContent).where(eq(schema.missionContent.missionId, id));
-  await db.delete(schema.missions).where(eq(schema.missions.id, id));
+  await c.get("db").delete(schema.chatMessages).where(eq(schema.chatMessages.missionId, id));
+  await c.get("db").delete(schema.guidedQuestions).where(eq(schema.guidedQuestions.missionId, id));
+  await c.get("db").delete(schema.lessons).where(eq(schema.lessons.missionId, id));
+  await c.get("db").delete(schema.referenceDocs).where(eq(schema.referenceDocs.missionId, id));
+  await c.get("db").delete(schema.learningRecords).where(eq(schema.learningRecords.missionId, id));
+  await c.get("db").delete(schema.missionContent).where(eq(schema.missionContent.missionId, id));
+  await c.get("db").delete(schema.missions).where(eq(schema.missions.id, id));
   return c.html("");
 });
 
@@ -754,14 +754,14 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
     .limit(1);
   if (!mission) return c.text("Not found", 404);
 
-  const chatRows = await db
+  const chatRows = await c.get("db")
     .select()
     .from(schema.chatMessages)
     .where(eq(schema.chatMessages.missionId, id))
@@ -805,7 +805,7 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const message = String(body.message || "").trim();
   if (!message) return c.text("");
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -815,7 +815,7 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const mc = createMissionConversation({
     ai: c.get("ai"),
     toolExecutor: c.get("toolExecutor"),
-    db,
+    db: c.get("db"),
     logger: c.get("logger"),
   });
 

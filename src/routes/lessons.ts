@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
@@ -47,7 +47,7 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -64,7 +64,7 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  const [lesson] = await db
+  const [lesson] = await c.get("db")
     .select()
     .from(schema.lessons)
     .where(and(...conditions))
@@ -72,13 +72,13 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   if (!lesson) return c.text("Lesson not found", 404);
 
   if (lesson.status === "active") {
-    await db
+    await c.get("db")
       .update(schema.lessons)
       .set({ status: "in_progress" })
       .where(eq(schema.lessons.id, lesson.id));
   }
 
-  const allLessons = await db
+  const allLessons = await c.get("db")
     .select({
       number: schema.lessons.number,
       subNumber: schema.lessons.subNumber,
@@ -119,7 +119,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const rating = String(body.rating || "");
   const feedbackText = String(body.feedbackText || "").trim();
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -141,7 +141,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
     updateData.feedbackText = feedbackText;
   }
 
-  await db
+  await c.get("db")
     .update(schema.lessons)
     .set(updateData)
     .where(and(...conditions));
@@ -156,7 +156,7 @@ lessonRoutes.post("/:number/incomplete", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -173,7 +173,7 @@ lessonRoutes.post("/:number/incomplete", auth.requireAuth, async (c: Ctx) => {
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  await db
+  await c.get("db")
     .update(schema.lessons)
     .set({ status: "in_progress", completedAt: null })
     .where(and(...conditions));
@@ -188,7 +188,7 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -205,7 +205,7 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  const [lesson] = await db
+  const [lesson] = await c.get("db")
     .select()
     .from(schema.lessons)
     .where(and(...conditions))
@@ -213,7 +213,7 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
   if (!lesson) return c.text("Lesson not found", 404);
 
   if (lesson.status !== "completed") {
-    await db
+    await c.get("db")
       .update(schema.lessons)
       .set({ status: "completed", completedAt: new Date().toISOString() })
       .where(and(...conditions));
@@ -230,7 +230,7 @@ lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => 
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const mode = (c.req.query("mode") || "next") as "next" | "more";
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -247,7 +247,7 @@ lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => 
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  const [lesson] = await db
+  const [lesson] = await c.get("db")
     .select()
     .from(schema.lessons)
     .where(and(...conditions))
@@ -271,7 +271,7 @@ function initGenerator(c: Ctx): LessonGenerator {
     _generator = new LessonGenerator({
       ai: c.get("ai"),
       toolExecutor: c.get("toolExecutor"),
-      db,
+      db: c.get("db"),
       logger: c.get("logger"),
     });
   }
@@ -286,7 +286,7 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
   const notes = String(body.notes || "").trim();
   const feedback = String(body.feedback || "").trim();
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -303,7 +303,7 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  const [lesson] = await db
+  const [lesson] = await c.get("db")
     .select()
     .from(schema.lessons)
     .where(and(...conditions))
@@ -312,7 +312,7 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
 
   // Save feedback text if provided
   if (feedback) {
-    await db
+    await c.get("db")
       .update(schema.lessons)
       .set({ feedbackText: feedback })
       .where(and(...conditions));
@@ -358,7 +358,7 @@ lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ct
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -375,7 +375,7 @@ lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ct
     conditions.push(isNull(schema.lessons.parentLessonId));
   }
 
-  const [lesson] = await db
+  const [lesson] = await c.get("db")
     .select()
     .from(schema.lessons)
     .where(and(...conditions))
@@ -426,7 +426,7 @@ lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
   const lessonNumber = String(body.lesson_number || "");
   if (!message) return c.text("");
 
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .select()
     .from(schema.missions)
     .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
@@ -445,7 +445,7 @@ The user is currently viewing Lesson ${lessonNumber}: "${lessonTitle}". They may
 If they ask for a new lesson, use create_lesson or create_sub_lesson as appropriate. Review existing lessons first to avoid duplicates.`;
 
   // Store user message in the shared mission chat
-  await saveMessage(missionId, "user", `[Re: Lesson ${lessonNumber}: ${lessonTitle}]\n${message}`);
+  await saveMessage(missionId, "user", `[Re: Lesson ${lessonNumber}: ${lessonTitle}]\n${message}`, c.get("db"));
 
   try {
     const result = await conversationLoop({
@@ -459,10 +459,10 @@ If they ask for a new lesson, use create_lesson or create_sub_lesson as appropri
       tools: TEACHER_TOOLS,
       hooks: {
         onAssistantMessage: async (content) => {
-          await saveMessage(missionId, "assistant", content);
+          await saveMessage(missionId, "assistant", content, c.get("db"));
         },
         onAfterToolExecution: async (results) => {
-          await saveMessage(missionId, "user", results);
+          await saveMessage(missionId, "user", results, c.get("db"));
         },
       },
     });

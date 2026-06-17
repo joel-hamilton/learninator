@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import type { AppVariables } from "../types.js";
 import { layout } from "../views/home.js";
 import { browsePage, browseOptionsFragment, refreshOptionsFragment, optionsOnly, errorState, BROWSE_STYLES } from "../views/browse.js";
@@ -15,14 +15,14 @@ export const browseRoutes = new Hono<{ Variables: AppVariables }>();
 async function createMissionAndRedirect(c: Ctx, topic: string, path: string[]): Promise<Response> {
   const log = c.get("logger");
   const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
-  const [mission] = await db
+  const [mission] = await c.get("db")
     .insert(schema.missions)
     .values({ userId: c.get("user")!.id, title: topic, slug, status: "onboarding", onboardingMode: "guided" })
     .returning();
 
   // Save a seed message so the guided onboarding has context
   const pathStr = path.length > 0 ? `\n\nBrowse path: ${path.join(" → ")}` : "";
-  await saveMessage(mission.id, "user", `I want to learn about: ${topic}${pathStr}`);
+  await saveMessage(mission.id, "user", `I want to learn about: ${topic}${pathStr}`, c.get("db"));
 
   log.debug("Created mission %d from browse: %s", mission.id, topic);
   c.header("HX-Redirect", `/missions/${mission.id}`);

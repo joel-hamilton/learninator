@@ -6,43 +6,99 @@ Multi-user AI tutoring webapp based on mattpocock/skills teach skill. Uses Claud
 - **Runtime**: Node.js 22, TypeScript
 - **Server**: Hono (lightweight web framework)
 - **Frontend**: htmx (hypermedia-driven)
-- **Database**: SQLite via Drizzle ORM
+- **Database**: SQLite via Drizzle ORM (better-sqlite3)
 - **AI**: Anthropic SDK (compatible with any OpenAI-compatible provider)
 - **Auth**: Custom cookie-based session (email/password via bcrypt)
+- **Test**: Vitest, in-memory SQLite, HTTP-level via `app.request()`
 - **Deploy**: Docker Compose (dev and prod)
 
 ## Project structure
 
 ```
 src/
-  index.ts          # Hono app entry point
-  types.ts          # Shared types (User, AppVariables)
+  index.ts              # createApp() factory + production server startup
+  types.ts              # AppVariables (user, db, ai, toolExecutor, logger)
   db/
-    schema.ts       # Drizzle schema definitions
-    index.ts        # DB connection
-    migrate.ts      # Migration runner
-    migrations/     # Auto-generated SQL migrations
+    schema.ts           # Drizzle schema definitions (7 tables)
+    index.ts            # DB connection singleton
+    store.ts            # MissionStore interface + DrizzleMissionStore adapter
+    migrate.ts          # Migration runner
+    migrations/         # SQL migrations (note: snapshot chain is broken)
   auth/
-    index.ts        # Session middleware + login/signup routes
+    index.ts            # Session middleware + login/signup/logout routes
   ai/
-    index.ts        # Claude SDK client wrapper
-    teacher.ts      # System prompt + tool definitions
-    tools.ts        # Tool implementations (DB read/write)
+    index.ts            # Claude SDK client wrapper (AnthropicAiClient)
+    types.ts            # AiClient interface, ToolExecutor, content block types
+    fake.ts             # FakeAiClient for tests (queue-based mock)
+    teacher.ts          # TEACHER_SYSTEM_PROMPT + TEACHER_TOOLS definitions
+    tools.ts            # Tool implementations (15 tools, DB read/write)
+    conversation.ts     # conversationLoop() — multi-turn tool-use loop
+    mission-conversation.ts  # createMissionConversation() — chat + activation
+    events.ts           # SSE event emitter for tool-call visibility
+    errors.ts           # AIError class
+  onboarding/
+    index.ts            # createOnboarding() — guided Q&A state machine
+  lessons/
+    generator.ts        # LessonGenerator — background lesson/sub-lesson creation
+  browse/
+    explorer.ts         # TopicExplorer — AI-driven topic navigation
   routes/
-    home.ts         # Dashboard
-    missions.ts     # Mission CRUD, workspace tabs, onboarding chat
-    lessons.ts      # Lesson view, feedback, complete
-    chat.ts         # AI chat for existing missions
+    home.ts             # Dashboard (mission list, new mission form)
+    missions.ts         # Mission CRUD, guided onboarding endpoints, delete
+    lessons.ts          # Lesson view, complete/incomplete/feedback, generation
+    chat.ts             # AI chat for existing missions
+    settings.ts         # Profile name + password change
+    browse.ts           # Topic browse flow with AI-driven narrowing
+  shared/
+    messages.ts         # saveMessage() / loadMessages() — chat persistence
+    markdown.ts         # Markdown formatting
+    jobs.ts             # Generic async job tracker
+  views/                # HTML rendering (template literals, no templating engine)
+    home.ts, mission.ts, onboarding.ts, lesson.ts,
+    auth.ts, settings.ts, browse.ts, fragments.ts, shared.ts
+  test/
+    helpers.ts          # createTestDb(), createTestApp(), seedUser(), login(), authedReq()
+    auth.test.ts        # Signup, login, logout, session redirect
+    missions.test.ts    # Mission creation, guided onboarding golden path, skip
+    lessons.test.ts     # View, complete, incomplete, feedback
+    chat.test.ts        # Simple reply, tool-using chat, activation
 ```
+
+## Request flow
+
+1. `src/index.ts` exports `createApp(opts?)` — the factory builds a Hono app with middleware that injects `db`, `ai`, `toolExecutor`, and `logger` into context via `c.set()`.
+2. `sessionMiddleware` (in `auth/index.ts`) reads the session cookie, looks up the user from `c.get("db")`, and sets `c.set("user", user)`.
+3. Route handlers read `c.get("db")` for all database access. No module-level `db` singleton is used directly by routes or auth.
+4. `createApp(opts?)` accepts optional `db` and `ai` overrides for test injection. In production, `serve()` is called at module level inside a `if (!process.env.VITEST)` guard.
 
 ## Key patterns
 
-- **Hono context**: Uses `{ Variables: AppVariables }` for typed user injection via middleware
-- **DB queries**: Drizzle `and()` for multiple where conditions, `eq()` takes typed column values
-- **AI interaction**: Function tools (`TEACHER_TOOLS`) let the AI read/write DB. Tool calls are executed server-side via `executeTool`. Multi-turn conversations use `continueWithToolResults`.
+- **DB access**: All routes and auth get `db` from `c.get("db")` — never from the module-level singleton. The `createApp()` factory sets this in middleware so tests can inject an in-memory SQLite.
+- **Hono context**: Uses `{ Variables: AppVariables }` for typed injection. `AppVariables` includes `user`, `db`, `ai`, `toolExecutor`, and `logger`.
+- **DB queries**: Drizzle `and()` for multiple where conditions, `eq()` takes typed column values.
+- **AI interaction**: Function tools (`TEACHER_TOOLS`) let the AI read/write DB. Tool calls are executed server-side via `createToolExecutor(store)`. Multi-turn conversations use `conversationLoop()` from `ai/conversation.ts`.
+- **Onboarding state machine**: `createOnboarding()` in `onboarding/index.ts` handles guided Q&A mode (ask_guided_question tool with `pauseOnTools`) and chat mode. Mission activation triggers `generateMissionTitle()` via a low-model `ai.chat()` call.
+- **Mission chat**: `createMissionConversation()` in `ai/mission-conversation.ts` handles the unified chat flow — saves messages, runs `conversationLoop()`, and returns either a text reply or an activation redirect.
 - **htmx**: All forms use htmx attributes (`hx-post`, `hx-target`, `hx-swap`). Server returns HTML fragments, not JSON.
-- **Immediate feedback**: Any user interaction that triggers an AI call (browse click, chat send, etc.) MUST show immediate visible feedback — the clicked element should dim/change instantly via CSS (`htmx-request` class), and a loading indicator should appear. Never leave the user staring at an unchanged screen while waiting for the AI. Even if the AI takes 2+ seconds, the user must know their click registered immediately.
+- **Immediate feedback**: Any user interaction that triggers an AI call MUST show immediate visible feedback — the clicked element should dim/change instantly via CSS (`htmx-request` class), and a loading indicator should appear. Never leave the user staring at an unchanged screen while waiting for the AI.
 - **Lessons**: AI-generated HTML rendered in sandboxed iframes. Lesson HTML should be self-contained with inline CSS/JS.
+
+## Testing
+
+Tests use `app.request()` (in-process HTTP, no port binding). The pattern:
+
+1. `createTestDb()` creates an in-memory SQLite, runs migrations, and patches migration gaps with ALTER TABLE.
+2. `createTestApp(fakeAi, db)` builds a Hono app with the test DB and a `FakeAiClient`.
+3. `seedUser()` + `login()` set up an authenticated session.
+4. `authedReq()` attaches the session cookie to requests.
+5. `FakeAiClient` accepts a queue of responses consumed in order by `chat()`, `chatWithTools()`, and `continueWithToolResults()` — all three share the same `callIndex`.
+
+**`FakeAiClient` response sequencing rules:**
+- Every activation flow (mark_mission_active) consumes exactly 3 queue entries: `toolUseResponse("mark_mission_active")`, `textResponse(reply)`, `textResponse(title)` (title-gen via `ai.chat()`).
+- Guided mode with `pauseOnTools: ask_guided_question` pauses immediately after tool execution — `continueWithToolResults` is NOT called. One queue entry per question.
+- `FakeAiClient.toolUseResponse` uses `Date.now()` for tool IDs (fine in tests, not in workflow scripts).
+
+**Migration gap:** The `lessons` table migration (0000) is missing `parent_lesson_id` and `sub_number` columns that exist in `schema.ts`. `createTestDb()` runs ALTER TABLE to add them. If you add new columns to `schema.ts`, you may need to add matching ALTER TABLE statements in `createTestDb()`.
 
 ## Database migrations
 
@@ -64,18 +120,19 @@ src/
      FOREIGN KEY (`mission_id`) REFERENCES `missions`(`id`) ON UPDATE no action ON DELETE no action
    );
    ```
-3. Name it with the next sequence number: `0002_<descriptive_tag>.sql`
+3. Name it with the next sequence number: `0004_<descriptive_tag>.sql`
 4. Add the entry to `src/db/migrations/meta/_journal.json`:
    ```json
    {
      "idx": <next_number>,
      "version": "6",
      "when": <current_unix_ms>,
-     "tag": "0002_<descriptive_tag>",
+     "tag": "0004_<descriptive_tag>",
      "breakpoints": true
    }
    ```
 5. Run `npm run db:migrate` to apply
+6. If the column is needed by tests, add a matching ALTER TABLE in `src/test/helpers.ts` `createTestDb()`
 
 ### Before touching migrations
 
@@ -92,6 +149,10 @@ The snapshot situation should be fixed properly (run `drizzle-kit generate` on a
 ```bash
 # Dev
 npm run dev
+
+# Run tests
+npm test
+npm run test:watch
 
 # Generate migration after schema changes
 npm run db:generate

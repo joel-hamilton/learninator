@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
+import * as schema from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import type { User } from "../types.js";
@@ -13,7 +13,7 @@ export const homeRoutes = new Hono<{ Variables: AppVariables }>();
 
 homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
-  const missionRows = await db
+  const missionRows = await c.get("db")
     .select()
     .from(schema.missions)
     .where(eq(schema.missions.userId, user.id));
