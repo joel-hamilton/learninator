@@ -1,8 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
-import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
@@ -17,6 +15,7 @@ export const chatRoutes = new Hono<{ Variables: AppVariables }>();
 
 chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const message = String(body.message || "").trim();
@@ -26,11 +25,7 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     return c.html(`<div class="msg assistant">I didn't catch that — what would you like to work on?</div>`);
   }
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const systemPrompt = TEACHER_SYSTEM_PROMPT + `
@@ -40,7 +35,7 @@ Mission status: ${mission.status}
 
 Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
 
-  const messages = await loadMessages(missionId);
+  const messages = await loadMessages(store, missionId);
 
   let userContent = message;
   if (context) {
@@ -51,7 +46,7 @@ Remember: read existing content before creating new material. Use list_lessons a
   const log = c.get("logger");
 
   try {
-    await saveMessage(missionId, "user", userContent);
+    await saveMessage(store, missionId, "user", userContent);
 
     const result = await conversationLoop({
       client: c.get("ai"),
@@ -61,7 +56,7 @@ Remember: read existing content before creating new material. Use list_lessons a
       initialMessages: messages,
       tools: TEACHER_TOOLS,
       logger: log,
-      hooks: createStandardHooks({ missionId, saveMessage, logger: log }),
+      hooks: createStandardHooks({ missionId, store, logger: log }),
     });
 
     const text = result.text || "Done! Anything else you'd like to work on?";

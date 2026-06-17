@@ -1,7 +1,5 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { db, schema } from "../db/index.js";
-import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import type { AppVariables, User } from "../types.js";
 import { settingsPage } from "../views/settings.js";
@@ -17,13 +15,11 @@ settingsApp.get("/", (c: SettingsContext) => {
 
 settingsApp.post("/profile", async (c: SettingsContext) => {
   const user = c.get("user") as User;
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const name = String(body.name || "").trim();
 
-  await db
-    .update(schema.users)
-    .set({ name })
-    .where(eq(schema.users.id, user.id));
+  await store.updateUser(user.id, { name });
 
   const initial = name ? name.trim().charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
 
@@ -32,6 +28,7 @@ settingsApp.post("/profile", async (c: SettingsContext) => {
 
 settingsApp.post("/password", async (c: SettingsContext) => {
   const user = c.get("user") as User;
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const currentPassword = String(body.current_password || "");
   const newPassword = String(body.new_password || "");
@@ -50,21 +47,13 @@ settingsApp.post("/password", async (c: SettingsContext) => {
   }
 
   // Re-fetch user to get current password hash
-  const [freshUser] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.id, user.id))
-    .limit(1);
-
+  const freshUser = await store.getUser(user.id);
   if (!freshUser || !(await bcrypt.compare(currentPassword, freshUser.passwordHash))) {
     return c.html(`<div class="result-msg error">Current password is incorrect.</div>`);
   }
 
   const hash = await bcrypt.hash(newPassword, 10);
-  await db
-    .update(schema.users)
-    .set({ passwordHash: hash })
-    .where(eq(schema.users.id, user.id));
+  await store.updateUser(user.id, { passwordHash: hash });
 
   return c.html(`<div class="result-msg success">Password changed.</div>`);
 });

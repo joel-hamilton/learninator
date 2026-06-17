@@ -1,12 +1,9 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
-import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
-import { emit } from "../ai/events.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 import { lessonPage } from "../views/lesson.js";
 import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble, feedbackThanksBar, feedbackModal } from "../views/fragments.js";
@@ -14,6 +11,7 @@ import { userInitial } from "../views/shared.js";
 import { saveMessage, contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { AIError } from "../ai/index.js";
+import type { MissionStore } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -37,59 +35,25 @@ function lessonIdStr(number: number, subNumber: number | null): string {
   return subNumber !== null ? `${number}.${subNumber}` : `${number}`;
 }
 
-function lessonUrl(missionId: number, number: number, subNumber: number | null): string {
-  return `/missions/${missionId}/lessons/${lessonIdStr(number, subNumber)}`;
-}
-
 // ── GET lesson ──
 
 lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1);
+  const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
   if (lesson.status === "active") {
-    await db
-      .update(schema.lessons)
-      .set({ status: "in_progress" })
-      .where(eq(schema.lessons.id, lesson.id));
+    await store.updateLessonStatus(missionId, number, subNumber, "in_progress");
   }
 
-  const allLessons = await db
-    .select({
-      number: schema.lessons.number,
-      subNumber: schema.lessons.subNumber,
-      title: schema.lessons.title,
-      slug: schema.lessons.slug,
-      status: schema.lessons.status,
-    })
-    .from(schema.lessons)
-    .where(eq(schema.lessons.missionId, missionId))
-    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber));
+  const allLessons = await store.listLessonSummaries(missionId);
 
   const currentIndex = allLessons.findIndex(
     (l) => l.number === number && l.subNumber === subNumber
@@ -114,38 +78,17 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
 
 lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const body = await c.req.parseBody();
   const rating = String(body.rating || "");
   const feedbackText = String(body.feedbackText || "").trim();
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const updateData: Record<string, unknown> = { feedbackRating: rating as "too_easy" | "just_right" | "too_hard" };
-  if (feedbackText) {
-    updateData.feedbackText = feedbackText;
-  }
-
-  await db
-    .update(schema.lessons)
-    .set(updateData)
-    .where(and(...conditions));
+  await store.updateLessonFeedback(missionId, number, subNumber, rating, feedbackText || undefined);
 
   return c.html(feedbackThanksBar(rating, missionId, number, subNumber));
 });
@@ -154,30 +97,14 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
 
 lessonRoutes.post("/:number/incomplete", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  await db
-    .update(schema.lessons)
-    .set({ status: "in_progress", completedAt: null })
-    .where(and(...conditions));
+  await store.updateLessonStatus(missionId, number, subNumber, "in_progress", null);
 
   return c.html(lessonActionBar(missionId, number, subNumber));
 });
@@ -186,38 +113,18 @@ lessonRoutes.post("/:number/incomplete", auth.requireAuth, async (c: Ctx) => {
 
 lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1);
+  const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
   if (lesson.status !== "completed") {
-    await db
-      .update(schema.lessons)
-      .set({ status: "completed", completedAt: new Date().toISOString() })
-      .where(and(...conditions));
+    await store.updateLessonStatus(missionId, number, subNumber, "completed", new Date().toISOString());
   }
 
   return c.html(completedLessonBar(missionId, number, subNumber));
@@ -227,32 +134,15 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
 
 lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const mode = (c.req.query("mode") || "next") as "next" | "more";
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1);
+  const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
   return c.html(feedbackModal({
@@ -280,45 +170,24 @@ function jobKey(missionId: number, number: number, subNumber: number | null, typ
   return `${missionId}-${number}-${subNumber ?? "m"}-${type}`;
 }
 
-
 lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const body = await c.req.parseBody();
   const notes = String(body.notes || "").trim();
   const feedback = String(body.feedback || "").trim();
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1);
+  const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
   // Save feedback text if provided
   if (feedback) {
-    await db
-      .update(schema.lessons)
-      .set({ feedbackText: feedback })
-      .where(and(...conditions));
+    await store.updateLessonFeedback(missionId, number, subNumber, lesson.feedbackRating || "just_right", feedback);
   }
 
   const key = jobKey(missionId, number, subNumber, "next");
@@ -340,6 +209,7 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
   const log = c.get("logger");
   const capturedAi = c.get("ai");
   const capturedToolExecutor = c.get("toolExecutor");
+  const events = c.get("events");
   (async () => {
     try {
       const displayNum = formatLessonNumber(number, subNumber);
@@ -376,10 +246,10 @@ You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". 
           onBeforeToolExecution: async (toolUseBlocks) => {
             pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
             job.messages.push(...pendingToolNames);
-            emit(missionId, { type: "tool_start", names: pendingToolNames });
+            events.emit(missionId, { type: "tool_start", names: pendingToolNames });
           },
           onAfterToolExecution: async (_results) => {
-            emit(missionId, { type: "tool_end", names: pendingToolNames });
+            events.emit(missionId, { type: "tool_end", names: pendingToolNames });
           },
           onTruncated: async () => {
             job.messages.push("Response was cut short…");
@@ -387,13 +257,7 @@ You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". 
         },
       });
 
-      // Find the most recently created lesson (by id) for this mission
-      const [latestLesson] = await db
-        .select()
-        .from(schema.lessons)
-        .where(eq(schema.lessons.missionId, missionId))
-        .orderBy(desc(schema.lessons.id))
-        .limit(1);
+      const latestLesson = await store.getLatestLesson(missionId);
 
       if (latestLesson && latestLesson.id !== lesson.id) {
         job.result = {
@@ -443,31 +307,14 @@ lessonRoutes.get("/:number/generate-next/status", auth.requireAuth, (c: Ctx) => 
 
 lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const conditions = [
-    eq(schema.lessons.missionId, missionId),
-    eq(schema.lessons.number, number),
-  ];
-  if (subNumber !== null) {
-    conditions.push(eq(schema.lessons.subNumber, subNumber));
-  } else {
-    conditions.push(isNull(schema.lessons.parentLessonId));
-  }
-
-  const [lesson] = await db
-    .select()
-    .from(schema.lessons)
-    .where(and(...conditions))
-    .limit(1);
+  const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
   const key = jobKey(missionId, number, subNumber, "sub");
@@ -489,6 +336,7 @@ lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ct
   const log = c.get("logger");
   const capturedAi = c.get("ai");
   const capturedToolExecutor = c.get("toolExecutor");
+  const events = c.get("events");
   (async () => {
     try {
       const displayNum = formatLessonNumber(number, subNumber);
@@ -516,10 +364,10 @@ You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review
           onBeforeToolExecution: async (toolUseBlocks) => {
             pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
             job.messages.push(...pendingToolNames);
-            emit(missionId, { type: "tool_start", names: pendingToolNames });
+            events.emit(missionId, { type: "tool_start", names: pendingToolNames });
           },
           onAfterToolExecution: async (_results) => {
-            emit(missionId, { type: "tool_end", names: pendingToolNames });
+            events.emit(missionId, { type: "tool_end", names: pendingToolNames });
           },
           onTruncated: async () => {
             job.messages.push("Response was cut short…");
@@ -527,12 +375,7 @@ You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review
         },
       });
 
-      const [latestLesson] = await db
-        .select()
-        .from(schema.lessons)
-        .where(eq(schema.lessons.missionId, missionId))
-        .orderBy(desc(schema.lessons.id))
-        .limit(1);
+      const latestLesson = await store.getLatestLesson(missionId);
 
       if (latestLesson && latestLesson.id !== lesson.id) {
         job.result = {
@@ -582,6 +425,7 @@ lessonRoutes.get("/:number/generate-sub-lesson/status", auth.requireAuth, (c: Ct
 
 lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const body = await c.req.parseBody();
@@ -590,11 +434,7 @@ lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
   const lessonNumber = String(body.lesson_number || "");
   if (!message) return c.text("");
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const systemPrompt = TEACHER_SYSTEM_PROMPT + `
@@ -609,7 +449,7 @@ The user is currently viewing Lesson ${lessonNumber}: "${lessonTitle}". They may
 If they ask for a new lesson, use create_lesson or create_sub_lesson as appropriate. Review existing lessons first to avoid duplicates.`;
 
   // Store user message in the shared mission chat
-  await saveMessage(missionId, "user", `[Re: Lesson ${lessonNumber}: ${lessonTitle}]\n${message}`);
+  await saveMessage(store, missionId, "user", `[Re: Lesson ${lessonNumber}: ${lessonTitle}]\n${message}`);
 
   try {
     const result = await conversationLoop({
@@ -621,7 +461,7 @@ If they ask for a new lesson, use create_lesson or create_sub_lesson as appropri
         { role: "user" as const, content: `[The user is on Lesson ${lessonNumber}: "${lessonTitle}". They said:] ${message}` },
       ],
       tools: TEACHER_TOOLS,
-      hooks: createStandardHooks({ missionId, saveMessage }),
+      hooks: createStandardHooks({ missionId, store }),
     });
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…"), userInitial(user)));

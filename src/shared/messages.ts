@@ -1,21 +1,17 @@
-import { db, schema } from "../db/index.js";
 import { eq, asc } from "drizzle-orm";
 import type { AiMessageParam } from "../ai/types.js";
+import type { MissionStore } from "../db/store.js";
 
-export async function saveMessage(missionId: number, role: "user" | "assistant", content: unknown) {
-  await db.insert(schema.chatMessages).values({
+export async function saveMessage(store: MissionStore, missionId: number, role: "user" | "assistant", content: unknown) {
+  await store.saveChatMessage({
     missionId,
     role,
     content: JSON.stringify(content),
   });
 }
 
-export async function loadMessages(missionId: number): Promise<AiMessageParam[]> {
-  const rows = await db
-    .select()
-    .from(schema.chatMessages)
-    .where(eq(schema.chatMessages.missionId, missionId))
-    .orderBy(asc(schema.chatMessages.createdAt));
+export async function loadMessages(store: MissionStore, missionId: number): Promise<AiMessageParam[]> {
+  const rows = await store.getChatMessages(missionId);
 
   const messages: AiMessageParam[] = [];
   let lastAssistantToolUseIds: Set<string> | null = null;

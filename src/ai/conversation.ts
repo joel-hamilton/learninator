@@ -11,6 +11,8 @@ import type {
 } from "./types.js";
 import type { Logger } from "../logger.js";
 import type { ToolEvent } from "./events.js";
+import type { MissionStore } from "../db/store.js";
+import { saveMessage } from "../shared/messages.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
 export interface ConversationHooks {
@@ -52,7 +54,7 @@ export interface ConversationLoopResult {
 /** Dependencies for the standard conversation hooks factory. */
 export interface StandardHooksDeps {
   missionId: number;
-  saveMessage: (missionId: number, role: "assistant" | "user", content: unknown) => Promise<void>;
+  store: MissionStore;
   emit?: (missionId: number, event: ToolEvent) => void;
   logger?: Pick<Logger, "debug">;
 }
@@ -62,20 +64,21 @@ export interface StandardHooksDeps {
  * Callers can spread and override individual hooks for non-standard behavior.
  */
 export function createStandardHooks(deps: StandardHooksDeps): ConversationHooks {
+  const { missionId, store, emit, logger } = deps;
   let pendingToolNames: string[] = [];
 
   return {
     onAssistantMessage: async (content) => {
-      await deps.saveMessage(deps.missionId, "assistant", content);
+      await saveMessage(store, missionId, "assistant", content);
     },
     onBeforeToolExecution: async (toolUseBlocks) => {
       pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
-      deps.emit?.(deps.missionId, { type: "tool_start", names: pendingToolNames });
-      deps.logger?.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+      emit?.(missionId, { type: "tool_start", names: pendingToolNames });
+      logger?.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
     },
     onAfterToolExecution: async (results) => {
-      deps.emit?.(deps.missionId, { type: "tool_end", names: pendingToolNames });
-      await deps.saveMessage(deps.missionId, "user", results);
+      emit?.(missionId, { type: "tool_end", names: pendingToolNames });
+      await saveMessage(store, missionId, "user", results);
     },
   };
 }

@@ -2,8 +2,6 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import bcrypt from "bcryptjs";
-import { db, schema } from "../db/index.js";
-import { eq } from "drizzle-orm";
 import type { AppVariables, User } from "../types.js";
 import { loginPage, signupPage, loginForm, signupForm } from "../views/auth.js";
 
@@ -16,11 +14,8 @@ const sessionMiddleware = async (c: AuthContext, next: () => Promise<void>) => {
   if (userId) {
     const id = parseInt(userId);
     if (!isNaN(id)) {
-      const [user] = await db
-        .select()
-        .from(schema.users)
-        .where(eq(schema.users.id, id))
-        .limit(1);
+      const store = c.get("store");
+      const user = await store.getUser(id);
       c.set("user", (user as User) || null);
     }
   }
@@ -45,6 +40,7 @@ authApp.get("/login", (c) => {
 });
 
 authApp.post("/login", async (c) => {
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const email = String(body.email || "").trim();
   const password = String(body.password || "");
@@ -53,11 +49,7 @@ authApp.post("/login", async (c) => {
     return c.html(loginForm(email, "Email and password are required."));
   }
 
-  const [user] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.email, email))
-    .limit(1);
+  const user = await store.getUserByEmail(email);
 
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     return c.html(loginForm(email, "Invalid email or password."));
@@ -82,6 +74,7 @@ authApp.get("/signup", (c) => {
 });
 
 authApp.post("/signup", async (c) => {
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const email = String(body.email || "").trim();
   const password = String(body.password || "");
@@ -99,21 +92,13 @@ authApp.post("/signup", async (c) => {
     return c.html(signupForm(email, "Password must be at least 6 characters."));
   }
 
-  const [existing] = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.email, email))
-    .limit(1);
-
+  const existing = await store.getUserByEmail(email);
   if (existing) {
     return c.html(signupForm(email, "An account with that email already exists."));
   }
 
   const hash = await bcrypt.hash(password, 10);
-  const [newUser] = await db
-    .insert(schema.users)
-    .values({ email, passwordHash: hash })
-    .returning();
+  const newUser = await store.createUser({ email, passwordHash: hash });
 
   setCookie(c, SESSION_COOKIE, String(newUser.id), {
     httpOnly: true,

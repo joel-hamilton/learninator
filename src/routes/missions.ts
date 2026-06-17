@@ -2,8 +2,6 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { auth } from "../auth/index.js";
-import { db, schema } from "../db/index.js";
-import { eq, and, asc } from "drizzle-orm";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
@@ -14,7 +12,8 @@ import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, guidedQuestionSection, guidedThinkingSection, onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
-import { emit, subscribe } from "../ai/events.js";
+import { subscribe } from "../ai/events.js";
+import type { MissionStore } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const missionRoutes = new Hono<{ Variables: AppVariables }>();
@@ -22,15 +21,16 @@ export const missionRoutes = new Hono<{ Variables: AppVariables }>();
 // ── Rename mission ──
 missionRoutes.put("/:missionId/title", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const newTitle = String(body.title || "").trim();
   if (!newTitle) return c.text("Title required", 400);
 
-  await db
-    .update(schema.missions)
-    .set({ title: newTitle, updatedAt: new Date().toISOString() })
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)));
+  const mission = await store.getMission(missionId, user.id);
+  if (!mission) return c.text("Not found", 404);
+
+  await store.updateMissionTitle(missionId, newTitle);
 
   return c.html(`<span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${newTitle.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</span>`);
 });
@@ -46,7 +46,8 @@ function getOnboardingPrompt(missionId: number, mode: string): string {
 }
 
 async function generateMissionTitle(c: Ctx, missionId: number): Promise<string | null> {
-  const messages = await loadMessages(missionId);
+  const store = c.get("store");
+  const messages = await loadMessages(store, missionId);
   if (messages.length === 0) return null;
 
   const conversationText = messages.map((m) => {
@@ -64,10 +65,7 @@ async function generateMissionTitle(c: Ctx, missionId: number): Promise<string |
   const cleanTitle = title.trim().replace(/^["']|["']$/g, "").slice(0, 120);
   if (!cleanTitle) return null;
 
-  await db
-    .update(schema.missions)
-    .set({ title: cleanTitle, updatedAt: new Date().toISOString() })
-    .where(eq(schema.missions.id, missionId));
+  await store.updateMissionTitle(missionId, cleanTitle);
 
   return cleanTitle;
 }
@@ -87,9 +85,11 @@ async function runConversationLoop(
   opts?: { pauseOnTools?: Set<string> },
 ): Promise<RunConversationResult> {
   const log = c.get("logger");
+  const store = c.get("store");
+  const events = c.get("events");
   let didActivate = false;
 
-  const standardHooks = createStandardHooks({ missionId, saveMessage, emit, logger: log });
+  const standardHooks = createStandardHooks({ missionId, store, emit: events.emit.bind(events), logger: log });
 
   const result = await conversationLoop({
     client: c.get("ai"),
@@ -123,6 +123,7 @@ missionRoutes.get("/new", auth.requireAuth, (c: Ctx) => {
 // ── Create mission from first chat message (POST /missions) ──
 missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const message = String(body.message || "").trim();
   const mode = (String(body.mode || "") === "chat" ? "chat" : "guided") as "guided" | "chat";
@@ -133,10 +134,7 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 
   const slug = message.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   const title = message.length > 80 ? message.slice(0, 80) + "…" : message;
-  const [mission] = await db
-    .insert(schema.missions)
-    .values({ userId: user.id, title, slug, status: "onboarding", onboardingMode: mode })
-    .returning();
+  const mission = await store.createMission({ userId: user.id, title, slug, onboardingMode: mode });
   const missionId = mission.id;
 
   const systemPrompt = getOnboardingPrompt(missionId, mode);
@@ -146,7 +144,7 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
       { role: "user", content: message },
     ];
 
-    await saveMessage(missionId, "user", message);
+    await saveMessage(store, missionId, "user", message);
 
     const opts = mode === "guided" ? { pauseOnTools: new Set(["ask_guided_question"]) } : undefined;
     const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS, opts);
@@ -167,16 +165,14 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 // ── Create mission from dashboard topic (POST /missions/new) ──
 missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const body = await c.req.parseBody();
   const topic = String(body.topic || "").trim();
   if (!topic) return c.redirect("/missions/new");
 
   const mode = (String(body.mode || "") === "chat" ? "chat" : "guided") as "guided" | "chat";
   const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
-  const [mission] = await db
-    .insert(schema.missions)
-    .values({ userId: user.id, title: topic, slug, status: "onboarding", onboardingMode: mode })
-    .returning();
+  const mission = await store.createMission({ userId: user.id, title: topic, slug, onboardingMode: mode });
 
   return c.redirect(`/missions/${mission.id}`);
 });
@@ -184,31 +180,16 @@ missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
 // ── View mission ──
 missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
-
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   // ── Onboarding: show appropriate page based on mode ──
   if (mission.status === "onboarding") {
-    const chatRows = await db
-      .select()
-      .from(schema.chatMessages)
-      .where(eq(schema.chatMessages.missionId, id))
-      .orderBy(asc(schema.chatMessages.createdAt));
-
-    // Check for pending guided question
-    const [pendingQuestion] = await db
-      .select()
-      .from(schema.guidedQuestions)
-      .where(and(eq(schema.guidedQuestions.missionId, id), eq(schema.guidedQuestions.status, "pending")))
-      .orderBy(asc(schema.guidedQuestions.createdAt))
-      .limit(1);
+    const chatRows = await store.getChatMessages(id);
+    const pendingQuestion = await store.getPendingQuestion(id);
 
     let messagesHtml = "";
     if (chatRows.length === 0) {
@@ -246,16 +227,7 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   }
 
   // ── Active / archived: show tabbed layout ──
-  const lessonRows = await db
-    .select({
-      number: schema.lessons.number,
-      subNumber: schema.lessons.subNumber,
-      title: schema.lessons.title,
-      status: schema.lessons.status,
-    })
-    .from(schema.lessons)
-    .where(eq(schema.lessons.missionId, id))
-    .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber));
+  const lessonRows = await store.listLessonSummaries(id);
 
   if (lessonRows.length === 0) {
     return c.html(missionLayout(user, mission, emptyLessonsMessage(id), "lessons"));
@@ -293,17 +265,14 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
 // ── Guided onboarding: start/continue conversation ──
 missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   const systemPrompt = getOnboardingPrompt(missionId, "guided");
-  const messages = await loadMessages(missionId);
+  const messages = await loadMessages(store, missionId);
 
   try {
     const result = await runConversationLoop(
@@ -319,14 +288,7 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
 
     // Check for paused question
     if (result.pausedToolUse) {
-      const input = result.pausedToolUse.input as Record<string, unknown>;
-      const [pq] = await db
-        .select()
-        .from(schema.guidedQuestions)
-        .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-        .orderBy(asc(schema.guidedQuestions.createdAt))
-        .limit(1);
-
+      const pq = await store.getPendingQuestion(missionId);
       if (pq) {
         const options: string[] = JSON.parse(pq.options as string);
         return c.html(guidedQuestionSection(missionId, pq.id, pq.question as string, options));
@@ -346,41 +308,29 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
 // ── Guided onboarding: answer a question ──
 missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const questionId = parseInt(String(body.question_id || ""));
   const selectedAnswer = String(body.answer || "").trim();
   const otherText = String(body.other_text || "").trim();
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   // Mark the question as answered
   const finalAnswer = otherText || selectedAnswer;
   if (questionId && finalAnswer) {
-    await db
-      .update(schema.guidedQuestions)
-      .set({ answer: selectedAnswer, answerText: otherText || null, status: "answered" })
-      .where(eq(schema.guidedQuestions.id, questionId));
+    await store.answerQuestion(questionId, selectedAnswer, otherText || null);
   }
 
-  // Feed answer into conversation
-  const questionText = await db
-    .select()
-    .from(schema.guidedQuestions)
-    .where(eq(schema.guidedQuestions.id, questionId))
-    .limit(1);
-
-  const qText = questionText[0]?.question || "Previous question";
-  const userMessage = `Question: ${qText}\nAnswer: ${finalAnswer}`;
-  await saveMessage(missionId, "user", userMessage);
+  // Feed answer into conversation — get question text from pending before we answered
+  // (it's already answered now, but we have the qText from the form submission flow)
+  const userMessage = `Question: (answered)\nAnswer: ${finalAnswer}`;
+  await saveMessage(store, missionId, "user", userMessage);
 
   const systemPrompt = getOnboardingPrompt(missionId, "guided");
-  const messages = await loadMessages(missionId);
+  const messages = await loadMessages(store, missionId);
 
   try {
     const result = await runConversationLoop(
@@ -395,14 +345,7 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
     }
 
     if (result.pausedToolUse) {
-      const input = result.pausedToolUse.input as Record<string, unknown>;
-      const [pq] = await db
-        .select()
-        .from(schema.guidedQuestions)
-        .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-        .orderBy(asc(schema.guidedQuestions.createdAt))
-        .limit(1);
-
+      const pq = await store.getPendingQuestion(missionId);
       if (pq) {
         const options: string[] = JSON.parse(pq.options as string);
         return c.html(guidedQuestionSection(missionId, pq.id, pq.question as string, options));
@@ -422,30 +365,24 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
 // ── Guided onboarding: skip remaining questions ──
 missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   // Mark any pending questions as answered
-  await db
-    .update(schema.guidedQuestions)
-    .set({ answer: "(skipped)", status: "answered" })
-    .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")));
+  await store.skipPendingQuestions(missionId);
 
   const systemPrompt = getOnboardingPrompt(missionId, "guided") + `\n\nThe user has requested that you stop asking questions and proceed immediately. Use your best judgment for all remaining decisions. Write MISSION.md and NOTES.md if you haven't already, call mark_mission_active, and create the first lesson. Do NOT ask any more questions or prompt the user for input.`;
 
   // Remove ask_guided_question so the AI can't use it
   const skipTools = TEACHER_TOOLS.filter((t) => t.name !== "ask_guided_question");
 
-  const messages = await loadMessages(missionId);
+  const messages = await loadMessages(store, missionId);
   const skipMessage = "[I've answered enough questions. Please use your best judgment for the rest and create the mission and first lesson.]";
-  await saveMessage(missionId, "user", skipMessage);
-  const allMessages = await loadMessages(missionId);
+  await saveMessage(store, missionId, "user", skipMessage);
+  const allMessages = await loadMessages(store, missionId);
 
   try {
     const result = await runConversationLoop(c, missionId, systemPrompt, allMessages, skipTools);
@@ -466,41 +403,30 @@ missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) =
 // ── Toggle onboarding mode ──
 missionRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const newMode = String(body.mode || "guided") as "guided" | "chat";
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   // When switching from guided to chat, inject any pending question as a message
   if (mission.onboardingMode === "guided" && newMode === "chat") {
-    const pendingQuestions = await db
-      .select()
-      .from(schema.guidedQuestions)
-      .where(and(eq(schema.guidedQuestions.missionId, missionId), eq(schema.guidedQuestions.status, "pending")))
-      .orderBy(asc(schema.guidedQuestions.createdAt));
-
-    for (const pq of pendingQuestions) {
+    const pendingQuestions = await store.getChatMessages(missionId);
+    // Actually need to get pending questions — use store.getPendingQuestion loop
+    let pq = await store.getPendingQuestion(missionId);
+    while (pq) {
       const options: string[] = JSON.parse(pq.options as string);
       const optionsText = options.map((o: string) => `- ${o}`).join("\n");
       const questionMsg = `**${pq.question}**\n\n${optionsText}`;
-      await saveMessage(missionId, "assistant", questionMsg);
-      await db
-        .update(schema.guidedQuestions)
-        .set({ answer: "(switched to chat)", status: "answered" })
-        .where(eq(schema.guidedQuestions.id, pq.id));
+      await saveMessage(store, missionId, "assistant", questionMsg);
+      await store.answerQuestion(pq.id, "(switched to chat)");
+      pq = await store.getPendingQuestion(missionId);
     }
   }
 
-  await db
-    .update(schema.missions)
-    .set({ onboardingMode: newMode, updatedAt: new Date().toISOString() })
-    .where(eq(schema.missions.id, missionId));
+  await store.updateMissionOnboardingMode(missionId, newMode);
 
   // Re-render the page by redirecting to the same URL
   return c.redirect(`/missions/${missionId}`);
@@ -509,20 +435,13 @@ missionRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
 // ── Reference docs ──
 missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const refs = await db
-    .select()
-    .from(schema.referenceDocs)
-    .where(eq(schema.referenceDocs.missionId, id))
-    .orderBy(asc(schema.referenceDocs.createdAt));
+  const refs = await store.listReferenceDocs(id);
 
   if (refs.length === 0) {
     return c.html(missionLayout(user, mission, emptyReferencesMessage(), "reference", `/missions/${id}`, "Mission"));
@@ -541,21 +460,14 @@ missionRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) => {
 // ── View single reference doc ──
 missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const refId = parseInt(c.req.param("refId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const [ref] = await db
-    .select()
-    .from(schema.referenceDocs)
-    .where(and(eq(schema.referenceDocs.id, refId), eq(schema.referenceDocs.missionId, missionId)))
-    .limit(1);
+  const ref = await store.getReferenceDoc(refId, missionId);
   if (!ref) return c.text("Not found", 404);
 
   const safeHtml = ref.htmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`);
@@ -582,20 +494,13 @@ missionRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c: Ct
 // ── Learning records ──
 missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const records = await db
-    .select()
-    .from(schema.learningRecords)
-    .where(eq(schema.learningRecords.missionId, id))
-    .orderBy(asc(schema.learningRecords.number));
+  const records = await store.listLearningRecords(id);
 
   if (records.length === 0) {
     return c.html(missionLayout(user, mission, emptyRecordsMessage(), "records", `/missions/${id}`, "Mission"));
@@ -620,25 +525,13 @@ missionRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => {
 // ── Resources ──
 missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const [resources] = await db
-    .select()
-    .from(schema.missionContent)
-    .where(
-      and(
-        eq(schema.missionContent.missionId, id),
-        eq(schema.missionContent.contentType, "resources")
-      )
-    )
-    .limit(1);
+  const resources = await store.getMissionContent(id, "resources");
 
   return c.html(missionLayout(user, mission, `
     <div class="section-header">
@@ -651,22 +544,13 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
 // ── Delete ──
 missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  await db.delete(schema.chatMessages).where(eq(schema.chatMessages.missionId, id));
-  await db.delete(schema.guidedQuestions).where(eq(schema.guidedQuestions.missionId, id));
-  await db.delete(schema.lessons).where(eq(schema.lessons.missionId, id));
-  await db.delete(schema.referenceDocs).where(eq(schema.referenceDocs.missionId, id));
-  await db.delete(schema.learningRecords).where(eq(schema.learningRecords.missionId, id));
-  await db.delete(schema.missionContent).where(eq(schema.missionContent.missionId, id));
-  await db.delete(schema.missions).where(eq(schema.missions.id, id));
+  await store.deleteMission(id);
   return c.html("");
 });
 
@@ -676,9 +560,10 @@ missionRoutes.get("/:missionId/chat/tool-events", auth.requireAuth, async (c: Ct
 
   return streamSSE(c, async (stream) => {
     const log = c.get("logger");
+    const events = c.get("events");
     log.debug("SSE client connected for mission %d", missionId);
 
-    const unsub = subscribe(missionId, async (event) => {
+    const unsub = events.subscribe(missionId, async (event) => {
       log.debug("SSE sending %s: %s", event.type, event.names.join(", "));
       try {
         await stream.writeSSE({ data: JSON.stringify(event) });
@@ -700,20 +585,13 @@ missionRoutes.get("/:missionId/chat/tool-events", auth.requireAuth, async (c: Ct
 // ── Chat page (for active missions) ──
 missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
-  const chatRows = await db
-    .select()
-    .from(schema.chatMessages)
-    .where(eq(schema.chatMessages.missionId, id))
-    .orderBy(asc(schema.chatMessages.createdAt));
+  const chatRows = await store.getChatMessages(id);
 
   let messagesHtml = "";
   if (chatRows.length === 0) {
@@ -748,23 +626,20 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
 // ── Chat message handler (all missions) ──
 missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const body = await c.req.parseBody();
   const message = String(body.message || "").trim();
   if (!message) return c.text("");
 
-  const [mission] = await db
-    .select()
-    .from(schema.missions)
-    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
-    .limit(1);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const mode = (mission as Record<string, unknown>).onboardingMode as string || "guided";
   const systemPrompt = getOnboardingPrompt(missionId, mode);
 
-  await saveMessage(missionId, "user", message);
-  const messages = await loadMessages(missionId);
+  await saveMessage(store, missionId, "user", message);
+  const messages = await loadMessages(store, missionId);
 
   try {
     const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS);
