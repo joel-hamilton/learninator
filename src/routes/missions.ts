@@ -11,7 +11,7 @@ import type { AppVariables } from "../types.js";
 import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/types.js";
 import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
-import { missionLayout } from "../views/mission.js";
+import { missionLayout, missionTabContent } from "../views/mission.js";
 import { onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "../views/shared.js";
@@ -890,6 +890,116 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
     </div>
     <div class="resource-markdown markdown-body">${formatMarkdown(resources?.markdownContent || "No resources curated yet.")}</div>
   `, "resources", `/missions/${id}`, "Mission"));
+});
+
+// ── Mission tab: view MISSION.md ──
+missionRoutes.get("/:missionId/mission", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const id = parseInt(c.req.param("missionId")!);
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, id), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const [content] = await db
+    .select()
+    .from(schema.missionContent)
+    .where(
+      and(
+        eq(schema.missionContent.missionId, id),
+        eq(schema.missionContent.contentType, "mission")
+      )
+    )
+    .limit(1);
+
+  const markdown = content?.markdownContent || "*Your mission hasn't been defined yet. Refine it below to get started.*";
+
+  return c.html(missionLayout(user, mission, missionTabContent(id, formatMarkdown(markdown)), "mission", `/missions/${id}`, "Mission"));
+});
+
+// ── Mission refinement: AI-mediated mission update ──
+const REFINEMENT_PROMPT = `
+## Mission Refinement
+
+The user wants to refine their learning mission. Your ONLY task right now is to help them update the mission direction.
+
+1. Use read_mission_content with content_type "mission" to read the current MISSION.md
+2. Understand what the user wants to change about the mission (goals, constraints, success criteria, scope)
+3. Use write_mission_content to update MISSION.md to reflect the changes — be specific and concrete
+4. Use create_learning_record to document the change: title should be "Mission refined: [brief summary]", markdown_content should describe what changed and why
+5. Tell the user what you updated in 2-3 sentences
+
+Do NOT create lessons, reference docs, or any other content. Focus exclusively on updating the mission.`;
+
+missionRoutes.post("/:missionId/mission/refine", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const missionId = parseInt(c.req.param("missionId")!);
+  const body = await c.req.parseBody();
+  const message = String(body.message || "").trim();
+  if (!message) return c.text("");
+
+  const [mission] = await db
+    .select()
+    .from(schema.missions)
+    .where(and(eq(schema.missions.id, missionId), eq(schema.missions.userId, user.id)))
+    .limit(1);
+  if (!mission) return c.text("Not found", 404);
+
+  const systemPrompt = TEACHER_SYSTEM_PROMPT + REFINEMENT_PROMPT +
+    `\nMission title: ${mission.title}\nMission status: ${mission.status}`;
+
+  await saveMessage(missionId, "user", message);
+  const messages = await loadMessages(missionId);
+
+  try {
+    const result = await conversationLoop({
+      client: c.get("ai"),
+      toolExecutor: c.get("toolExecutor"),
+      missionId,
+      systemPrompt,
+      initialMessages: messages,
+      tools: TEACHER_TOOLS,
+      logger: c.get("logger"),
+      hooks: {
+        onAssistantMessage: async (content) => {
+          await saveMessage(missionId, "assistant", content);
+        },
+        onBeforeToolExecution: async (toolUseBlocks) => {
+          c.get("logger").debug("Refine tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
+        },
+        onAfterToolExecution: async (results) => {
+          await saveMessage(missionId, "user", results);
+        },
+      },
+    });
+
+    // Read back the updated MISSION.md
+    const [updated] = await db
+      .select()
+      .from(schema.missionContent)
+      .where(
+        and(
+          eq(schema.missionContent.missionId, missionId),
+          eq(schema.missionContent.contentType, "mission")
+        )
+      )
+      .limit(1);
+
+    const markdown = updated?.markdownContent || "*Mission direction is being defined.*";
+    const confirmation = result.text
+      ? formatMarkdown(result.text)
+      : "Your mission has been updated.";
+
+    return c.html(missionTabContent(missionId, formatMarkdown(markdown), confirmation));
+  } catch (err: unknown) {
+    const msg = err instanceof AIError
+      ? err.message
+      : "Something went wrong. Please try again.";
+    return c.html(`<div id="mission-content-area"><div class="refine-confirmation" style="color:var(--danger);">${msg}</div></div>`);
+  }
 });
 
 // ── Delete ──
