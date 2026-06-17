@@ -44,7 +44,7 @@ export interface MissionStore {
     missionId: number; number: number; title: string; slug: string;
     htmlContent: string; status?: string; parentLessonId?: number; subNumber?: number;
   }): Promise<LessonRow>;
-  getLesson(missionId: number, number: number, subNumber: number | null): Promise<LessonRow | undefined>;
+  getLesson(missionId: number, number: number, subNumber?: number | null): Promise<LessonRow | undefined>;
   getLatestLesson(missionId: number): Promise<LessonRow | undefined>;
   listLessons(missionId: number): Promise<LessonRow[]>;
   listLessonSummaries(missionId: number): Promise<LessonSummary[]>;
@@ -185,9 +185,9 @@ export class DrizzleMissionStore implements MissionStore {
     return row;
   }
 
-  async getLesson(missionId: number, number: number, subNumber: number | null) {
+  async getLesson(missionId: number, number: number, subNumber?: number | null) {
     const conditions = [eq(schema.lessons.missionId, missionId), eq(schema.lessons.number, number)];
-    if (subNumber !== null) {
+    if (subNumber != null) {
       conditions.push(eq(schema.lessons.subNumber, subNumber));
     } else {
       conditions.push(isNull(schema.lessons.parentLessonId));
@@ -225,7 +225,7 @@ export class DrizzleMissionStore implements MissionStore {
     const [row] = await this.db.select({ m: max(schema.lessons.number) })
       .from(schema.lessons)
       .where(eq(schema.lessons.missionId, missionId));
-    return (row?.m as number) ?? 0;
+    return (row?.m as number) ?? null;
   }
 
   async getSubLessonCount(missionId: number, parentLessonId: number) {
@@ -443,4 +443,138 @@ export class DrizzleMissionStore implements MissionStore {
       await this.db.update(schema.users).set(setData).where(eq(schema.users.id, id));
     }
   }
+
+  // ── Compatibility aliases for test usage ──
+
+  async readMissionContent(missionId: number, contentType: string) {
+    const row = await this.getMissionContent(missionId, contentType);
+    return row?.markdownContent ?? null;
+  }
+
+  async upsertMissionContentPos(missionId: number, contentType: string, markdown: string) {
+    await this.upsertMissionContent({ missionId, contentType, markdownContent: markdown });
+  }
+
+  async getMainLessonByNumber(missionId: number, number: number) {
+    return (await this.getLesson(missionId, number, null)) ?? null;
+  }
+
+  async getMaxSubNumber(parentLessonId: number) {
+    const [row] = await this.db.select({ m: max(schema.lessons.subNumber) })
+      .from(schema.lessons)
+      .where(eq(schema.lessons.parentLessonId, parentLessonId));
+    return (row?.m as number) ?? null;
+  }
+
+  async insertLesson(data: {
+    missionId: number; number: number; title: string; slug: string;
+    htmlContent: string; parentLessonId?: number | null; subNumber?: number | null;
+  }) {
+    return this.createLesson({
+      missionId: data.missionId,
+      number: data.number,
+      title: data.title,
+      slug: data.slug,
+      htmlContent: data.htmlContent,
+      parentLessonId: data.parentLessonId ?? undefined,
+      subNumber: data.subNumber ?? undefined,
+    });
+  }
+
+  async insertReferenceDoc(data: {
+    missionId: number; title: string; slug: string; htmlContent: string; docType: string;
+  }) {
+    return this.createReferenceDoc(data);
+  }
+
+  async insertLearningRecord(data: {
+    missionId: number; number: number; title: string; markdownContent: string;
+  }) {
+    return this.createLearningRecord(data);
+  }
+
+  async insertGuidedQuestion(data: { missionId: number; question: string; options: string }) {
+    return this.createGuidedQuestion(data);
+  }
+
+  async updateLearningRecordPos(missionId: number, number: number, data: { status?: string; supersededBy?: number | null }) {
+    const records = await this.listLearningRecords(missionId);
+    const record = records.find(r => r.number === number);
+    if (!record) throw new Error(`Learning record ${number} not found`);
+    await this.updateLearningRecord(record.id, data);
+  }
+}
+
+// ── In-memory store for tests ──────────────────────────────────────────
+
+export class InMemoryMissionStore implements MissionStore {
+  private missions: any[] = [];
+  private chatMessages: any[] = [];
+  private lessons: any[] = [];
+  private guidedQuestions: any[] = [];
+  private referenceDocs: any[] = [];
+  private learningRecords: any[] = [];
+  private missionContents: any[] = [];
+  private users: any[] = [];
+  private nextId = 1;
+
+  private id() { return this.nextId++; }
+
+  async createMission(v: any) { const m = { id: this.id(), ...v, status: v.status ?? "onboarding", onboardingMode: v.onboardingMode ?? "guided", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.missions.push(m); return m; }
+  async getMission(id: number, _userId: number) { return this.missions.find(m => m.id === id); }
+  async listMissions(userId: number, opts?: any) { return this.missions.filter(m => m.userId === userId); }
+  async updateMissionTitle(id: number, title: string) { const m = this.missions.find(m => m.id === id); if (m) m.title = title; }
+  async updateMissionOnboardingMode(id: number, mode: "guided" | "chat") { const m = this.missions.find(m => m.id === id); if (m) m.onboardingMode = mode; }
+  async updateMissionStatus(id: number, status: any) { const m = this.missions.find(m => m.id === id); if (m) m.status = status; }
+  async deleteMission(id: number) { this.missions = this.missions.filter(m => m.id !== id); }
+
+  async saveChatMessage(v: any) { this.chatMessages.push({ id: this.id(), ...v, createdAt: new Date().toISOString() }); }
+  async getChatMessages(missionId: number) { return this.chatMessages.filter(m => m.missionId === missionId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+
+  async createLesson(v: any) { const l = { id: this.id(), ...v, status: v.status ?? "active", subNumber: v.subNumber ?? null, parentLessonId: v.parentLessonId ?? null, feedbackRating: null, feedbackText: null, completedAt: null, createdAt: new Date().toISOString() }; this.lessons.push(l); return l; }
+  async getLesson(missionId: number, number: number, subNumber?: number | null) { return this.lessons.find(l => l.missionId === missionId && l.number === number && (subNumber == null ? l.parentLessonId === null : l.subNumber === subNumber)); }
+  async getLatestLesson(missionId: number) { const ls = this.lessons.filter(l => l.missionId === missionId); return ls.length > 0 ? ls.reduce((a, b) => a.id > b.id ? a : b) : undefined; }
+  async listLessons(missionId: number) { return this.lessons.filter(l => l.missionId === missionId).sort((a, b) => a.number - b.number || (a.subNumber ?? 0) - (b.subNumber ?? 0)); }
+  async listLessonSummaries(missionId: number) { return (await this.listLessons(missionId)).map(l => ({ number: l.number, subNumber: l.subNumber, title: l.title, status: l.status })); }
+  async getMaxLessonNumber(missionId: number) { const ls = this.lessons.filter(l => l.missionId === missionId); return ls.length > 0 ? Math.max(...ls.map(l => l.number)) : 0; }
+  async getSubLessonCount(missionId: number, parentLessonId: number) { return this.lessons.filter(l => l.missionId === missionId && l.parentLessonId === parentLessonId).length; }
+  async getLessonCount(missionId: number) { return this.lessons.filter(l => l.missionId === missionId).length; }
+  async getMainLessonCount(missionId: number) { return this.lessons.filter(l => l.missionId === missionId && l.parentLessonId === null).length; }
+  async getLearningRecordCount(missionId: number) { return this.learningRecords.filter(r => r.missionId === missionId).length; }
+  async findLessonBySlug(missionId: number, slug: string) { return this.lessons.find(l => l.missionId === missionId && l.slug === slug); }
+  async updateLessonStatus(missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.status = status; if (completedAt !== undefined) l.completedAt = completedAt; } }
+  async updateLessonFeedback(missionId: number, number: number, subNumber: number | null, rating: string, text?: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.feedbackRating = rating; if (text) l.feedbackText = text; } }
+
+  async createGuidedQuestion(v: any) { const q = { id: this.id(), ...v, answer: null, answerText: null, status: "pending", createdAt: new Date().toISOString() }; this.guidedQuestions.push(q); return q; }
+  async getPendingQuestion(missionId: number) { return this.guidedQuestions.find(q => q.missionId === missionId && q.status === "pending") ?? null; }
+  async answerQuestion(id: number, answer: string, answerText?: string | null) { const q = this.guidedQuestions.find(q => q.id === id); if (q) { q.answer = answer; q.answerText = answerText ?? null; q.status = "answered"; } }
+  async skipPendingQuestions(missionId: number) { this.guidedQuestions.filter(q => q.missionId === missionId && q.status === "pending").forEach(q => { q.answer = "(skipped)"; q.status = "answered"; }); }
+
+  async createReferenceDoc(v: any) { const r = { id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.referenceDocs.push(r); return r; }
+  async getReferenceDoc(id: number, missionId: number) { return this.referenceDocs.find(r => r.id === id && r.missionId === missionId); }
+  async listReferenceDocs(missionId: number) { return this.referenceDocs.filter(r => r.missionId === missionId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)); }
+
+  async createLearningRecord(v: any) { const r = { id: this.id(), ...v, status: v.status ?? "active", supersededBy: v.supersededBy ?? null, createdAt: new Date().toISOString() }; this.learningRecords.push(r); return r; }
+  async listLearningRecords(missionId: number) { return this.learningRecords.filter(r => r.missionId === missionId).sort((a, b) => a.number - b.number); }
+  async updateLearningRecord(id: number, values: any) { const r = this.learningRecords.find(r => r.id === id); if (r) { if (values.status !== undefined) r.status = values.status; if (values.supersededBy !== undefined) r.supersededBy = values.supersededBy; } }
+
+  async getMissionContent(missionId: number, contentType: string) { return this.missionContents.find(c => c.missionId === missionId && c.contentType === contentType); }
+  async upsertMissionContent(v: any) { const existing = this.missionContents.findIndex(c => c.missionId === v.missionId && c.contentType === v.contentType); if (existing >= 0) { this.missionContents[existing].markdownContent = v.markdownContent; } else { this.missionContents.push({ id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); } }
+
+  async getUser(id: number) { return this.users.find(u => u.id === id); }
+  async getUserByEmail(email: string) { return this.users.find(u => u.email === email); }
+  async createUser(v: any) { const u = { id: this.id(), name: v.name ?? "", ...v, createdAt: new Date().toISOString() }; this.users.push(u); return u; }
+  async updateUser(id: number, values: any) { const u = this.users.find(u => u.id === id); if (u) { if (values.name !== undefined) u.name = values.name; if (values.email !== undefined) u.email = values.email; if (values.passwordHash !== undefined) u.passwordHash = values.passwordHash; } }
+
+  // ── Compatibility aliases ──
+
+  async readMissionContent(missionId: number, contentType: string) { const row = await this.getMissionContent(missionId, contentType); return row?.markdownContent ?? null; }
+  async upsertMissionContentPos(missionId: number, contentType: string, markdown: string) { await this.upsertMissionContent({ missionId, contentType, markdownContent: markdown }); }
+  async getMainLessonByNumber(missionId: number, number: number) { return (await this.getLesson(missionId, number, null)) ?? null; }
+  async getMaxSubNumber(parentLessonId: number) { const subs = this.lessons.filter(l => l.parentLessonId === parentLessonId); return subs.length > 0 ? Math.max(...subs.map(l => l.subNumber ?? 0)) : null; }
+  async insertLesson(data: any) { return this.createLesson(data); }
+  async insertReferenceDoc(data: any) { return this.createReferenceDoc(data); }
+  async insertLearningRecord(data: any) { return this.createLearningRecord(data); }
+  async insertGuidedQuestion(data: any) { return this.createGuidedQuestion(data); }
+  async updateLearningRecordPos(missionId: number, number: number, data: any) { const r = this.learningRecords.find(r => r.missionId === missionId && r.number === number); if (!r) throw new Error(`Learning record ${number} not found`); if (data.status !== undefined) r.status = data.status; if (data.supersededBy !== undefined) r.supersededBy = data.supersededBy; }
 }

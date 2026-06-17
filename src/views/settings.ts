@@ -63,23 +63,23 @@ export function settingsContent(user: User): string {
       max-width: 480px;
     }
     .settings-page h1 {
-      font-size: 1.5rem; font-weight: 700; margin-bottom: 1.75rem;
-      letter-spacing: -0.03em;
+      font-size: 1.75rem; font-weight: 700; margin-bottom: 1.75rem;
+      letter-spacing: -0.02em; font-family: var(--font-display);
     }
     .settings-section {
-      background: var(--surface); border: 1px solid var(--border);
+      background: var(--surface); border: 1px solid var(--rule);
       border-radius: var(--radius-lg); padding: 1.5rem;
       margin-bottom: 1rem;
       box-shadow: var(--shadow-sm);
     }
     .settings-section h2 {
       font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;
-      color: var(--text-secondary); text-transform: uppercase;
+      color: var(--ink-secondary); text-transform: uppercase;
       letter-spacing: 0.04em;
     }
     .settings-section label {
       display: block; font-size: 0.82rem; font-weight: 500;
-      margin-bottom: 0.3rem; margin-top: 0.75rem; color: var(--text);
+      margin-bottom: 0.3rem; margin-top: 0.75rem; color: var(--ink);
     }
     .settings-section label:first-of-type { margin-top: 0; }
     .settings-section .input {

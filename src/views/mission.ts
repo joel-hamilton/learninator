@@ -2,6 +2,7 @@ import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu, toolBanner
 
 function tabIcon(key: string): string {
   switch (key) {
+    case "mission": return svgIcon("crosshair");
     case "lessons": return svgIcon("book");
     case "chat": return svgIcon("chat");
     case "reference": return svgIcon("file");
@@ -13,6 +14,7 @@ function tabIcon(key: string): string {
 
 export function missionLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
   const tabs = [
+    { key: "mission", label: "Mission", href: `/missions/${mission.id}/mission` },
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
     { key: "chat", label: "Chat", href: `/missions/${mission.id}/chat` },
     { key: "reference", label: "Reference", href: `/missions/${mission.id}/reference` },
@@ -42,10 +44,8 @@ ${HTMX_HEAD}
 <style>
   /* Header */
   .header {
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid var(--border);
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
@@ -59,10 +59,11 @@ ${HTMX_HEAD}
   .header .logo {
     font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
     display: flex; align-items: center; gap: 0.4rem;
-    color: var(--text); text-decoration: none; flex-shrink: 0;
+    color: var(--ink); text-decoration: none; flex-shrink: 0;
+    font-family: var(--font-display);
   }
-  .header .logo:hover { color: var(--text); }
-  .header .logo .svg-icon { width: 1.15em; height: 1.15em; color: var(--accent); }
+  .header .logo:hover { color: var(--ink); }
+  .header .logo .svg-icon { width: 1.15em; height: 1.15em; color: var(--rubric); }
   .header-title {
     font-size: 0.9rem; font-weight: 600; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
@@ -75,8 +76,8 @@ ${HTMX_HEAD}
   }
   .tag-active { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
   .tag-onboarding { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
-  .tag-archived { background: var(--primary-light); color: var(--text-muted); }
-  .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); flex-shrink: 0; }
+  .tag-archived { background: var(--margin); color: var(--ink-muted); }
+  .header-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--ink-secondary); flex-shrink: 0; }
 
   /* Layout */
   .layout {
@@ -95,18 +96,18 @@ ${HTMX_HEAD}
 
   /* Sidebar */
   .sidebar {
-    background: var(--surface); border-right: 1px solid var(--border);
+    background: var(--margin); border-right: 1px solid var(--rule);
     padding: 1.25rem 0.75rem; display: flex; flex-direction: column;
     position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
     transition: padding 0.25s ease, border 0.25s ease;
   }
   .sidebar-back {
-    font-size: 0.78rem; color: var(--text-secondary); text-decoration: none;
+    font-size: 0.78rem; color: var(--ink-secondary); text-decoration: none;
     display: inline-flex; align-items: center; gap: 0.3rem;
-    padding: 0.35rem 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 0.35rem 0.65rem; border: 1px solid var(--rule); border-radius: var(--radius-sm);
     transition: all var(--transition); margin-bottom: 0.85rem;
   }
-  .sidebar-back:hover { border-color: var(--border-hover); color: var(--text); background: var(--surface-hover); }
+  .sidebar-back:hover { border-color: var(--rule-hover); color: var(--ink); background: var(--surface-hover); }
   .sidebar-back .svg-icon { width: 0.8em; height: 0.8em; }
 
   /* Sidebar toggle */
@@ -117,9 +118,9 @@ ${HTMX_HEAD}
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--rule);
     background: var(--surface);
-    color: var(--text-muted);
+    color: var(--ink-muted);
     font-size: 0.65rem;
     cursor: pointer;
     display: flex;
@@ -132,8 +133,8 @@ ${HTMX_HEAD}
     line-height: 1;
   }
   .sidebar-toggle:hover {
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: var(--ink);
+    color: var(--ink);
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   }
   .sidebar-toggle svg {
@@ -146,36 +147,36 @@ ${HTMX_HEAD}
 
   .sidebar-label {
     font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--text-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.35rem;
+    color: var(--ink-muted); font-weight: 600; padding: 0 0.5rem; margin-bottom: 0.35rem;
   }
   .tabs { display: flex; flex-direction: column; gap: 2px; }
   .tab {
     display: flex; align-items: center; gap: 0.6rem;
     padding: 0.55rem 0.75rem; border-radius: var(--radius-sm);
-    font-size: 0.85rem; color: var(--text-secondary); text-decoration: none;
+    font-size: 0.85rem; color: var(--ink-secondary); text-decoration: none;
     transition: all var(--transition); font-weight: 500;
   }
-  .tab:hover { background: var(--accent-ghost); color: var(--text); }
+  .tab:hover { background: var(--surface-hover); color: var(--ink); }
   .tab.active {
-    background: var(--accent-light); color: var(--accent); font-weight: 600;
+    background: var(--rubric-light); color: var(--rubric); font-weight: 600;
   }
   .tab-icon { width: 1.2em; text-align: center; flex-shrink: 0; }
-  .tab-icon .svg-icon { width: 1em; height: 1em; color: var(--text-muted); transition: color var(--transition); }
+  .tab-icon .svg-icon { width: 1em; height: 1em; color: var(--ink-muted); transition: color var(--transition); }
   .tab:hover .tab-icon .svg-icon, .tab.active .tab-icon .svg-icon { color: inherit; }
 
-  .sidebar-divider { height: 1px; background: var(--border); margin: 0.85rem 0.4rem; }
+  .sidebar-divider { height: 1px; background: var(--rule); margin: 0.85rem 0.4rem; }
 
   .sidebar-footer {
     margin-top: auto; padding: 0.85rem 0.75rem;
-    background: linear-gradient(135deg, var(--accent-ghost), var(--bg));
-    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: 1px solid var(--rule); border-radius: var(--radius-sm);
   }
   .sidebar-footer .label {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--text-muted); font-weight: 600; margin-bottom: 0.25rem;
+    color: var(--ink-muted); font-weight: 600; margin-bottom: 0.25rem;
   }
-  .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--text); font-weight: 600; margin-bottom: 0.1rem; }
-  .sidebar-footer .mission-status { font-size: 0.7rem; color: var(--text-muted); }
+  .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--ink); font-weight: 600; margin-bottom: 0.1rem; }
+  .sidebar-footer .mission-status { font-size: 0.7rem; color: var(--ink-muted); }
 
   /* Main */
   .main { padding: 2rem 2.5rem; overflow: auto; animation: fadeInUp 0.35s ease-out; }
@@ -184,14 +185,14 @@ ${HTMX_HEAD}
   .lesson-list { display: grid; gap: 0; }
   .lesson-card:not(.lesson-card--sub):not(:first-child) { margin-top: 0.65rem; }
   .lesson-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
     padding: 0.85rem 1.15rem; display: flex; align-items: center; justify-content: space-between;
     text-decoration: none; color: inherit; cursor: pointer;
     transition: all var(--transition-slow);
   }
-  .lesson-card:hover { border-color: var(--border-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
+  .lesson-card:hover { border-color: var(--rule-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
   .lesson-card .info { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
-  .lesson-card .num { font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace; flex-shrink: 0; font-weight: 500; }
+  .lesson-card .num { font-size: 0.68rem; color: var(--ink-muted); font-family: var(--font-mono); flex-shrink: 0; font-weight: 500; }
   .lesson-card h3 {
     font-size: 0.85rem; font-weight: 500; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
@@ -215,28 +216,28 @@ ${HTMX_HEAD}
   .ref-list { display: grid; gap: 0.4rem; }
   .ref-card {
     display: block; text-decoration: none; color: inherit;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
     padding: 1rem 1.15rem; transition: all var(--transition-slow);
   }
-  .ref-card:hover { border-color: var(--border-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
+  .ref-card:hover { border-color: var(--rule-hover); background: var(--surface-hover); box-shadow: var(--shadow-sm); }
   .ref-card h3 { font-size: 0.9rem; font-weight: 500; }
-  .ref-card .type { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 0.2rem; }
+  .ref-card .type { font-size: 0.65rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 0.2rem; }
 
   /* Learning Records (text-only, not clickable) */
   .record-list { display: flex; flex-direction: column; }
   .record-card {
     padding: 1rem 0;
   }
-  .record-card + .record-card { border-top: 1px solid var(--border); }
+  .record-card + .record-card { border-top: 1px solid var(--rule); }
   .record-card .record-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
-  .record-card .record-header .meta { font-size: 0.68rem; color: var(--text-muted); font-family: ui-monospace, monospace; }
+  .record-card .record-header .meta { font-size: 0.68rem; color: var(--ink-muted); font-family: var(--font-mono); }
   .record-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
-  .record-card .content { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; }
+  .record-card .content { font-size: 0.85rem; color: var(--ink-secondary); line-height: 1.55; }
   .record-card .content.markdown-body { font-size: 0.85rem; }
 
   /* Resources */
   .resource-markdown {
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
     padding: 1.5rem; line-height: 1.6; font-size: 0.88rem;
   }
 
@@ -255,7 +256,7 @@ ${HTMX_HEAD}
     border-bottom: 1px solid var(--warning-border);
     font-size: 0.78rem;
     color: var(--warning);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-family: var(--font-mono);
     font-weight: 500;
     max-height: 0;
     overflow: hidden;
@@ -273,6 +274,38 @@ ${HTMX_HEAD}
   /* Empty */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--accent); }
+
+  /* Mission content */
+  .mission-content { max-width: 68ch; line-height: 1.65; font-size: 0.9rem; }
+  .mission-content h1 { font-size: 1.25rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+  .mission-content h2 { font-size: 1.1rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+  .mission-content h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; }
+  .mission-content p { margin-bottom: 0.5rem; }
+  .mission-content ul, .mission-content ol { margin-bottom: 0.5rem; padding-left: 1.25rem; }
+  .mission-content li { margin-bottom: 0.2rem; }
+  .mission-content strong { font-weight: 600; }
+
+  /* Refine form */
+  .refine-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  .refine-section .refine-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .refine-form { display: flex; gap: 0.5rem; align-items: flex-end; }
+  .refine-form textarea {
+    flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 42px;
+    transition: border-color var(--transition);
+  }
+  .refine-form textarea:focus { outline: none; border-color: var(--accent); }
+  .refine-form button {
+    padding: 0.55rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); font-size: 0.82rem; font-family: inherit; font-weight: 500;
+    cursor: pointer; transition: all var(--transition); white-space: nowrap; flex-shrink: 0;
+  }
+  .refine-form button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-ghost); }
+  .refine-form.htmx-request textarea { opacity: 0.5; border-color: var(--warning); }
+  .refine-form.htmx-request button { opacity: 0.5; pointer-events: none; }
+
+  /* Refinement confirmation */
+  .refine-confirmation { margin-top: 1.5rem; padding: 0.75rem 1rem; background: var(--accent-ghost); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
@@ -282,9 +315,9 @@ ${HTMX_LOADING_BAR}
     <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
     <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
-      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;width:200px;">
-      <button type="submit" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;">Save</button>
-      <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
+      <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--rule);border-radius:6px;font-family:inherit;width:200px;">
+      <button type="submit" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--rule);background:var(--surface);cursor:pointer;font-family:inherit;">Save</button>
+      <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--rule);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
     </form>
   </div>
   <div class="header-right">${userMenu(user)}</div>
@@ -329,4 +362,25 @@ ${toolBannerScript(mission.id)}
 </script>
 </body>
 </html>`;
+}
+
+/** Mission tab content: rendered MISSION.md + AI-powered refinement form. */
+export function missionTabContent(missionId: number, formattedMarkdown: string, confirmationMessage: string = ""): string {
+  const confirmationHtml = confirmationMessage
+    ? `<div class="refine-confirmation">${confirmationMessage}</div>`
+    : "";
+
+  return `<div id="mission-content-area">
+  <div id="mission-content-display" class="mission-content markdown-body">
+    ${formattedMarkdown}
+  </div>
+  ${confirmationHtml}
+  <div class="refine-section">
+    <div class="refine-label">Refine Mission</div>
+    <form class="refine-form" hx-post="/missions/${missionId}/mission/refine" hx-target="#mission-content-area" hx-swap="outerHTML" hx-indicator="this">
+      <textarea name="message" placeholder="How should the mission change? e.g. 'I need to focus more on hands-on practice' or 'My time constraints have changed…'" rows="2"></textarea>
+      <button type="submit">Refine</button>
+    </form>
+  </div>
+</div>`;
 }

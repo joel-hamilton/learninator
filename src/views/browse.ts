@@ -36,7 +36,7 @@ export function refreshOptionsFragment(options: string[], path: string[], iterat
 export function errorState(message: string): string {
   return `<div class="browse-container">
   <div class="browse-header">
-    <h2>🧭 Explore what to learn</h2>
+    <h2>Explore what to learn</h2>
   </div>
   <div id="browse-options" class="browse-error fade-in-up">
     <p>${message}</p>
@@ -72,7 +72,7 @@ function browseHeader(isLastQuestion: boolean, path: string[], iteration: number
   const pathJson = JSON.stringify(path).replace(/'/g, "&#39;");
   return `<div class="browse-header">
     <div class="browse-header-row">
-      <h2>🧭 Explore what to learn</h2>
+      <h2>Explore what to learn</h2>
       <form hx-post="/browse/refresh" hx-target="#browse-options" hx-swap="outerHTML" style="display:inline-flex" hx-indicator="#refresh-spinner">
         <input type="hidden" name="path" value='${pathJson}'>
         <input type="hidden" name="iteration" value="${iteration}">
@@ -88,7 +88,7 @@ function browseHeader(isLastQuestion: boolean, path: string[], iteration: number
 
 function lastQuestionBanner(): string {
   return `<div class="last-question-banner fade-in-up">
-    <span class="last-question-icon">🎯</span>
+    <span class="last-question-icon">&#x1F3AF;</span>
     <span>Final question — after this we'll create your learning mission</span>
   </div>`;
 }
@@ -104,7 +104,7 @@ function breadcrumbHtml(path: string[]): string {
       ${i < path.length - 1
         ? `<span class="crumb-link">${escapeHtml(p)}</span>`
         : `<span class="crumb-current">${escapeHtml(p)}</span>`}
-      ${i < path.length - 1 ? `<span class="crumb-sep">›</span>` : ""}
+      ${i < path.length - 1 ? `<span class="crumb-sep">&rsaquo;</span>` : ""}
     </span>`).join("")}
   </nav>`;
 }
@@ -127,8 +127,8 @@ function optionGrid(options: string[], path: string[], iteration: number, isLast
   }).join("");
 
   const customCard = `<div class="browse-card custom-card stagger-item" style="animation-delay:${options.length * 0.04}s" onclick="expandCustomInput(this)">
-    <span class="browse-card-icon">✏️</span>
-    <span class="custom-card-label">Something else…</span>
+    <span class="browse-card-icon">&#9999;&#65039;</span>
+    <span class="custom-card-label">Something else&hellip;</span>
     <form hx-post="/browse/select" hx-target=".browse-container" hx-swap="outerHTML" class="custom-form" onsubmit="return this.querySelector('input').value.trim() !== ''">
       <input type="hidden" name="path" value='${pathJson}'>
       <input type="hidden" name="iteration" value="${iteration}">
@@ -142,23 +142,23 @@ function optionGrid(options: string[], path: string[], iteration: number, isLast
 
 function topicEmoji(topic: string): string {
   const lower = topic.toLowerCase();
-  if (lower.includes("science") || lower.includes("physic") || lower.includes("chem") || lower.includes("biolog") || lower.includes("astronomy")) return "🔬";
-  if (lower.includes("code") || lower.includes("program") || lower.includes("tech") || lower.includes("software") || lower.includes("web") || lower.includes("app") || lower.includes("computer") || lower.includes("data") || lower.includes("ai") || lower.includes("machine learn")) return "💻";
-  if (lower.includes("music") || lower.includes("guitar") || lower.includes("piano") || lower.includes("sing") || lower.includes("drum") || lower.includes("instrument")) return "🎵";
-  if (lower.includes("art") || lower.includes("design") || lower.includes("draw") || lower.includes("paint") || lower.includes("illustrat") || lower.includes("photograph")) return "🎨";
-  if (lower.includes("business") || lower.includes("startup") || lower.includes("finance") || lower.includes("market") || lower.includes("entrepreneur") || lower.includes("economic")) return "📈";
-  if (lower.includes("health") || lower.includes("fitness") || lower.includes("meditation") || lower.includes("yoga") || lower.includes("nutrition") || lower.includes("exercise")) return "💪";
-  if (lower.includes("language") || lower.includes("write") || lower.includes("read") || lower.includes("linguist")) return "📝";
-  if (lower.includes("history") || lower.includes("philosophy") || lower.includes("politic")) return "📜";
-  if (lower.includes("math") || lower.includes("statistic")) return "🔢";
-  if (lower.includes("cook") || lower.includes("baking") || lower.includes("food") || lower.includes("culinary")) return "🍳";
-  if (lower.includes("garden") || lower.includes("plant") || lower.includes("nature")) return "🌱";
-  if (lower.includes("sport") || lower.includes("athlet") || lower.includes("run") || lower.includes("swim")) return "⚽";
-  if (lower.includes("game") || lower.includes("chess")) return "🎮";
-  if (lower.includes("craft") || lower.includes("wood") || lower.includes("diy") || lower.includes("build")) return "🔨";
-  if (lower.includes("psycholog") || lower.includes("mental")) return "🧠";
-  if (lower.includes("engineer") || lower.includes("electronic") || lower.includes("robot")) return "⚙️";
-  return "📚";
+  if (lower.includes("science") || lower.includes("physic") || lower.includes("chem") || lower.includes("biolog") || lower.includes("astronomy")) return "&#x1F52C;";
+  if (lower.includes("code") || lower.includes("program") || lower.includes("tech") || lower.includes("software") || lower.includes("web") || lower.includes("app") || lower.includes("computer") || lower.includes("data") || lower.includes("ai") || lower.includes("machine learn")) return "&#x1F4BB;";
+  if (lower.includes("music") || lower.includes("guitar") || lower.includes("piano") || lower.includes("sing") || lower.includes("drum") || lower.includes("instrument")) return "&#x1F3B5;";
+  if (lower.includes("art") || lower.includes("design") || lower.includes("draw") || lower.includes("paint") || lower.includes("illustrat") || lower.includes("photograph")) return "&#x1F3A8;";
+  if (lower.includes("business") || lower.includes("startup") || lower.includes("finance") || lower.includes("market") || lower.includes("entrepreneur") || lower.includes("economic")) return "&#x1F4C8;";
+  if (lower.includes("health") || lower.includes("fitness") || lower.includes("meditation") || lower.includes("yoga") || lower.includes("nutrition") || lower.includes("exercise")) return "&#x1F4AA;";
+  if (lower.includes("language") || lower.includes("write") || lower.includes("read") || lower.includes("linguist")) return "&#x1F4DD;";
+  if (lower.includes("history") || lower.includes("philosophy") || lower.includes("politic")) return "&#x1F4DC;";
+  if (lower.includes("math") || lower.includes("statistic")) return "&#x1F522;";
+  if (lower.includes("cook") || lower.includes("baking") || lower.includes("food") || lower.includes("culinary")) return "&#x1F373;";
+  if (lower.includes("garden") || lower.includes("plant") || lower.includes("nature")) return "&#x1F331;";
+  if (lower.includes("sport") || lower.includes("athlet") || lower.includes("run") || lower.includes("swim")) return "&#x26BD;";
+  if (lower.includes("game") || lower.includes("chess")) return "&#x1F3AE;";
+  if (lower.includes("craft") || lower.includes("wood") || lower.includes("diy") || lower.includes("build")) return "&#x1F528;";
+  if (lower.includes("psycholog") || lower.includes("mental")) return "&#x1F9E0;";
+  if (lower.includes("engineer") || lower.includes("electronic") || lower.includes("robot")) return "&#x2699;&#65039;";
+  return "&#x1F4DA;";
 }
 
 function escapeHtml(s: string): string {
@@ -187,35 +187,36 @@ export const BROWSE_STYLES = `<style>
     font-weight: 700;
     letter-spacing: -0.02em;
     margin: 0;
+    font-family: var(--font-display);
   }
   .browse-header p {
-    color: var(--text-secondary);
+    color: var(--ink-secondary);
     font-size: 0.9rem;
   }
 
   /* Refresh button */
   .refresh-btn {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--rule);
     border-radius: var(--radius);
     padding: 0.4rem;
     cursor: pointer;
-    color: var(--text-muted);
+    color: var(--ink-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all var(--transition);
   }
   .refresh-btn:hover {
-    border-color: var(--border-hover);
-    color: var(--text-secondary);
-    background: var(--primary-light);
+    border-color: var(--rule-hover);
+    color: var(--ink-secondary);
+    background: var(--margin);
   }
   .mini-spinner {
     display: inline-block;
     width: 14px; height: 14px;
-    border: 2px solid #ddd;
-    border-top-color: #888;
+    border: 2px solid var(--rule);
+    border-top-color: var(--ink-muted);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
@@ -228,7 +229,7 @@ export const BROWSE_STYLES = `<style>
   /* Skeleton cards */
   .skeleton-card {
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--rule);
     border-radius: var(--radius-lg);
     padding: 0.9rem 1.05rem;
     display: flex;
@@ -241,7 +242,7 @@ export const BROWSE_STYLES = `<style>
     width: 36px;
     height: 36px;
     border-radius: var(--radius);
-    background: var(--border);
+    background: var(--rule);
     flex-shrink: 0;
   }
   .skeleton-lines {
@@ -253,7 +254,7 @@ export const BROWSE_STYLES = `<style>
   .skeleton-line {
     height: 0.65rem;
     border-radius: 4px;
-    background: var(--border);
+    background: var(--rule);
     width: 85%;
   }
   .skeleton-line-short { width: 55%; }
@@ -267,7 +268,7 @@ export const BROWSE_STYLES = `<style>
   /* Last question banner */
   .last-question-banner {
     background: var(--warning-bg);
-    border: 1px solid var(--warning);
+    border: 1px solid var(--warning-border);
     border-radius: var(--radius);
     padding: 0.7rem 1rem;
     margin-bottom: 1rem;
@@ -289,14 +290,14 @@ export const BROWSE_STYLES = `<style>
     font-size: 0.82rem;
     padding: 0.5rem 0.75rem;
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--rule);
     border-radius: var(--radius);
   }
   .crumb { display: inline-flex; align-items: center; gap: 0.25rem; }
-  .crumb-link { color: var(--primary); text-decoration: none; }
+  .crumb-link { color: var(--ink); text-decoration: none; }
   .crumb-link:hover { text-decoration: underline; }
-  .crumb-current { color: var(--text); font-weight: 600; }
-  .crumb-sep { color: var(--text-muted); font-size: 0.9em; }
+  .crumb-current { color: var(--ink); font-weight: 600; }
+  .crumb-sep { color: var(--ink-muted); font-size: 0.9em; }
 
   /* Option grid */
   .browse-options {
@@ -315,7 +316,7 @@ export const BROWSE_STYLES = `<style>
     width: 100%;
     height: 100%;
     background: var(--surface);
-    border: 1.5px solid var(--border);
+    border: 1.5px solid var(--rule);
     border-radius: var(--radius-lg);
     padding: 0.9rem 1.05rem;
     cursor: pointer;
@@ -330,10 +331,10 @@ export const BROWSE_STYLES = `<style>
     text-align: left;
   }
   .browse-card:hover {
-    border-color: var(--primary);
+    border-color: var(--ink);
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
-    background: var(--primary-light);
+    background: var(--margin);
   }
   .browse-card:active {
     transform: scale(0.97);
@@ -343,7 +344,7 @@ export const BROWSE_STYLES = `<style>
   .browse-card-form.htmx-request .browse-card {
     opacity: 0.55;
     transform: scale(0.97);
-    border-color: var(--primary);
+    border-color: var(--ink);
     pointer-events: none;
     transition: all 60ms ease;
   }
@@ -353,14 +354,14 @@ export const BROWSE_STYLES = `<style>
     width: 36px;
     height: 36px;
     border-radius: var(--radius);
-    background: var(--primary-light);
+    background: var(--margin);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
   .browse-card:hover .browse-card-icon {
-    background: #eae6d9;
+    background: var(--surface);
   }
 
   .browse-card-label {
@@ -368,13 +369,13 @@ export const BROWSE_STYLES = `<style>
     font-size: 0.88rem;
     font-weight: 600;
     line-height: 1.3;
-    color: var(--text);
+    color: var(--ink);
   }
 
   .browse-card-arrow {
     opacity: 0;
     transition: opacity var(--transition);
-    color: var(--text-muted);
+    color: var(--ink-muted);
     flex-shrink: 0;
     font-size: 1.1rem;
   }
@@ -385,29 +386,29 @@ export const BROWSE_STYLES = `<style>
   /* ── "Something Else" card ── */
   .custom-card {
     border-style: dashed;
-    border-color: var(--border-hover);
+    border-color: var(--rule-hover);
     cursor: pointer;
     transition: all 150ms ease;
     position: relative;
     overflow: visible;
   }
   .custom-card:hover {
-    border-color: var(--primary);
-    background: var(--primary-light);
+    border-color: var(--ink);
+    background: var(--margin);
   }
   .custom-card .browse-card-icon {
-    background: #f0ece1;
+    background: var(--margin);
   }
   .custom-card-label {
     flex: 1;
     font-size: 0.88rem;
     font-weight: 600;
     line-height: 1.3;
-    color: var(--text-muted);
+    color: var(--ink-muted);
   }
   .custom-card.expanded {
     border-style: solid;
-    border-color: var(--primary);
+    border-color: var(--ink);
     background: var(--surface);
     box-shadow: var(--shadow-md);
   }
@@ -431,7 +432,7 @@ export const BROWSE_STYLES = `<style>
     font-family: inherit;
     font-size: 0.88rem;
     font-weight: 600;
-    color: var(--text);
+    color: var(--ink);
     outline: none;
     padding: 0;
     margin: 0;
@@ -446,7 +447,7 @@ export const BROWSE_STYLES = `<style>
     border: none;
   }
   .custom-input::placeholder {
-    color: var(--text-muted);
+    color: var(--ink-muted);
     font-weight: 400;
   }
 
@@ -465,10 +466,10 @@ export const BROWSE_STYLES = `<style>
   }
   .browse-hint {
     font-size: 0.82rem;
-    color: var(--text-muted);
+    color: var(--ink-muted);
   }
-  .browse-hint a { color: var(--primary); text-decoration: underline; }
-  .browse-hint a:hover { color: var(--primary-hover); }
+  .browse-hint a { color: var(--ink); text-decoration: underline; }
+  .browse-hint a:hover { color: var(--note); }
 
   @keyframes spin { to { transform: rotate(360deg); } }
 
