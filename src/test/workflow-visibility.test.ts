@@ -30,7 +30,6 @@ describe("workflow visibility", () => {
     const homeRes = await authedReq(app, cookie, "GET", "/");
     const homeHtml = await homeRes.text();
     expect(homeHtml).toContain("workflow-indicator");
-    expect(homeHtml).not.toContain("tool-banner");
 
     // Dashboard has SSE poller script
     expect(homeHtml).toContain("workflows/state");
@@ -54,48 +53,30 @@ describe("workflow visibility", () => {
     expect(res.headers.get("Content-Type") || res.headers.get("content-type")).toBe("text/event-stream");
   });
 
-  it("mission-scoped SSE endpoint still works", async () => {
+  it("old tool-events endpoint returns 404 after removal", async () => {
     setupApp();
     await loginUser();
 
-    // Create a test mission
     const [mission] = await db
       .insert(schema.missions)
-      .values({ userId: 1, title: "SSE Test", slug: "sse-test", status: "active" })
+      .values({ userId: 1, title: "SSE Removal", slug: "sse-removal", status: "active" })
       .returning();
 
     const res = await authedReq(app, cookie, "GET", `/missions/${mission.id}/chat/tool-events`);
-    expect(res.headers.get("Content-Type") || res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.status).toBe(404);
   });
 
-  it("old tool-banner is removed from mission pages", async () => {
+  it("chat page renders workflow indicator", async () => {
     setupApp();
     await loginUser();
 
     const [mission] = await db
       .insert(schema.missions)
-      .values({ userId: 1, title: "Banner Test", slug: "banner-test", status: "active" })
-      .returning();
-
-    const res = await authedReq(app, cookie, "GET", `/missions/${mission.id}`);
-    const html = await res.text();
-    expect(html).toContain("workflow-indicator");
-    expect(html).not.toContain("tool-banner");
-    expect(html).not.toContain("toolBannerScript");
-  });
-
-  it("chat page renders progress panel", async () => {
-    setupApp();
-    await loginUser();
-
-    const [mission] = await db
-      .insert(schema.missions)
-      .values({ userId: 1, title: "Progress Test", slug: "progress-test", status: "active" })
+      .values({ userId: 1, title: "Chat Test", slug: "chat-test", status: "active" })
       .returning();
 
     const res = await authedReq(app, cookie, "GET", `/missions/${mission.id}/chat`);
     const html = await res.text();
-    expect(html).toContain("chat-progress-panel");
     expect(html).toContain("workflow-indicator");
   });
 });

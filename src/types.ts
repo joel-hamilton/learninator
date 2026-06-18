@@ -7,6 +7,7 @@ import type { AiClient, ToolExecutor } from "./ai/types.js"
 import type { MissionStore } from "./db/store.js"
 import type { EventBus } from "./ai/events.js"
 import type { WorkflowStateManager } from "./ai/workflow-state.js"
+import type { RateLimiter } from "./security/rate-limiter.js"
 
 export type User = InferSelectModel<typeof users>
 
@@ -36,4 +37,5 @@ export type AppVariables = {
   events: EventBus
   workflowState: WorkflowStateManager
   profileStore: ProfileStore | null
+  rateLimiter: RateLimiter | null
 }

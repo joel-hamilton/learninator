@@ -9,6 +9,7 @@ import { saveMessage, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { chatMessageBubble } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
+import { validateChatMessage, rateLimitedFragment } from "../security/index.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const chatRoutes = new Hono<{ Variables: AppVariables }>();
@@ -23,6 +24,13 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 
   if (!message) {
     return c.html(`<div class="msg assistant">I didn't catch that — what would you like to work on?</div>`);
+  }
+  const chatErr = validateChatMessage(message);
+  if (chatErr) return c.html(chatErr);
+
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "chat", 20, 60_000)) {
+    return c.html(rateLimitedFragment());
   }
 
   const mission = await store.getMission(missionId, user.id);

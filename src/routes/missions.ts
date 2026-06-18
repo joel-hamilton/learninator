@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { streamSSE } from "hono/streaming";
 import { auth } from "../auth/index.js";
 import { AIError } from "../ai/index.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
@@ -11,8 +10,8 @@ import { saveMessage, contentToText, loadMessages } from "../shared/messages.js"
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, guidedQuestionSection, guidedThinkingSection, onboardingLayout, newMissionPage } from "../views/onboarding.js";
-import { chatMessageBubble, chatProgressPanel, generationProgressPanel, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
-import { subscribe } from "../ai/events.js";
+import { chatMessageBubble, generationProgressPanel, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
+import { validateChatMessage, validateTitle, validateTopic, validateGuidedAnswer, rateLimitedFragment } from "../security/index.js";
 import type { MissionStore } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -26,6 +25,8 @@ missionRoutes.put("/:missionId/title", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const newTitle = String(body.title || "").trim();
   if (!newTitle) return c.text("Title required", 400);
+  const titleErr = validateTitle(newTitle);
+  if (titleErr) return c.html(titleErr);
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
@@ -148,6 +149,13 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   if (!message) {
     return c.html(`<div class="msg assistant">I didn't catch that — could you tell me what you'd like to learn?</div>`);
   }
+  const topicErr = validateTopic(message);
+  if (topicErr) return c.html(topicErr);
+
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "mission_create", 5, 60_000)) {
+    return c.html(rateLimitedFragment());
+  }
 
   const slug = message.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   const title = message.length > 80 ? message.slice(0, 80) + "…" : message;
@@ -190,6 +198,13 @@ missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const topic = String(body.topic || "").trim();
   if (!topic) return c.redirect("/missions/new");
+  const topicErr = validateTopic(topic);
+  if (topicErr) return c.html(topicErr);
+
+  const rateLimiter2 = c.get("rateLimiter");
+  if (rateLimiter2 && !rateLimiter2.check(user.id, "mission_create", 5, 60_000)) {
+    return c.html(rateLimitedFragment());
+  }
 
   const mode = (String(body.mode || "") === "chat" ? "chat" : "guided") as "guided" | "chat";
   const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
@@ -336,6 +351,9 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
   const questionId = parseInt(String(body.question_id || ""));
   const selectedAnswer = String(body.answer || "").trim();
   const otherText = String(body.other_text || "").trim();
+
+  const answerErr = validateGuidedAnswer(selectedAnswer, otherText);
+  if (answerErr) return c.html(answerErr);
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
@@ -608,34 +626,6 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   return c.html("");
 });
 
-// ── SSE endpoint for tool call events (dev visibility) ──
-missionRoutes.get("/:missionId/chat/tool-events", auth.requireAuth, async (c: Ctx) => {
-  const missionId = parseInt(c.req.param("missionId")!);
-
-  return streamSSE(c, async (stream) => {
-    const log = c.get("logger");
-    const events = c.get("events");
-    log.debug("SSE client connected for mission %d", missionId);
-
-    const unsub = events.subscribe(missionId, async (event) => {
-      log.debug("SSE sending %s: %s", event.type, event.names.join(", "));
-      try {
-        await stream.writeSSE({ data: JSON.stringify(event) });
-      } catch (e) {
-        log.debug("SSE write error: %s", e);
-      }
-    });
-
-    await new Promise<void>((resolve) => {
-      c.req.raw.signal.addEventListener("abort", () => {
-        log.debug("SSE client disconnected for mission %d", missionId);
-        unsub();
-        resolve();
-      });
-    });
-  });
-});
-
 // ── Chat page (for active missions) ──
 missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -666,7 +656,6 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     <div class="section-header">
       <h2>Chat</h2>
     </div>
-    ${chatProgressPanel(id)}
     <div id="chat-messages">${messagesHtml}</div>
     <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <div class="textarea-wrapper">
@@ -686,6 +675,13 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const message = String(body.message || "").trim();
   if (!message) return c.text("");
+  const chatErr = validateChatMessage(message);
+  if (chatErr) return c.html(chatErr);
+
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "chat", 20, 60_000)) {
+    return c.html(rateLimitedFragment());
+  }
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);

@@ -33,7 +33,7 @@ export function createTestApp(
   ai: AiClient,
   db: BetterSQLite3Database<typeof schema>,
 ) {
-  return createApp({ ai, db });
+  return createApp({ ai, db, rateLimiter: null });
 }
 
 export async function seedUser(
