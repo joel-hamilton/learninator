@@ -40,25 +40,53 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
     `));
   }
 
+  const active = missionRows.filter(m => m.status !== "archived");
+  const archived = missionRows.filter(m => m.status === "archived");
+
   const getStatusBadge = (status: string): string => {
     if (status === "onboarding") return '<span class="badge badge-in-progress">Setting up</span>';
     if (status === "active") return '<span class="badge badge-active">Active</span>';
     return '<span class="badge badge-default">Archived</span>';
   };
 
-  const cards = missionRows.map((m) => `
+  const renderActiveCard = (m: typeof missionRows[number]) => `
     <div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
       <div class="info">
-        <h3>${m.title}</h3>
+        <h3>${m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h3>
         <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
       </div>
       <div class="actions" onclick="event.stopPropagation()">
-        <form hx-post="/missions/${m.id}/delete" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
-          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this mission?')">${svgIcon("trash")} Delete</button>
+        <form hx-post="/missions/${m.id}/archive" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+          <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
         </form>
       </div>
     </div>
-  `).join("");
+  `;
+
+  const renderArchivedCard = (m: typeof missionRows[number]) => `
+    <div class="mission-card mission-card--archived" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
+      <div class="info">
+        <h3>${m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h3>
+        <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
+      </div>
+      <div class="actions" onclick="event.stopPropagation()">
+        <form hx-post="/missions/${m.id}/restore" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+          <button type="submit" class="btn btn-ghost btn-sm">${svgIcon("rotateCcw")} Restore</button>
+        </form>
+        <form hx-post="/missions/${m.id}/delete" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
+        </form>
+      </div>
+    </div>
+  `;
+
+  const activeCards = active.map(renderActiveCard).join("");
+  const archivedCards = archived.map(renderArchivedCard).join("");
+
+  const archivedSection = archived.length > 0 ? `
+    <div class="section-label" style="margin-top:2.5rem;">Archived</div>
+    <div class="mission-list stagger">${archivedCards}</div>
+  ` : "";
 
   return c.html(layout(user, `
     <div class="welcome">
@@ -71,7 +99,8 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
     </div>
     <div class="section-label">Missions</div>
     <div class="mission-list stagger">
-      ${cards}
+      ${activeCards || '<p style="color:var(--text-muted);padding:1rem 0;">No active missions. Start one above!</p>'}
     </div>
+    ${archivedSection}
   `));
 });

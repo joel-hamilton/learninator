@@ -541,7 +541,35 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
   `, "resources", `/missions/${id}`, "Mission"));
 });
 
-// ── Delete ──
+// ── Archive ──
+missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const store = c.get("store");
+  const id = parseInt(c.req.param("missionId")!);
+
+  const mission = await store.getMission(id, user.id);
+  if (!mission) return c.text("Not found", 404);
+  if (mission.status === "archived") return c.text("Already archived", 400);
+
+  await store.updateMissionStatus(id, "archived");
+  return c.html("");
+});
+
+// ── Restore ──
+missionRoutes.post("/:missionId/restore", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const store = c.get("store");
+  const id = parseInt(c.req.param("missionId")!);
+
+  const mission = await store.getMission(id, user.id);
+  if (!mission) return c.text("Not found", 404);
+  if (mission.status !== "archived") return c.text("Not archived", 400);
+
+  await store.updateMissionStatus(id, "active");
+  return c.html("");
+});
+
+// ── Delete (archived only) ──
 missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
@@ -549,6 +577,7 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
 
   const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
+  if (mission.status !== "archived") return c.text("Must be archived first", 400);
 
   await store.deleteMission(id);
   return c.html("");
