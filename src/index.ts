@@ -11,6 +11,8 @@ import { createToolExecutor } from "./ai/tools.js";
 import { createEventBus } from "./ai/events.js";
 import { WorkflowStateManager } from "./ai/workflow-state.js";
 import { createObservability } from "./observability/index.js";
+import { SlidingWindowRateLimiter } from "./security/rate-limiter.js";
+import type { RateLimiter } from "./security/rate-limiter.js";
 import { db } from "./db/index.js";
 import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
@@ -28,9 +30,11 @@ import type * as schema from "./db/schema.js";
 export function createApp(opts?: {
   db?: BetterSQLite3Database<typeof schema>;
   ai?: AiClient;
+  rateLimiter?: RateLimiter | null;
 }) {
   const resolvedDb = opts?.db ?? db;
   const resolvedAi = opts?.ai ?? new AnthropicAiClient();
+  const resolvedRateLimiter = opts?.rateLimiter !== undefined ? opts.rateLimiter : new SlidingWindowRateLimiter();
 
   const app = new Hono<{ Variables: AppVariables }>();
 
@@ -39,13 +43,14 @@ export function createApp(opts?: {
   const workflowState = new WorkflowStateManager(eventBus);
   const observability = createObservability();
 
-  // Store + logger + events + profile injection
+  // Store + logger + events + rate limiter + profile injection
   app.use("*", async (c, next) => {
     c.set("store", store);
     c.set("logger", createLogger("http"));
     c.set("events", eventBus);
     c.set("workflowState", workflowState);
     c.set("profileStore", observability.profileStore);
+    c.set("rateLimiter", resolvedRateLimiter);
     await next();
   });
 

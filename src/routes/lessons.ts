@@ -11,6 +11,7 @@ import { userInitial } from "../views/shared.js";
 import { saveMessage, contentToText } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { AIError } from "../ai/index.js";
+import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
 import type { MissionStore } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -84,6 +85,9 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const rating = String(body.rating || "");
   const feedbackText = String(body.feedbackText || "").trim();
+
+  const fbErr = validateFeedback(feedbackText);
+  if (fbErr) return c.html(fbErr);
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
@@ -178,6 +182,14 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
   const body = await c.req.parseBody();
   const notes = String(body.notes || "").trim();
   const feedback = String(body.feedback || "").trim();
+
+  const notesErr = validateNotes(notes);
+  if (notesErr) return c.html(notesErr);
+
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
+    return c.html(rateLimitedFragment());
+  }
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
@@ -316,6 +328,11 @@ lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ct
 
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
+
+  const rateLimiterSub = c.get("rateLimiter");
+  if (rateLimiterSub && !rateLimiterSub.check(user.id, "lesson_gen", 10, 60_000)) {
+    return c.html(rateLimitedFragment());
+  }
 
   const key = jobKey(missionId, number, subNumber, "sub");
   if (generationJobs.has(key)) {
