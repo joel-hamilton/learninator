@@ -1,0 +1,33 @@
+name: Schema Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/db/schema.ts'
+      - 'src/db/migrations/**'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Check for schema drift
+        run: |
+          npx drizzle-kit generate
+          if ! git diff --exit-code src/db/migrations/; then
+            echo ""
+            echo "❌ Schema drift detected!"
+            echo "   schema.ts was changed without generating a matching migration."
+            echo "   Run 'npm run db:generate' locally and commit the output."
+            echo ""
+            exit 1
+          fi
+          echo "✅ Schema and migrations are in sync."

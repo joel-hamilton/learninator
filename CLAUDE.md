@@ -87,7 +87,7 @@ src/
 
 Tests use `app.request()` (in-process HTTP, no port binding). The pattern:
 
-1. `createTestDb()` creates an in-memory SQLite, runs migrations, and patches migration gaps with ALTER TABLE.
+1. `createTestDb()` creates an in-memory SQLite and runs migrations.
 2. `createTestApp(fakeAi, db)` builds a Hono app with the test DB and a `FakeAiClient`.
 3. `seedUser()` + `login()` set up an authenticated session.
 4. `authedReq()` attaches the session cookie to requests.
@@ -98,41 +98,22 @@ Tests use `app.request()` (in-process HTTP, no port binding). The pattern:
 - Guided mode with `pauseOnTools: ask_guided_question` pauses immediately after tool execution — `continueWithToolResults` is NOT called. One queue entry per question.
 - `FakeAiClient.toolUseResponse` uses `Date.now()` for tool IDs (fine in tests, not in workflow scripts).
 
-**Migration gap:** The `lessons` table migration (0000) is missing `parent_lesson_id` and `sub_number` columns that exist in `schema.ts`. `createTestDb()` runs ALTER TABLE to add them. If you add new columns to `schema.ts`, you may need to add matching ALTER TABLE statements in `createTestDb()`.
 
 ## Database migrations
 
-**CRITICAL: Never use `npm run db:generate` (drizzle-kit generate).** The drizzle snapshot chain is broken — the 0001 migration has no corresponding snapshot, so `db:generate` compares against a stale 0000 snapshot and produces wrong SQL (re-creating existing tables).
+The Drizzle snapshot chain is repaired. `npm run db:generate` produces correct incremental SQL.
 
 ### When you need a schema change
 
 1. Edit `src/db/schema.ts` with the TypeScript column/table definition
-2. Write a manual SQL migration file in `src/db/migrations/`:
-   ```sql
-   -- For a new column:
-   ALTER TABLE `table_name` ADD `column_name` text DEFAULT 'default_value' NOT NULL;
+2. Run `npm run db:generate` — this produces a new migration SQL file and snapshot
+3. Review the generated SQL to confirm it's correct (should be incremental, not destructive)
+4. Run `npm run db:migrate` to apply
+5. Run `npm test` to verify all tests pass with the new migration
 
-   -- For a new table:
-   CREATE TABLE `table_name` (
-     `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-     `mission_id` integer NOT NULL,
-     -- ... more columns ...
-     FOREIGN KEY (`mission_id`) REFERENCES `missions`(`id`) ON UPDATE no action ON DELETE no action
-   );
-   ```
-3. Name it with the next sequence number: `0004_<descriptive_tag>.sql`
-4. Add the entry to `src/db/migrations/meta/_journal.json`:
-   ```json
-   {
-     "idx": <next_number>,
-     "version": "6",
-     "when": <current_unix_ms>,
-     "tag": "0004_<descriptive_tag>",
-     "breakpoints": true
-   }
-   ```
-5. Run `npm run db:migrate` to apply
-6. If the column is needed by tests, add a matching ALTER TABLE in `src/test/helpers.ts` `createTestDb()`
+### CI guard
+
+A GitHub Actions workflow (`.github/workflows/schema-check.yml`) runs on PRs that touch `schema.ts` or migrations. It runs `drizzle-kit generate` and fails if the command produces output that isn't committed — preventing schema-migration drift.
 
 ### Before touching migrations
 
@@ -141,8 +122,6 @@ Always run these checks first:
 cat src/db/migrations/meta/_journal.json   # journal entries must match actual .sql files
 ls src/db/migrations/*.sql                 # no missing or extra files
 ```
-
-The snapshot situation should be fixed properly (run `drizzle-kit generate` on a clean DB after merging) so `db:generate` can be trusted again. Until then, manual SQL.
 
 ## Running
 
@@ -180,7 +159,7 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/003-security-hardening/plan.md
-Feature: Security Hardening — remove insecure SSE endpoint, add input length
-limits, add in-memory rate limiting on AI endpoints.
+Current plan: specs/004-fix-migration-snapshots/plan.md
+Feature: Fix Database Migration Snapshots — repair broken Drizzle snapshot chain so
+drizzle-kit generate produces correct incremental SQL, add CI schema check.
 <!-- SPECKIT END -->

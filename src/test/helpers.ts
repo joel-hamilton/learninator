@@ -20,12 +20,6 @@ export function createTestDb(): BetterSQLite3Database<typeof schema> {
   );
   migrate(db, { migrationsFolder });
 
-  // Apply migration gaps — columns in schema.ts but missing from migration files
-  sqlite.exec(`
-    ALTER TABLE lessons ADD COLUMN parent_lesson_id integer;
-    ALTER TABLE lessons ADD COLUMN sub_number integer;
-  `);
-
   return db;
 }
 

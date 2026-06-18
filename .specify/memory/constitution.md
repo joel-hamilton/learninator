@@ -1,17 +1,15 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 0.0.0 (template) → 1.0.0
-  Bump rationale: MAJOR — first concrete constitution replacing placeholder template.
-  Modified principles: N/A (all new)
-  Added sections:
-    - Core Principles (5 principles)
-    - Technical Standards
-    - Development Workflow
-    - Governance
-  Removed sections: None (template was all placeholders)
+  Version change: 1.0.0 → 1.1.0
+  Bump rationale: MINOR — amended Principle V (Manual Migration Discipline → Migration Snapshot Integrity)
+    after repairing the Drizzle snapshot chain (feature 004-fix-migration-snapshots).
+  Modified principles:
+    - V. Manual Migration Discipline → V. Migration Snapshot Integrity
+  Added sections: None
+  Removed sections: None
   Templates requiring updates:
-    - .specify/templates/plan-template.md ✅ no changes needed (Constitution Check section is generic)
+    - .specify/templates/plan-template.md ✅ no changes needed
     - .specify/templates/spec-template.md ✅ no changes needed
     - .specify/templates/tasks-template.md ✅ no changes needed
   Follow-up TODOs: None
@@ -68,19 +66,19 @@ imports of the database singleton are forbidden in routes and auth code. The
 dependency wiring visible at every call site. A handler that reads `db` from
 context is testable; one that imports a singleton is not.
 
-### V. Manual Migration Discipline
+### V. Migration Snapshot Integrity
 
-Schema changes MUST follow a manual SQL process: edit `schema.ts`, write a
-hand-written SQL migration in `src/db/migrations/`, register it in
-`_journal.json`, run `npm run db:migrate`, and add a matching ALTER TABLE in
-`src/test/helpers.ts` `createTestDb()` if the column is needed by tests. The
-`npm run db:generate` command MUST NOT be used — the Drizzle snapshot chain is
-broken and produces incorrect SQL that re-creates existing tables.
+Schema changes MUST follow the standard Drizzle workflow: edit `schema.ts`, run
+`npm run db:generate`, review the generated SQL for correctness, and run
+`npm run db:migrate` to apply. The generated migration SQL and snapshot files
+MUST be committed together with the schema change. A CI check
+(`.github/workflows/schema-check.yml`) enforces that `db:generate` output is
+always committed — PRs that change `schema.ts` without matching migration
+output will fail CI.
 
-**Rationale**: Until the snapshot chain is repaired by running
-`drizzle-kit generate` against a clean merged DB, automated generation
-produces destructive migrations. Manual SQL with explicit journal entries is
-the only safe path.
+**Rationale**: The snapshot chain has been repaired (see
+specs/004-fix-migration-snapshots). `drizzle-kit generate` now produces correct
+incremental SQL. The CI guard prevents regression back to snapshot drift.
 
 ## Technical Standards
 
@@ -120,4 +118,4 @@ Use `CLAUDE.md` for runtime development guidance (stack details, patterns,
 commands). The constitution defines non-negotiable rules; CLAUDE.md describes
 how work gets done day-to-day.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-18 | **Last Amended**: 2026-06-18
+**Version**: 1.1.0 | **Ratified**: 2026-06-18 | **Last Amended**: 2026-06-18
