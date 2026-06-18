@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
@@ -103,4 +104,39 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
     </div>
     ${archivedSection}
   `));
+});
+
+// ── Workflow state polling endpoint (catch-up after navigation/reload) ──
+homeRoutes.get("/workflows/state", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const wfState = c.get("workflowState");
+  const workflows = wfState.getActiveWorkflows(user.id);
+  return c.json({ workflows });
+});
+
+// ── Workflow events SSE endpoint (user-scoped, site-wide indicator) ──
+homeRoutes.get("/workflows/events", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+
+  return streamSSE(c, async (stream) => {
+    const log = c.get("logger");
+    const events = c.get("events");
+    log.debug("Workflow SSE client connected for user %d", user.id);
+
+    const unsub = events.subscribeUser(user.id, async (event) => {
+      try {
+        await stream.writeSSE({ data: JSON.stringify(event), event: event.event });
+      } catch (e) {
+        log.debug("Workflow SSE write error: %s", e);
+      }
+    });
+
+    await new Promise<void>((resolve) => {
+      c.req.raw.signal.addEventListener("abort", () => {
+        log.debug("Workflow SSE client disconnected for user %d", user.id);
+        unsub();
+        resolve();
+      });
+    });
+  });
 });

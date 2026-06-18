@@ -11,7 +11,7 @@ import { saveMessage, contentToText, loadMessages } from "../shared/messages.js"
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, guidedQuestionSection, guidedThinkingSection, onboardingLayout, newMissionPage } from "../views/onboarding.js";
-import { chatMessageBubble, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
+import { chatMessageBubble, chatProgressPanel, generationProgressPanel, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 import { subscribe } from "../ai/events.js";
 import type { MissionStore } from "../db/store.js";
 
@@ -82,36 +82,53 @@ async function runConversationLoop(
   systemPrompt: string,
   messages: AiMessageParam[],
   tools: AiTool[],
-  opts?: { pauseOnTools?: Set<string> },
+  opts?: { pauseOnTools?: Set<string>; workflowType?: "chat" | "lesson_generation" | "mission_activation"; workflowLabel?: string },
 ): Promise<RunConversationResult> {
   const log = c.get("logger");
   const store = c.get("store");
   const events = c.get("events");
+  const wfState = c.get("workflowState");
+  const user = c.get("user")!;
   let didActivate = false;
+
+  const wfType = opts?.workflowType ?? "chat";
+  const wfLabel = opts?.workflowLabel ?? `Chat`;
+  const workflowId = wfState.startWorkflow(user.id, wfType, wfLabel, missionId, `/missions/${missionId}/chat`);
 
   const standardHooks = createStandardHooks({ missionId, store, emit: events.emit.bind(events), logger: log });
 
-  const result = await conversationLoop({
-    client: c.get("ai"),
-    toolExecutor: c.get("toolExecutor"),
-    missionId,
-    systemPrompt,
-    initialMessages: messages,
-    tools,
-    logger: log,
-    pauseOnTools: opts?.pauseOnTools,
-    hooks: {
-      ...standardHooks,
-      onBeforeToolExecution: async (toolUseBlocks) => {
-        await standardHooks.onBeforeToolExecution!(toolUseBlocks);
-        if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
-          didActivate = true;
-        }
+  try {
+    const result = await conversationLoop({
+      client: c.get("ai"),
+      toolExecutor: c.get("toolExecutor"),
+      missionId,
+      systemPrompt,
+      initialMessages: messages,
+      tools,
+      logger: log,
+      pauseOnTools: opts?.pauseOnTools,
+      hooks: {
+        ...standardHooks,
+        onBeforeToolExecution: async (toolUseBlocks) => {
+          await standardHooks.onBeforeToolExecution!(toolUseBlocks);
+          if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
+            didActivate = true;
+          }
+          // Emit workflow step for site-wide indicator
+          for (const block of toolUseBlocks) {
+            wfState.stepUpdate(workflowId, block.name);
+          }
+        },
       },
-    },
-  });
+    });
 
-  return { didActivate, pausedToolUse: result.pausedToolUse, text: result.text };
+    wfState.completeWorkflow(workflowId);
+    return { didActivate, pausedToolUse: result.pausedToolUse, text: result.text };
+  } catch (err: unknown) {
+    const msg = err instanceof AIError ? err.message : "Something went wrong.";
+    wfState.failWorkflow(workflowId, msg);
+    throw err;
+  }
 }
 
 
@@ -146,7 +163,11 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 
     await saveMessage(store, missionId, "user", message);
 
-    const opts = mode === "guided" ? { pauseOnTools: new Set(["ask_guided_question"]) } : undefined;
+    const opts = {
+      workflowType: "mission_activation" as const,
+      workflowLabel: `Setting up: ${title}`,
+      ...(mode === "guided" ? { pauseOnTools: new Set(["ask_guided_question"]) } : {}),
+    };
     const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS, opts);
 
     if (result.didActivate) {
@@ -230,7 +251,7 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   const lessonRows = await store.listLessonSummaries(id);
 
   if (lessonRows.length === 0) {
-    return c.html(missionLayout(user, mission, emptyLessonsMessage(id), "lessons"));
+    return c.html(missionLayout(user, mission, `${generationProgressPanel()}${emptyLessonsMessage(id)}`, "lessons"));
   }
 
   const parentNums = new Set<number>();
@@ -255,6 +276,7 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   })).join("");
 
   return c.html(missionLayout(user, mission, `
+    ${generationProgressPanel()}
     <div class="section-header">
       <h2>Lessons</h2>
     </div>
@@ -277,7 +299,7 @@ missionRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ctx) 
   try {
     const result = await runConversationLoop(
       c, missionId, systemPrompt, messages, TEACHER_TOOLS,
-      { pauseOnTools: new Set(["ask_guided_question"]) }
+      { pauseOnTools: new Set(["ask_guided_question"]), workflowType: "mission_activation", workflowLabel: `Setting up mission` },
     );
 
     if (result.didActivate) {
@@ -335,7 +357,7 @@ missionRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: Ctx)
   try {
     const result = await runConversationLoop(
       c, missionId, systemPrompt, messages, TEACHER_TOOLS,
-      { pauseOnTools: new Set(["ask_guided_question"]) }
+      { pauseOnTools: new Set(["ask_guided_question"]), workflowType: "mission_activation", workflowLabel: `Setting up mission` },
     );
 
     if (result.didActivate) {
@@ -385,7 +407,10 @@ missionRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx) =
   const allMessages = await loadMessages(store, missionId);
 
   try {
-    const result = await runConversationLoop(c, missionId, systemPrompt, allMessages, skipTools);
+    const result = await runConversationLoop(c, missionId, systemPrompt, allMessages, skipTools, {
+      workflowType: "mission_activation",
+      workflowLabel: `Setting up mission`,
+    });
 
     if (result.didActivate) {
       await generateMissionTitle(c, missionId);
@@ -641,6 +666,7 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     <div class="section-header">
       <h2>Chat</h2>
     </div>
+    ${chatProgressPanel(id)}
     <div id="chat-messages">${messagesHtml}</div>
     <form class="chat-form" hx-post="/missions/${id}/chat" hx-target="#chat-messages" hx-swap="beforeend" hx-on::before-request="optimisticChat(this)" hx-on::after-request="this.reset()">
       <div class="textarea-wrapper">
@@ -671,7 +697,10 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const messages = await loadMessages(store, missionId);
 
   try {
-    const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS);
+    const result = await runConversationLoop(c, missionId, systemPrompt, messages, TEACHER_TOOLS, {
+      workflowType: "chat",
+      workflowLabel: `Chat: ${mission.title}`,
+    });
 
     if (result.didActivate) {
       await generateMissionTitle(c, missionId);

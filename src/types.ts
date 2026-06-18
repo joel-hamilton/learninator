@@ -6,8 +6,24 @@ import type { Logger } from "./logger.js"
 import type { AiClient, ToolExecutor } from "./ai/types.js"
 import type { MissionStore } from "./db/store.js"
 import type { EventBus } from "./ai/events.js"
+import type { WorkflowStateManager } from "./ai/workflow-state.js"
 
 export type User = InferSelectModel<typeof users>
+
+export interface ProfileReportRow {
+  routePattern: string;
+  count: number;
+  avgMs: number;
+  minMs: number;
+  maxMs: number;
+  recentSlow: { url: string; durationMs: number }[];
+}
+
+export interface ProfileStore {
+  record(method: string, routePattern: string, durationMs: number, url: string): void;
+  generateReport(): ProfileReportRow[];
+  isEnabled(): boolean;
+}
 
 /** Extend Hono's context to include our typed variables */
 export type AppVariables = {
@@ -18,4 +34,6 @@ export type AppVariables = {
   toolExecutor: ToolExecutor
   store: MissionStore
   events: EventBus
+  workflowState: WorkflowStateManager
+  profileStore: ProfileStore | null
 }

@@ -414,6 +414,106 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     display: flex; gap: 0.5rem; justify-content: flex-end;
     padding: 0 1.5rem 1.25rem;
   }
+
+  /* ── Site-Wide Workflow Indicator ── */
+  #workflow-indicator {
+    position: fixed; top: 56px; left: 0; right: 0; z-index: 99;
+    background: var(--warning-bg);
+    border-bottom: 1px solid var(--warning-border);
+    padding: 0.5rem 1.5rem;
+    font-size: 0.82rem; font-weight: 500;
+    display: none;
+    align-items: center; gap: 0.5rem;
+    min-height: 36px;
+    box-shadow: var(--shadow-sm);
+    animation: fadeIn 0.2s ease-out;
+  }
+  #workflow-indicator.visible { display: flex; }
+  #workflow-indicator.error {
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger);
+  }
+  #workflow-indicator.disconnected {
+    background: var(--margin);
+    border-color: var(--rule);
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+  #workflow-indicator .wf-item {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    color: inherit; text-decoration: none;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+  }
+  #workflow-indicator a.wf-item {
+    cursor: pointer;
+    transition: background var(--transition);
+  }
+  #workflow-indicator a.wf-item:hover {
+    background: rgba(0,0,0,0.04);
+  }
+  #workflow-indicator .wf-label { color: var(--ink); }
+  #workflow-indicator.error .wf-label { color: inherit; }
+  #workflow-indicator .wf-error em { opacity: 0.8; }
+
+  /* ── Chat Progress Panel (page-local) ── */
+  .chat-progress {
+    background: var(--surface);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .chat-progress-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.82rem; font-weight: 500; color: var(--ink-secondary);
+    margin-bottom: 0.5rem;
+  }
+  .chat-progress-steps { display: flex; flex-direction: column; gap: 0.25rem; }
+  .chat-progress-step {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.78rem; color: var(--ink-muted);
+    padding: 0.2rem 0;
+  }
+  .chat-progress-step.active { color: var(--ink); }
+  .chat-progress-step.done { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--success); }
+  .chat-progress-step .step-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    background: var(--rule);
+  }
+  .chat-progress-step.active .step-dot { background: var(--warning); animation: pulse-dot 1.2s infinite; }
+  .chat-progress-step.done .step-dot { background: var(--success); }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── Generation Progress Panel ── */
+  .generation-progress {
+    background: var(--surface);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .gen-progress-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 500; color: var(--ink-secondary);
+  }
+
+  /* ── Activation Progress Panel ── */
+  .activation-progress {
+    background: var(--surface);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .activation-progress-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 500; color: var(--ink-secondary);
+  }
 </style>
 
 <script>
@@ -651,82 +751,6 @@ export const HTMX_LOADING_BAR = '<div id="htmx-loading-bar" class="htmx-indicato
 export function userInitial(user: { name?: string | null; email: string }): string {
   if (user.name?.trim()) return user.name.trim().charAt(0).toUpperCase();
   return user.email.charAt(0).toUpperCase();
-}
-
-/** SSE tool-execution banner script. Tracks htmx requests and tool events to show/hide a sticky banner. */
-export function toolBannerScript(missionId: number, opts?: { bannerId?: string; trackAllHtmx?: boolean; checkGenerationBar?: boolean }): string {
-  const bannerId = opts?.bannerId ?? "tool-banner";
-  const trackAll = opts?.trackAllHtmx ?? false;
-  const checkGenBar = opts?.checkGenerationBar ?? false;
-  const formCheck = trackAll
-    ? "true"
-    : `(function(el) { var form = (el && el.closest) ? el.closest(".chat-form") : null; if (!form) { var fbBtn = (el && el.closest) ? el.closest("#feedback-bar button[hx-post]") : null; if (fbBtn) form = fbBtn.closest("#feedback-bar"); } return !!form; })()`;
-  const genBarCheck = checkGenBar
-    ? `if (document.querySelector(".generation-bar")) return;`
-    : "";
-
-  return `<script>
-(function() {
-  var banner = document.getElementById("${bannerId}");
-  if (!banner) return;
-  var activeTools = [];
-  var inFlight = 0;
-  var shownAt = 0;
-  var hideTimer = 0;
-  var MIN_SHOW_MS = 1200;
-
-  document.addEventListener("htmx:beforeRequest", function(e) {
-    if (${formCheck}) {
-      inFlight++;
-      showBanner("Working...");
-    }
-  });
-
-  document.addEventListener("htmx:afterRequest", function(e) {
-    if (${formCheck}) {
-      inFlight--;
-      if (inFlight <= 0) inFlight = 0;
-      if (inFlight <= 0 && activeTools.length === 0) hideBanner();
-    }
-  });
-
-  var es = new EventSource("/missions/${missionId}/chat/tool-events");
-  es.addEventListener("message", function(e) {
-    try {
-      var event = JSON.parse(e.data);
-      if (event.type === "tool_start") {
-        event.names.forEach(function(n) { if (activeTools.indexOf(n) === -1) activeTools.push(n); });
-        showBanner(activeTools.join(", "));
-      } else if (event.type === "tool_end") {
-        activeTools = activeTools.filter(function(t) { return event.names.indexOf(t) === -1; });
-        if (activeTools.length === 0) {
-          if (inFlight > 0) showBanner("Working...");
-          else hideBanner();
-        }
-      }
-    } catch(ex) {}
-  });
-
-  es.addEventListener("error", function() {});
-
-  function showBanner(msg) {
-    shownAt = Date.now();
-    clearTimeout(hideTimer);
-    banner.innerHTML = '<span class="spinner"></span> ' + (msg || activeTools.join(", "));
-    banner.classList.add("visible");
-  }
-
-  function hideBanner() {
-    ${genBarCheck}
-    var elapsed = Date.now() - shownAt;
-    if (elapsed < MIN_SHOW_MS) {
-      hideTimer = setTimeout(function() { banner.classList.remove("visible"); }, MIN_SHOW_MS - elapsed);
-    } else {
-      banner.classList.remove("visible");
-    }
-  }
-})();
-</script>`;
 }
 
 /** User dropdown menu for the header. */

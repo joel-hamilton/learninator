@@ -149,9 +149,8 @@ export function generationRunningBar(missionId: number, number: number, subNumbe
   </div>`;
 }
 
-// Shared suffix to hide the tool banner when generation completes
 function hideBannerOnSettle(): string {
-  return ` hx-on::after-settle="var b=document.getElementById('tool-banner');if(b)b.classList.remove('visible')"`;
+  return "";
 }
 
 export function generationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
@@ -390,4 +389,198 @@ export function learningRecordCard(record: { number: number; title: string; mark
       <div class="content markdown-body">${record.markdownContent}</div>
     </div>
   `;
+}
+
+// ── Site-Wide Workflow Indicator ──
+
+export function siteWideIndicator(): string {
+  return '<div id="workflow-indicator"></div>';
+}
+
+// ── Page-Local Chat Progress Panel ──
+
+export function chatProgressPanel(missionId: number): string {
+  return `<div id="chat-progress-panel" class="chat-progress" style="display:none;">
+  <div class="chat-progress-header">
+    <span class="spinner"></span>
+    <span class="chat-progress-title">Working...</span>
+  </div>
+  <div id="chat-progress-steps" class="chat-progress-steps"></div>
+</div>
+<script>
+(function() {
+  var panel = document.getElementById("chat-progress-panel");
+  if (!panel) return;
+  var header = panel.querySelector(".chat-progress-title");
+  var stepsEl = document.getElementById("chat-progress-steps");
+  var missionId = ${missionId};
+
+  // Subscribe to mission-scoped tool events for detailed step display
+  var es = new EventSource("/missions/" + missionId + "/chat/tool-events");
+  var activeSteps = [];
+
+  es.addEventListener("message", function(e) {
+    try {
+      var event = JSON.parse(e.data);
+      if (event.type === "tool_start") {
+        panel.style.display = "block";
+        event.names.forEach(function(name) {
+          var label = friendlyLabel(name);
+          activeSteps.push({ name: name, label: label, status: "active" });
+          var step = document.createElement("div");
+          step.className = "chat-progress-step active";
+          step.setAttribute("data-name", name);
+          step.innerHTML = '<span class="step-dot"></span><span>' + label + '</span>';
+          stepsEl.appendChild(step);
+        });
+        updateHeader();
+      } else if (event.type === "tool_end") {
+        event.names.forEach(function(name) {
+          activeSteps = activeSteps.filter(function(s) { return s.name !== name; });
+          var step = stepsEl.querySelector('[data-name="' + name + '"]');
+          if (step) { step.classList.remove("active"); step.classList.add("done"); }
+        });
+        if (activeSteps.length === 0) {
+          setTimeout(function() { panel.style.display = "none"; stepsEl.innerHTML = ""; }, 1500);
+        } else {
+          updateHeader();
+        }
+      }
+    } catch(ex) {}
+  });
+
+  es.addEventListener("error", function() {});
+
+  function friendlyLabel(name) {
+    var labels = {
+      list_lessons: "Looking at previous lessons...",
+      read_lesson: "Reviewing a lesson...",
+      list_reference_docs: "Checking reference documents...",
+      read_reference_doc: "Reading a reference document...",
+      list_learning_records: "Reviewing learning records...",
+      read_learning_record: "Reading a learning record...",
+      create_lesson: "Creating a new lesson...",
+      create_sub_lesson: "Creating a sub-lesson...",
+      create_reference_doc: "Creating a reference document...",
+      create_learning_record: "Recording what you learned...",
+      read_mission_content: "Reading mission notes...",
+      write_mission_content: "Writing mission notes...",
+      list_feedback_history: "Checking feedback history...",
+      regenerate_lesson: "Regenerating a lesson...",
+      mark_mission_active: "Activating your mission...",
+      search_web: "Searching the web..."
+    };
+    return labels[name] || name.replace(/_/g, " ");
+  }
+
+  function updateHeader() {
+    if (activeSteps.length > 0) {
+      header.textContent = activeSteps.map(function(s) { return s.label; }).join(", ");
+    }
+  }
+})();
+</script>`;
+}
+
+// ── Chat Progress Panel CSS ──
+
+export const CHAT_PROGRESS_CSS = `
+.chat-progress {
+  background: var(--surface);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+.chat-progress-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.82rem; font-weight: 500; color: var(--ink-secondary);
+  margin-bottom: 0.5rem;
+}
+.chat-progress-steps { display: flex; flex-direction: column; gap: 0.25rem; }
+.chat-progress-step {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.78rem; color: var(--ink-muted);
+  padding: 0.2rem 0;
+}
+.chat-progress-step.active { color: var(--ink); }
+.chat-progress-step.done { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--success); }
+.chat-progress-step .step-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: var(--rule);
+}
+.chat-progress-step.active .step-dot { background: var(--warning); animation: pulse-dot 1.2s infinite; }
+.chat-progress-step.done .step-dot { background: var(--success); }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+`;
+
+// ── Page-Local Generation Progress Panel ──
+
+export function generationProgressPanel(): string {
+  return `<div id="generation-progress" class="generation-progress" style="display:none;">
+  <div class="gen-progress-header">
+    <span class="spinner"></span>
+    <span class="gen-progress-title">Generating lesson...</span>
+  </div>
+  <div id="gen-progress-detail" class="gen-progress-detail"></div>
+</div>
+<script>
+(function() {
+  var panel = document.getElementById("generation-progress");
+  if (!panel) return;
+  // Poll workflow state to find lesson_generation workflows
+  function check() {
+    fetch("/workflows/state")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var genWfs = (data.workflows || []).filter(function(w) { return w.type === "lesson_generation"; });
+        if (genWfs.length > 0) {
+          panel.style.display = "block";
+          var title = panel.querySelector(".gen-progress-title");
+          if (title) title.textContent = genWfs[0].label || "Generating lesson...";
+        } else {
+          panel.style.display = "none";
+        }
+      })
+      .catch(function() {});
+  }
+  check();
+  setInterval(check, 3000);
+})();
+</script>`;
+}
+
+// ── Onboarding Activation Progress Panel ──
+
+export function activationProgressPanel(): string {
+  return `<div id="activation-progress" class="activation-progress" style="display:none;">
+  <div class="activation-progress-header">
+    <span class="spinner"></span>
+    <span>Setting up your mission...</span>
+  </div>
+</div>
+<script>
+(function() {
+  var panel = document.getElementById("activation-progress");
+  if (!panel) return;
+  var checkCount = 0;
+  function check() {
+    fetch("/workflows/state")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var actWfs = (data.workflows || []).filter(function(w) { return w.type === "mission_activation"; });
+        checkCount++;
+        if (actWfs.length > 0) {
+          panel.style.display = "block";
+        } else if (checkCount > 3) {
+          panel.style.display = "none";
+        }
+      })
+      .catch(function() {});
+  }
+  check();
+  setInterval(check, 2000);
+})();
+</script>`;
 }

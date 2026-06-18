@@ -1,5 +1,7 @@
 import type { User } from "../types.js";
 import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
+import { siteWideIndicator } from "./fragments.js";
+import { ssePollerScript } from "../shared/sse-poller.js";
 
 export function layout(user: User, content: string) {
   return `<!DOCTYPE html>
@@ -117,9 +119,11 @@ ${HTMX_LOADING_BAR}
   <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
   <div class="user-area">${userMenu(user)}</div>
 </header>
-<div class="container">
+${siteWideIndicator()}
+<div class="container" style="margin-top:0;">
 ${content}
 </div>
+${ssePollerScript()}
 </body>
 </html>`;
 }

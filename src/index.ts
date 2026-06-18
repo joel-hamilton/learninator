@@ -9,6 +9,8 @@ import { createLogger } from "./logger.js";
 import { AnthropicAiClient } from "./ai/anthropic.js";
 import { createToolExecutor } from "./ai/tools.js";
 import { createEventBus } from "./ai/events.js";
+import { WorkflowStateManager } from "./ai/workflow-state.js";
+import { createObservability } from "./observability/index.js";
 import { db } from "./db/index.js";
 import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
@@ -18,6 +20,7 @@ import { lessonRoutes } from "./routes/lessons.js";
 import { chatRoutes } from "./routes/chat.js";
 import { settingsApp } from "./routes/settings.js";
 import { browseRoutes } from "./routes/browse.js";
+import { profileReport } from "./views/profile.js";
 import type { AiClient } from "./ai/types.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type * as schema from "./db/schema.js";
@@ -33,12 +36,16 @@ export function createApp(opts?: {
 
   const store = new DrizzleMissionStore(resolvedDb);
   const eventBus = createEventBus();
+  const workflowState = new WorkflowStateManager(eventBus);
+  const observability = createObservability();
 
-  // Store + logger + events injection
+  // Store + logger + events + profile injection
   app.use("*", async (c, next) => {
     c.set("store", store);
     c.set("logger", createLogger("http"));
     c.set("events", eventBus);
+    c.set("workflowState", workflowState);
+    c.set("profileStore", observability.profileStore);
     await next();
   });
 
@@ -49,13 +56,8 @@ export function createApp(opts?: {
     await next();
   });
 
-  // Request logging
-  app.use("*", async (c, next) => {
-    const start = Date.now();
-    await next();
-    const ms = Date.now() - start;
-    c.get("logger").info(`${c.req.method} ${c.req.path} — ${c.res.status} (${ms}ms)`);
-  });
+  // Observability middleware (request ID + debug timing when DEBUG=1)
+  observability.middleware.forEach((m) => app.use("*", m));
 
   app.get("/favicon.ico", (c) => {
     c.header("Content-Type", "image/svg+xml");
@@ -64,6 +66,19 @@ export function createApp(opts?: {
   });
 
   app.use("*", auth.sessionMiddleware);
+
+  // Profile report (authenticated; only active when PROFILE is enabled)
+  app.get("/debug/profile", auth.requireAuth, async (c) => {
+    const ps = c.get("profileStore");
+    if (!ps || !ps.isEnabled()) {
+      return c.html(
+        "<p>Profiling disabled. Set <code>PROFILE=1</code> to enable.</p>",
+        404,
+      );
+    }
+    return c.html(profileReport(ps.generateReport()));
+  });
+
   app.route("/", auth.authApp);
   app.route("/", homeRoutes);
   app.route("/", browseRoutes);

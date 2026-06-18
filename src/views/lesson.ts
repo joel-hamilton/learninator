@@ -1,5 +1,6 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, toolBannerScript } from "./shared.js";
-import { lessonActionBar, completedLessonBar } from "./fragments.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
+import { lessonActionBar, completedLessonBar, siteWideIndicator } from "./fragments.js";
+import { ssePollerScript } from "../shared/sse-poller.js";
 
 function formatLessonNumber(num: number, sub: number | null): string {
   const base = String(num).padStart(4, "0");
@@ -123,30 +124,6 @@ ${HTMX_HEAD}
   }
   .feedback-bar .done-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
 
-  /* Tool Banner */
-  .tool-banner {
-    position: sticky;
-    top: 52px;
-    z-index: 99;
-    background: var(--warning-bg);
-    border-bottom: 1px solid var(--warning);
-    font-size: 0.78rem;
-    color: var(--warning);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-weight: 500;
-    max-height: 0;
-    overflow: hidden;
-    transition: all 0.2s ease;
-    padding: 0 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .tool-banner.visible {
-    max-height: 38px;
-    padding: 0.45rem 1.5rem;
-  }
-
   /* Generation bars (yellow warning style) */
   .generation-bar .thinking-dots span { background: var(--warning); }
 
@@ -241,7 +218,7 @@ ${HTMX_HEAD}
 </head>
 <body>
 ${HTMX_LOADING_BAR}
-<div id="tool-banner" class="tool-banner"></div>
+${siteWideIndicator()}
 <div id="modal-container"></div>
 <div class="toolbar">
   <div class="left">
@@ -316,7 +293,7 @@ ${HTMX_LOADING_BAR}
     </div>
   </div>
 </div>
-${toolBannerScript(missionId, { checkGenerationBar: true })}
+${ssePollerScript()}
 <script>
 const frame = document.getElementById('lesson-frame');
 frame.style.minHeight = (window.innerHeight - 250) + 'px';

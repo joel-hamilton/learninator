@@ -1,4 +1,6 @@
-import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, toolBannerScript, userInitial, userMenu } from "./shared.js";
+import { GUIDED_QUESTION_SCRIPT, HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
+import { siteWideIndicator, activationProgressPanel } from "./fragments.js";
+import { ssePollerScript } from "../shared/sse-poller.js";
 
 /** Chat-focused page for onboarding missions. */
 export function onboardingLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string }, messagesHtml: string) {
@@ -152,27 +154,6 @@ ${HTMX_HEAD}
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #ccc; border-top-color: #888; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.5rem; }
   @keyframes spin { to { transform: rotate(360deg); } }
-	.tool-banner {
-	  position: sticky;
-	  top: 0;
-	  z-index: 99;
-	  background: var(--warning-bg);
-	  border-bottom: 1px solid var(--warning);
-	  font-size: 0.75rem;
-	  color: var(--warning);
-	  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-	  max-height: 0;
-	  overflow: hidden;
-	  transition: all 0.2s ease;
-	  padding: 0 2rem;
-	  display: flex;
-	  align-items: center;
-	  gap: 0.5rem;
-	}
-	.tool-banner.visible {
-	  max-height: 36px;
-	  padding: 0.4rem 2rem;
-	}
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
@@ -184,10 +165,11 @@ ${HTMX_HEAD}
   </div>
   <div class="right">${userMenu(user)}</div>
 </header>
-	<div id="tool-banner" class="tool-banner"></div>
+	${siteWideIndicator()}
 <div class="container">
   <h1>Mission Setup</h1>
   <p class="subtitle">Answer each question to define your learning goals.</p>
+  ${activationProgressPanel()}
   <form hx-post="/missions/${mission.id}/mode" hx-target="body" hx-swap="outerHTML" style="margin-bottom:1.5rem;"><input type="hidden" name="mode" value="chat"><button type="submit" style="background:none;border:none;padding:0;font:inherit;color:var(--text-secondary);font-size:0.85rem;text-decoration:underline;text-decoration-style:dotted;cursor:pointer;text-underline-offset:2px;">Prefer free-form chat instead?</button></form>
   <div id="chat-messages">${messagesHtml}</div>
   <div id="question-section">
@@ -198,7 +180,7 @@ ${HTMX_HEAD}
   </div>
 </div>
 	${GUIDED_QUESTION_SCRIPT}
-${toolBannerScript(mission.id, { trackAllHtmx: true })}
+${ssePollerScript()}
 </body>
 </html>`;
 }

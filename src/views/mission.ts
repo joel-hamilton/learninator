@@ -1,4 +1,6 @@
-import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu, toolBannerScript } from "./shared.js";
+import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon, userInitial, userMenu } from "./shared.js";
+import { siteWideIndicator } from "./fragments.js";
+import { ssePollerScript } from "../shared/sse-poller.js";
 
 function tabIcon(key: string): string {
   switch (key) {
@@ -247,30 +249,6 @@ ${HTMX_HEAD}
     margin-bottom: 1rem; max-height: 60vh; overflow-y: auto; padding: 0.25rem;
   }
 
-  /* Tool Banner */
-  .tool-banner {
-    position: sticky;
-    top: 56px;
-    z-index: 99;
-    background: var(--warning-bg);
-    border-bottom: 1px solid var(--warning-border);
-    font-size: 0.78rem;
-    color: var(--warning);
-    font-family: var(--font-mono);
-    font-weight: 500;
-    max-height: 0;
-    overflow: hidden;
-    transition: all 0.2s ease;
-    padding: 0 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .tool-banner.visible {
-    max-height: 38px;
-    padding: 0.45rem 1.5rem;
-  }
-
   /* Empty */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--accent); }
@@ -322,7 +300,7 @@ ${HTMX_LOADING_BAR}
   </div>
   <div class="header-right">${userMenu(user)}</div>
 </header>
-<div id="tool-banner" class="tool-banner"></div>
+${siteWideIndicator()}
 <div class="layout">
   <aside class="sidebar">
     <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} ${backLabel}</a>
@@ -344,7 +322,7 @@ ${HTMX_LOADING_BAR}
     ${content}
   </main>
 </div>
-${toolBannerScript(mission.id)}
+${ssePollerScript()}
 <script>
 (function() {
   // Sidebar toggle

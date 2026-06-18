@@ -1,4 +1,7 @@
-const DEBUG = process.env.DEBUG === "true" || process.env.DEBUG === "1";
+function isDebugEnabled(): boolean {
+  const v = process.env.DEBUG;
+  return v === "1" || v === "true" || v === "yes";
+}
 
 export interface Logger {
   debug(...args: unknown[]): void;
@@ -7,23 +10,29 @@ export interface Logger {
   error(...args: unknown[]): void;
 }
 
-function prefix(ns: string): string {
-  return `[${ns}]`;
+function timestamp(): string {
+  return new Date().toISOString();
 }
 
-export function createLogger(namespace: string): Logger {
+function prefix(ns: string, reqId?: string): string {
+  const req = reqId ? ` [req:${reqId}]` : "";
+  return `[${ns}]${req}`;
+}
+
+export function createLogger(namespace: string, requestId?: string): Logger {
+  const label = prefix(namespace, requestId);
   return {
     debug(...args: unknown[]) {
-      if (DEBUG) console.log(prefix(namespace), ...args);
+      if (isDebugEnabled()) console.log(timestamp(), label, ...args);
     },
     info(...args: unknown[]) {
-      console.log(prefix(namespace), ...args);
+      console.log(timestamp(), label, ...args);
     },
     warn(...args: unknown[]) {
-      console.warn(prefix(namespace), ...args);
+      console.warn(timestamp(), label, ...args);
     },
     error(...args: unknown[]) {
-      console.error(prefix(namespace), ...args);
+      console.error(timestamp(), label, ...args);
     },
   };
 }

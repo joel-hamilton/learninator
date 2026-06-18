@@ -44,6 +44,8 @@ Remember: read existing content before creating new material. Use list_lessons a
   messages.push({ role: "user", content: userContent });
 
   const log = c.get("logger");
+  const wfState = c.get("workflowState");
+  const workflowId = wfState.startWorkflow(user.id, "chat", `Chat: ${mission.title}`, missionId, `/missions/${missionId}/chat`);
 
   try {
     await saveMessage(store, missionId, "user", userContent);
@@ -60,12 +62,14 @@ Remember: read existing content before creating new material. Use list_lessons a
     });
 
     const text = result.text || "Done! Anything else you'd like to work on?";
+    wfState.completeWorkflow(workflowId);
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(text), userInitial(user)));
   } catch (err: unknown) {
     const msg = err instanceof AIError
       ? `<strong>${err.message}</strong>${err.recoverable ? " It may help to wait a moment and retry." : ""}`
       : "Something went wrong. Please try again.";
+    wfState.failWorkflow(workflowId, msg);
     return c.html(`<div class="msg assistant" style="color:var(--danger);">${msg}</div>`);
   }
 });
