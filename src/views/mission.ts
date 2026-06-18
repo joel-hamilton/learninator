@@ -146,6 +146,9 @@ ${HTMX_HEAD}
   }
   .sidebar-collapsed .sidebar-toggle { right: -28px; }
   .sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+  @media (max-width: 768px) {
+    .layout .sidebar-toggle { right: -28px; z-index: 101; }
+  }
 
   .sidebar-label {
     font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
@@ -314,7 +317,7 @@ ${siteWideIndicator()}
     <div class="sidebar-divider"></div>
     <div class="sidebar-footer">
       <div class="label">Mission</div>
-      <div class="mission-name">${mission.title}</div>
+      <div class="mission-name" id="sidebar-mission-name">${mission.title}</div>
       <div class="mission-status">${mission.status}</div>
     </div>
   </aside>
@@ -334,6 +337,9 @@ ${ssePollerScript()}
     }
     toggle.addEventListener("click", function() {
       layout.classList.toggle("sidebar-collapsed");
+      if (window.innerWidth <= 768) {
+        layout.classList.toggle("sidebar-open");
+      }
     });
   }
 })();

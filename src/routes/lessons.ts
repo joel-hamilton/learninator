@@ -85,6 +85,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const rating = String(body.rating || "");
   const feedbackText = String(body.feedbackText || "").trim();
+  if (feedbackText.length > 2000) return c.text("Feedback too long", 400);
 
   const fbErr = validateFeedback(feedbackText);
   if (fbErr) return c.html(fbErr);
@@ -450,6 +451,7 @@ lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
   const lessonTitle = String(body.lesson_title || "");
   const lessonNumber = String(body.lesson_number || "");
   if (!message) return c.text("");
+  if (message.length > 10000) return c.text("Message too long", 400);
 
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);

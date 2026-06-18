@@ -269,10 +269,46 @@ export function bridgingErrorBar(missionId: number, error: string): string {
 // ── Empty states ──
 
 export function emptyLessonsMessage(missionId: number): string {
-  return `<div class="empty">
-    <p>No lessons yet. Your AI teacher will create them as you go.</p>
-    <p style="margin-top:0.5rem;font-size:0.85rem;">Go to the <a href="/missions/${missionId}/chat">chat</a> to ask for your first lesson.</p>
-  </div>`;
+  return `<div class="empty" style="padding-bottom:1.5rem;">
+    <p>No lessons yet. Ask your AI teacher what you'd like to learn!</p>
+  </div>
+  <div id="empty-chat-messages"></div>
+  <form class="chat-form" id="empty-chat-form"
+    hx-post="/missions/${missionId}/chat"
+    hx-target="#empty-chat-messages"
+    hx-swap="beforeend"
+    hx-on::before-request="optimisticChat(this)"
+    hx-on::after-request="this.reset(); scheduleLessonCheck(${missionId})">
+    <div class="textarea-wrapper">
+      <textarea name="message" placeholder="What would you like to learn?" rows="2" oninput="autoResize(this)"></textarea>
+      <span class="textarea-hint">Press Enter to send &middot; Shift + Enter for newline</span>
+    </div>
+    <button type="submit">Send</button>
+  </form>
+  <script>
+  window._lessonCheckInterval = window._lessonCheckInterval || null;
+  function scheduleLessonCheck(mid) {
+    if (window._lessonCheckInterval) return;
+    var tries = 0, maxTries = 30;
+    function doCheck() {
+      tries++;
+      if (tries > maxTries) { clearInterval(window._lessonCheckInterval); window._lessonCheckInterval = null; return; }
+      fetch("/missions/" + mid + "/lessons/check")
+        .then(function(r) { return r.status === 204 ? null : r.text(); })
+        .then(function(html) {
+          if (html) {
+            clearInterval(window._lessonCheckInterval);
+            window._lessonCheckInterval = null;
+            var el = document.getElementById("empty-lessons-state");
+            if (el) el.outerHTML = html;
+          }
+        })
+        .catch(function() {});
+    }
+    doCheck();
+    window._lessonCheckInterval = setInterval(doCheck, 2000);
+  }
+  </script>`;
 }
 
 export function emptyReferencesMessage(): string {

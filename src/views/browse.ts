@@ -133,7 +133,7 @@ function optionGrid(options: string[], path: string[], iteration: number, isLast
       <input type="hidden" name="path" value='${pathJson}'>
       <input type="hidden" name="iteration" value="${iteration}">
       <input type="hidden" name="is_custom" value="true">
-      <input type="text" name="selection" class="custom-input" placeholder="Type and press Enter…" autocomplete="off">
+      <input type="text" name="selection" class="custom-input" placeholder="Type and press Enter…" autocomplete="off" maxlength="500">
     </form>
   </div>`;
 

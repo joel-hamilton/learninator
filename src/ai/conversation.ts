@@ -38,6 +38,8 @@ export interface ConversationLoopParams {
   logger?: Pick<Logger, "debug">;
   /** Tool names that should pause the loop after execution instead of continuing. */
   pauseOnTools?: Set<string>;
+  /** Maximum number of tool-use turns before forcing a stop. Defaults to 20. */
+  maxTurns?: number;
 }
 
 export interface ConversationLoopResult {
@@ -168,6 +170,12 @@ export async function conversationLoop(
           };
         }
       }
+    }
+
+    const maxTurns = params.maxTurns ?? 20;
+    if (toolCallsExecuted >= maxTurns) {
+      textParts.push("\n\n[Reached maximum number of tool calls. Please try again with a more specific request.]");
+      break;
     }
 
     currentResponse = await client.continueWithToolResults(

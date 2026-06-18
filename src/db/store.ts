@@ -12,6 +12,7 @@ export type NewMission = typeof schema.missions.$inferInsert;
 export type LessonRow = typeof schema.lessons.$inferSelect;
 export type NewLesson = typeof schema.lessons.$inferInsert;
 export type LessonSummary = Pick<LessonRow, "number" | "subNumber" | "title" | "status">;
+export type LessonFeedbackSummary = Pick<LessonRow, "number" | "subNumber" | "title" | "status" | "feedbackRating" | "feedbackText">;
 export type ChatMessageRow = typeof schema.chatMessages.$inferSelect;
 export type NewChatMessage = typeof schema.chatMessages.$inferInsert;
 export type GuidedQuestionRow = typeof schema.guidedQuestions.$inferSelect;
@@ -56,6 +57,8 @@ export interface MissionStore {
   findLessonBySlug(missionId: number, slug: string): Promise<LessonRow | undefined>;
   updateLessonStatus(missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null): Promise<void>;
   updateLessonFeedback(missionId: number, number: number, subNumber: number | null, rating: string, text?: string): Promise<void>;
+  listLessonFeedback(missionId: number): Promise<LessonFeedbackSummary[]>;
+  updateLessonContent(missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string): Promise<void>;
 
   // Guided questions
   createGuidedQuestion(values: { missionId: number; question: string; options: string }): Promise<GuidedQuestionRow>;
@@ -291,6 +294,31 @@ export class DrizzleMissionStore implements MissionStore {
     const setData: Record<string, unknown> = { feedbackRating: rating };
     if (text) setData.feedbackText = text;
     await this.db.update(schema.lessons).set(setData).where(and(...conditions));
+  }
+
+  async listLessonFeedback(missionId: number) {
+    return this.db.select({
+      number: schema.lessons.number,
+      subNumber: schema.lessons.subNumber,
+      title: schema.lessons.title,
+      status: schema.lessons.status,
+      feedbackRating: schema.lessons.feedbackRating,
+      feedbackText: schema.lessons.feedbackText,
+    }).from(schema.lessons)
+      .where(eq(schema.lessons.missionId, missionId))
+      .orderBy(asc(schema.lessons.number), asc(schema.lessons.subNumber));
+  }
+
+  async updateLessonContent(missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string) {
+    const conditions = [eq(schema.lessons.missionId, missionId), eq(schema.lessons.number, number)];
+    if (subNumber !== null) {
+      conditions.push(eq(schema.lessons.subNumber, subNumber));
+    } else {
+      conditions.push(isNull(schema.lessons.parentLessonId));
+    }
+    await this.db.update(schema.lessons)
+      .set({ title, slug, htmlContent })
+      .where(and(...conditions));
   }
 
   // Guided questions
@@ -544,6 +572,8 @@ export class InMemoryMissionStore implements MissionStore {
   async findLessonBySlug(missionId: number, slug: string) { return this.lessons.find(l => l.missionId === missionId && l.slug === slug); }
   async updateLessonStatus(missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.status = status; if (completedAt !== undefined) l.completedAt = completedAt; } }
   async updateLessonFeedback(missionId: number, number: number, subNumber: number | null, rating: string, text?: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.feedbackRating = rating; if (text) l.feedbackText = text; } }
+  async listLessonFeedback(missionId: number) { return (await this.listLessons(missionId)).map(l => ({ number: l.number, subNumber: l.subNumber, title: l.title, status: l.status, feedbackRating: l.feedbackRating, feedbackText: l.feedbackText })); }
+  async updateLessonContent(missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.title = title; l.slug = slug; l.htmlContent = htmlContent; } }
 
   async createGuidedQuestion(v: any) { const q = { id: this.id(), ...v, answer: null, answerText: null, status: "pending", createdAt: new Date().toISOString() }; this.guidedQuestions.push(q); return q; }
   async getPendingQuestion(missionId: number) { return this.guidedQuestions.find(q => q.missionId === missionId && q.status === "pending") ?? null; }

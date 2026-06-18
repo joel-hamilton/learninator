@@ -110,6 +110,8 @@ ${HTMX_HEAD}
   .mission-card .info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.3rem; letter-spacing: -0.01em; font-family: var(--font-display); }
   .mission-card .info .meta { font-size: 0.76rem; color: var(--ink-muted); display: flex; gap: 0.45rem; align-items: center; }
   .mission-card .actions { display: flex; gap: 0.5rem; align-items: center; margin-left: 1.5rem; flex-shrink: 0; }
+  .mission-card--archived { opacity: 0.65; }
+  .mission-card--archived:hover { opacity: 0.85; }
   .mission-card .actions .btn-primary { font-weight: 600; }
 </style>
 </head>

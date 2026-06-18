@@ -142,6 +142,7 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
   const isCustom = String(body.is_custom || "") === "true";
 
   if (!selection) return c.text("Missing selection", 400);
+  if (selection.length > 500) return c.text("Selection too long", 400);
 
   let path: string[];
   try {

@@ -19,7 +19,7 @@ import { auth } from "./auth/index.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
-import { chatRoutes } from "./routes/chat.js";
+
 import { settingsApp } from "./routes/settings.js";
 import { browseRoutes } from "./routes/browse.js";
 import { profileReport } from "./views/profile.js";
@@ -89,7 +89,7 @@ export function createApp(opts?: {
   app.route("/", browseRoutes);
   app.route("/missions", missionRoutes);
   app.route("/missions/:missionId/lessons", lessonRoutes);
-  app.route("/missions/:missionId/chat", chatRoutes);
+  
   app.use("/settings", auth.requireAuth);
   app.use("/settings/*", auth.requireAuth);
   app.route("/settings", settingsApp);

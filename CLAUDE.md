@@ -23,7 +23,7 @@ src/
     index.ts            # DB connection singleton
     store.ts            # MissionStore interface + DrizzleMissionStore adapter
     migrate.ts          # Migration runner
-    migrations/         # SQL migrations (note: snapshot chain is broken)
+    migrations/         # SQL migrations + Drizzle snapshots
   auth/
     index.ts            # Session middleware + login/signup/logout routes
   ai/

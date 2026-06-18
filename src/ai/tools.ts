@@ -180,6 +180,40 @@ async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   return `Question saved. Waiting for user answer.`;
 }
 
+async function listFeedbackHistory(ctx: ToolHandlerContext): Promise<string> {
+  const { store, missionId } = ctx;
+  const rows = await store.listLessonFeedback(missionId);
+  if (rows.length === 0) return "No feedback yet.";
+
+  return rows.map(r => {
+    const displayNum = String(r.number).padStart(4, "0") + (r.subNumber ? `.${r.subNumber}` : "");
+    const rating = r.feedbackRating ?? "no rating";
+    const line = `Lesson ${displayNum}: "${r.title}" — ${rating}`;
+    const text = r.feedbackText ? `\n  Feedback: "${r.feedbackText}"` : "";
+    return line + text;
+  }).join("\n");
+}
+
+async function regenerateLesson(ctx: ToolHandlerContext): Promise<string> {
+  const { store, missionId, input } = ctx;
+  const number = input.number as number;
+  const subNumber = (input.sub_number as number | undefined) ?? null;
+  const title = input.title as string;
+  const slug = input.slug as string;
+  const htmlContent = input.html_content as string;
+
+  const existing = await store.getLesson(missionId, number, subNumber);
+  if (!existing) {
+    const displayNum = String(number).padStart(4, "0");
+    return `Lesson ${displayNum} not found.`;
+  }
+
+  await store.updateLessonContent(missionId, number, subNumber, title, slug, htmlContent);
+
+  const displayNum = String(number).padStart(4, "0") + (subNumber ? `.${subNumber}` : "");
+  return `Regenerated lesson ${displayNum}: "${title}".`;
+}
+
 // ── Friendly display names for UI ──────────────────────────────────────
 
 export const TOOL_DISPLAY_NAMES: Record<string, string> = {
@@ -198,6 +232,8 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   read_resources: "Reading resources",
   write_resources: "Writing resources",
   ask_guided_question: "Asking question",
+  list_feedback_history: "Listing feedback",
+  regenerate_lesson: "Regenerating lesson",
 };
 
 // ── Handler map ───────────────────────────────────────────────────────
@@ -219,6 +255,8 @@ function buildHandlerMap(): Map<string, ToolHandler> {
     ["read_resources", readResources],
     ["write_resources", writeResources],
     ["ask_guided_question", askGuidedQuestion],
+    ["list_feedback_history", listFeedbackHistory],
+    ["regenerate_lesson", regenerateLesson],
   ]);
 }
 

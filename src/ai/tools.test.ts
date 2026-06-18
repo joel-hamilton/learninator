@@ -8,9 +8,10 @@ import { DrizzleMissionStore } from "../db/store.js"
 
 describe("tool handlers", () => {
   let executor: ReturnType<typeof createToolExecutor>
+  let sqlite: Database.Database
 
   beforeAll(() => {
-    const sqlite = new Database(":memory:")
+    sqlite = new Database(":memory:")
     sqlite.pragma("journal_mode = WAL")
     sqlite.pragma("foreign_keys = ON")
 
@@ -331,5 +332,89 @@ describe("tool handlers", () => {
     })
     // Drizzle/better-sqlite3 coerces the type, so the query just finds no match
     expect(result).toBe("Lesson not found.")
+  })
+
+  // ── list_feedback_history tests ──
+
+  it("list_feedback_history returns empty message when no lessons", async () => {
+    // Create a second mission with no lessons to test empty case
+    sqlite.exec("INSERT INTO missions (id, user_id, title, slug) VALUES (2, 1, 'Empty', 'empty');")
+    const result = await executor.executeTool(2, "list_feedback_history", {})
+    expect(result).toBe("No feedback yet.")
+  })
+
+  it("list_feedback_history returns feedback for lessons that have it", async () => {
+    // Set feedback via SQL on existing lessons (lesson 1 = "First Lesson", lesson 2 = "Second Lesson")
+    sqlite.exec(
+      "UPDATE lessons SET feedback_rating = 'just_right', feedback_text = 'Great lesson!' WHERE mission_id = 1 AND number = 1;"
+    )
+    sqlite.exec(
+      "UPDATE lessons SET feedback_rating = 'too_hard', feedback_text = 'This was too complex' WHERE mission_id = 1 AND number = 2;"
+    )
+
+    const result = await executor.executeTool(1, "list_feedback_history", {})
+    expect(result).toContain('Lesson 0001: "First Lesson"')
+    expect(result).toContain("just_right")
+    expect(result).toContain('Feedback: "Great lesson!"')
+    expect(result).toContain('Lesson 0002: "Second Lesson"')
+    expect(result).toContain("too_hard")
+    expect(result).toContain('Feedback: "This was too complex"')
+  })
+
+  it("list_feedback_history lists sub-lessons alongside main lessons", async () => {
+    const result = await executor.executeTool(1, "list_feedback_history", {})
+    // Should include sub-lessons from earlier tests
+    expect(result).toContain("Deeper Dive")
+    expect(result).toContain("Even Deeper")
+  })
+
+  // ── regenerate_lesson tests ──
+
+  it("regenerate_lesson updates lesson content", async () => {
+    const result = await executor.executeTool(1, "regenerate_lesson", {
+      number: 1,
+      title: "Updated Title",
+      slug: "updated-title",
+      html_content: "<p>Updated content</p>",
+    })
+    expect(result).toContain('Regenerated lesson 0001: "Updated Title"')
+
+    // Verify the content was updated
+    const readResult = await executor.executeTool(1, "read_lesson", {
+      number: 1,
+    })
+    const parsed = JSON.parse(readResult)
+    expect(parsed.title).toBe("Updated Title")
+    expect(parsed.slug).toBe("updated-title")
+    expect(parsed.html_content).toBe("<p>Updated content</p>")
+  })
+
+  it("regenerate_lesson returns error for non-existent lesson", async () => {
+    const result = await executor.executeTool(1, "regenerate_lesson", {
+      number: 999,
+      title: "Ghost",
+      slug: "ghost",
+      html_content: "<p>never</p>",
+    })
+    expect(result).toBe("Lesson 0999 not found.")
+  })
+
+  it("regenerate_lesson can update sub-lesson content", async () => {
+    const result = await executor.executeTool(1, "regenerate_lesson", {
+      number: 1,
+      sub_number: 1,
+      title: "Updated Sub",
+      slug: "updated-sub",
+      html_content: "<p>Updated sub content</p>",
+    })
+    expect(result).toContain('Regenerated lesson 0001.1: "Updated Sub"')
+
+    const readResult = await executor.executeTool(1, "read_lesson", {
+      number: 1,
+      sub_number: 1,
+    })
+    const parsed = JSON.parse(readResult)
+    expect(parsed.title).toBe("Updated Sub")
+    expect(parsed.slug).toBe("updated-sub")
   })
 })
