@@ -22,7 +22,7 @@ No tasks for this phase.
 
 **Purpose**: Understand the existing row types and InMemory store structure before making changes.
 
-- [ ] T001 Read and verify exported row types (lines ~10-26 of `src/db/store.ts`) and map each to the corresponding InMemory store class at lines ~526-642. Confirm all 9 row types (MissionRow, LessonRow, ChatMessageRow, GuidedQuestionRow, ReferenceDocRow, LearningRecordRow, MissionContentRow, UserRow, SessionRow) are correctly imported from the Drizzle schema and cover all 8 store collections.
+- [X] T001 Read and verify exported row types (lines ~10-26 of `src/db/store.ts`) and map each to the corresponding InMemory store class at lines ~526-642. Confirm all 9 row types (MissionRow, LessonRow, ChatMessageRow, GuidedQuestionRow, ReferenceDocRow, LearningRecordRow, MissionContentRow, UserRow, SessionRow) are correctly imported from the Drizzle schema and cover all 8 store collections.
 
 **Checkpoint**: Row types verified. Implementation can begin.
 
@@ -40,21 +40,21 @@ These two P1 stories are combined because each store-level task necessarily addr
 
 ### Implementation
 
-- [ ] T002 [US1][US2] Type InMemorySessionStore: change `sessions: SessionRow[]` (was `any[]`). Methods already have typed parameters -- no method signature changes needed. Confirm `createSession(v)` return type is properly inferred as `SessionRow` in `src/db/store.ts`
+- [X] T002 [US1][US2] Type InMemorySessionStore: change `sessions: SessionRow[]` (was `any[]`). Methods already have typed parameters -- no method signature changes needed. Confirm `createSession(v)` return type is properly inferred as `SessionRow` in `src/db/store.ts`
 
-- [ ] T003 [US1][US2] Type InMemoryUserStore: change `users: UserRow[]` (was `any[]`). Type `createUser(v)` parameter as `{ email: string; passwordHash: string; name?: string }` matching `UserStore.createUser` interface. Type `updateUser(id, values)` parameter `values` as `{ name?: string; email?: string; passwordHash?: string }`. Ensure return types are properly inferred as `UserRow` in `src/db/store.ts`
+- [X] T003 [US1][US2] Type InMemoryUserStore: change `users: UserRow[]` (was `any[]`). Type `createUser(v)` parameter as `{ email: string; passwordHash: string; name?: string }` matching `UserStore.createUser` interface. Type `updateUser(id, values)` parameter `values` as `{ name?: string; email?: string; passwordHash?: string }`. Ensure return types are properly inferred as `UserRow` in `src/db/store.ts`
 
-- [ ] T004 [US1][US2] Type InMemoryContentStore: change `missionContents: MissionContentRow[]` (was `any[]`). Type `upsertMissionContent(v)` parameter as `{ missionId: number; contentType: string; markdownContent: string }` matching `ContentStore.upsertMissionContent` interface. Ensure return type is properly inferred as `MissionContentRow` in `src/db/store.ts`
+- [X] T004 [US1][US2] Type InMemoryContentStore: change `missionContents: MissionContentRow[]` (was `any[]`). Type `upsertMissionContent(v)` parameter as `{ missionId: number; contentType: string; markdownContent: string }` matching `ContentStore.upsertMissionContent` interface. Ensure return type is properly inferred as `MissionContentRow` in `src/db/store.ts`
 
-- [ ] T005 [US1][US2] Type InMemoryRefDocStore: change `referenceDocs: ReferenceDocRow[]` (was `any[]`). Type `createReferenceDoc(v)` parameter as `{ missionId: number; title: string; slug: string; htmlContent: string; docType: string }` matching `RefDocStore.createReferenceDoc` interface. Type sort callback parameters as `(a: ReferenceDocRow, b: ReferenceDocRow)`. Ensure return type is properly inferred as `ReferenceDocRow` in `src/db/store.ts`
+- [X] T005 [US1][US2] Type InMemoryRefDocStore: change `referenceDocs: ReferenceDocRow[]` (was `any[]`). Type `createReferenceDoc(v)` parameter as `{ missionId: number; title: string; slug: string; htmlContent: string; docType: string }` matching `RefDocStore.createReferenceDoc` interface. Type sort callback parameters as `(a: ReferenceDocRow, b: ReferenceDocRow)`. Ensure return type is properly inferred as `ReferenceDocRow` in `src/db/store.ts`
 
-- [ ] T006 [US1][US2] Type InMemoryLearningRecordStore: change `learningRecords: LearningRecordRow[]` (was `any[]`). Type `createLearningRecord(v)` parameter as `{ missionId: number; number: number; title: string; markdownContent: string; status?: string; supersededBy?: number | null }` matching `LearningRecordStore.createLearningRecord` interface. Type `updateLearningRecord(id, values)` parameter `values` as `{ status?: string; supersededBy?: number | null }`. Type sort callback as `(a: LearningRecordRow, b: LearningRecordRow)`. Ensure return types in `src/db/store.ts`
+- [X] T006 [US1][US2] Type InMemoryLearningRecordStore: change `learningRecords: LearningRecordRow[]` (was `any[]`). Type `createLearningRecord(v)` parameter as `{ missionId: number; number: number; title: string; markdownContent: string; status?: string; supersededBy?: number | null }` matching `LearningRecordStore.createLearningRecord` interface. Type `updateLearningRecord(id, values)` parameter `values` as `{ status?: string; supersededBy?: number | null }`. Type sort callback as `(a: LearningRecordRow, b: LearningRecordRow)`. Ensure return types in `src/db/store.ts`
 
-- [ ] T007 [US1][US2] Type InMemoryMissionStore: change `missions: MissionRow[]` (was `any[]`). Type `createMission(v)` parameter matching `MissionStore.createMission` interface. Type `updateMissionStatus(status)` parameter as `"onboarding" | "active" | "archived"`. The spread-construction `{ id: this.id(), ...v, status: v.status ?? "onboarding", ... }` may need a minimal type assertion (`as MissionRow`) if TypeScript cannot infer the constructed shape. Ensure all method return types in `src/db/store.ts`
+- [X] T007 [US1][US2] Type InMemoryMissionStore: change `missions: MissionRow[]` (was `any[]`). Type `createMission(v)` parameter matching `MissionStore.createMission` interface. Type `updateMissionStatus(status)` parameter as `"onboarding" | "active" | "archived"`. The spread-construction `{ id: this.id(), ...v, status: v.status ?? "onboarding", ... }` may need a minimal type assertion (`as MissionRow`) if TypeScript cannot infer the constructed shape. Ensure all method return types in `src/db/store.ts`
 
-- [ ] T008 [US1][US2] Type InMemoryChatStore: change `chatMessages: ChatMessageRow[]` (was `any[]`) and `guidedQuestions: GuidedQuestionRow[]` (was `any[]`). Type `saveChatMessage(v)` parameter as `{ missionId: number; role: "user" | "assistant"; content: string }` matching `ChatStore.saveChatMessage` interface. Type `createGuidedQuestion(v)` parameter as `{ missionId: number; question: string; options: string }`. Type sort callback as `(a: ChatMessageRow, b: ChatMessageRow)`. Ensure return types in `src/db/store.ts`
+- [X] T008 [US1][US2] Type InMemoryChatStore: change `chatMessages: ChatMessageRow[]` (was `any[]`) and `guidedQuestions: GuidedQuestionRow[]` (was `any[]`). Type `saveChatMessage(v)` parameter as `{ missionId: number; role: "user" | "assistant"; content: string }` matching `ChatStore.saveChatMessage` interface. Type `createGuidedQuestion(v)` parameter as `{ missionId: number; question: string; options: string }`. Type sort callback as `(a: ChatMessageRow, b: ChatMessageRow)`. Ensure return types in `src/db/store.ts`
 
-- [ ] T009 [US1][US2] Type InMemoryLessonStore: change `lessons: LessonRow[]` (was `any[]`). Type `createLesson(v)` parameter matching `LessonStore.createLesson` interface. Type sort callback as `(a: LessonRow, b: LessonRow)`. The spread-construction with defaults may need type assertion. Ensure all method return types in `src/db/store.ts`
+- [X] T009 [US1][US2] Type InMemoryLessonStore: change `lessons: LessonRow[]` (was `any[]`). Type `createLesson(v)` parameter matching `LessonStore.createLesson` interface. Type sort callback as `(a: LessonRow, b: LessonRow)`. The spread-construction with defaults may need type assertion. Ensure all method return types in `src/db/store.ts`
 
 **Checkpoint**: All 8 InMemory stores are fully typed. Compile `npx tsc --noEmit --strict` and verify zero type errors.
 
@@ -68,7 +68,7 @@ These two P1 stories are combined because each store-level task necessarily addr
 
 ### Verification
 
-- [ ] T010 [US3] Run `npm test` and confirm all tests pass. If any test fails, inspect the InMemory store typing for unintended behavioral changes (e.g., a type assertion that widened a value or a missing default) and fix in `src/db/store.ts`.
+- [X] T010 [US3] Run `npm test` and confirm all tests pass. If any test fails, inspect the InMemory store typing for unintended behavioral changes (e.g., a type assertion that widened a value or a missing default) and fix in `src/db/store.ts`.
 
 **Checkpoint**: Full test suite passes. The type-only change is verified as behavior-preserving.
 
@@ -78,7 +78,7 @@ These two P1 stories are combined because each store-level task necessarily addr
 
 **Purpose**: Final verification and belt-and-suspenders checks to ensure no `any` escaped and all quickstart scenarios pass.
 
-- [ ] T011 Run validation scenarios from `specs/021-type-inmemory-stores/quickstart.md`:
+- [X] T011 Run validation scenarios from `specs/021-type-inmemory-stores/quickstart.md`:
   1. `npx tsc --noEmit --strict` -- must exit 0 with zero type errors
   2. `npm test` -- must exit 0 with no test modifications
   3. Grep `src/db/store.ts` for remaining `any` in InMemory store class declarations (collections, method parameters, method return types) and confirm zero remaining in the 526-642 range

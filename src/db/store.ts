@@ -524,30 +524,30 @@ export class DrizzleMissionStore implements MissionStore, LessonStore, ChatStore
 // ── In-memory stores for tests ─────────────────────────────────────────
 
 export class InMemoryMissionStore implements MissionStore {
-  private missions: any[] = [];
+  private missions: MissionRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
-  async createMission(v: any) { const m = { id: this.id(), ...v, status: v.status ?? "onboarding", onboardingMode: v.onboardingMode ?? "guided", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.missions.push(m); return m; }
+  async createMission(v: { userId: number; title: string; slug: string; status?: string; onboardingMode?: string }) { const m = { id: this.id(), ...v, status: v.status ?? "onboarding", onboardingMode: v.onboardingMode ?? "guided", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as MissionRow; this.missions.push(m); return m; }
   async getMission(id: number, _userId: number) { return this.missions.find(m => m.id === id); }
-  async listMissions(userId: number, _opts?: any) { return this.missions.filter(m => m.userId === userId); }
+  async listMissions(userId: number, _opts?: { status?: string; limit?: number }) { return this.missions.filter(m => m.userId === userId); }
   async updateMissionTitle(id: number, title: string) { const m = this.missions.find(m => m.id === id); if (m) m.title = title; }
   async updateMissionOnboardingMode(id: number, mode: "guided" | "chat") { const m = this.missions.find(m => m.id === id); if (m) m.onboardingMode = mode; }
-  async updateMissionStatus(id: number, status: any) { const m = this.missions.find(m => m.id === id); if (m) m.status = status; }
+  async updateMissionStatus(id: number, status: "onboarding" | "active" | "archived") { const m = this.missions.find(m => m.id === id); if (m) m.status = status; }
   async deleteMission(id: number) { this.missions = this.missions.filter(m => m.id !== id); }
 }
 
 export class InMemoryLessonStore implements LessonStore {
-  private lessons: any[] = [];
+  private lessons: LessonRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
-  async createLesson(v: any) { const l = { id: this.id(), ...v, status: v.status ?? "active", subNumber: v.subNumber ?? null, parentLessonId: v.parentLessonId ?? null, feedbackRating: null, feedbackText: null, completedAt: null, createdAt: new Date().toISOString() }; this.lessons.push(l); return l; }
+  async createLesson(v: { missionId: number; number: number; title: string; slug: string; htmlContent: string; status?: string; parentLessonId?: number; subNumber?: number }) { const l = { id: this.id(), ...v, status: v.status ?? "active", subNumber: v.subNumber ?? null, parentLessonId: v.parentLessonId ?? null, feedbackRating: null, feedbackText: null, completedAt: null, createdAt: new Date().toISOString() } as LessonRow; this.lessons.push(l); return l; }
   async getLesson(missionId: number, number: number, subNumber?: number | null) { return this.lessons.find(l => l.missionId === missionId && l.number === number && (subNumber == null ? l.parentLessonId === null : l.subNumber === subNumber)); }
   async getLatestLesson(missionId: number) { const ls = this.lessons.filter(l => l.missionId === missionId); return ls.length > 0 ? ls.reduce((a, b) => a.id > b.id ? a : b) : undefined; }
-  async listLessons(missionId: number) { return this.lessons.filter(l => l.missionId === missionId).sort((a: any, b: any) => a.number - b.number || (a.subNumber ?? 0) - (b.subNumber ?? 0)); }
+  async listLessons(missionId: number) { return this.lessons.filter(l => l.missionId === missionId).sort((a: LessonRow, b: LessonRow) => a.number - b.number || (a.subNumber ?? 0) - (b.subNumber ?? 0)); }
   async listLessonSummaries(missionId: number) { return (await this.listLessons(missionId)).map(l => ({ number: l.number, subNumber: l.subNumber, title: l.title, status: l.status })); }
   async getMaxLessonNumber(missionId: number) { const ls = this.lessons.filter(l => l.missionId === missionId); return ls.length > 0 ? Math.max(...ls.map(l => l.number)) : 0; }
   async getSubLessonCount(missionId: number, parentLessonId: number) { return this.lessons.filter(l => l.missionId === missionId && l.parentLessonId === parentLessonId).length; }
@@ -555,71 +555,71 @@ export class InMemoryLessonStore implements LessonStore {
   async getMainLessonCount(missionId: number) { return this.lessons.filter(l => l.missionId === missionId && l.parentLessonId === null).length; }
   async getMaxSubNumber(parentLessonId: number) { const subs = this.lessons.filter(l => l.parentLessonId === parentLessonId); return subs.length > 0 ? Math.max(...subs.map(l => l.subNumber ?? 0)) : null; }
   async findLessonBySlug(missionId: number, slug: string) { return this.lessons.find(l => l.missionId === missionId && l.slug === slug); }
-  async updateLessonStatus(missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.status = status; if (completedAt !== undefined) l.completedAt = completedAt; } }
-  async updateLessonFeedback(missionId: number, number: number, subNumber: number | null, rating: string, text?: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.feedbackRating = rating; if (text) l.feedbackText = text; } }
+  async updateLessonStatus(missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.status = status as any; if (completedAt !== undefined) l.completedAt = completedAt; } }
+  async updateLessonFeedback(missionId: number, number: number, subNumber: number | null, rating: string, text?: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.feedbackRating = rating as any; if (text) l.feedbackText = text; } }
   async listLessonFeedback(missionId: number) { return (await this.listLessons(missionId)).map(l => ({ number: l.number, subNumber: l.subNumber, title: l.title, status: l.status, feedbackRating: l.feedbackRating, feedbackText: l.feedbackText })); }
   async updateLessonContent(missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string) { const l = await this.getLesson(missionId, number, subNumber); if (l) { l.title = title; l.slug = slug; l.htmlContent = htmlContent; } }
 }
 
 export class InMemoryChatStore implements ChatStore {
-  private chatMessages: any[] = [];
-  private guidedQuestions: any[] = [];
+  private chatMessages: ChatMessageRow[] = [];
+  private guidedQuestions: GuidedQuestionRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
-  async saveChatMessage(v: any) { this.chatMessages.push({ id: this.id(), ...v, createdAt: new Date().toISOString() }); }
-  async getChatMessages(missionId: number) { return this.chatMessages.filter(m => m.missionId === missionId).sort((a: any, b: any) => a.createdAt.localeCompare(b.createdAt)); }
+  async saveChatMessage(v: { missionId: number; role: "user" | "assistant"; content: string }) { this.chatMessages.push({ id: this.id(), ...v, createdAt: new Date().toISOString() }); }
+  async getChatMessages(missionId: number) { return this.chatMessages.filter(m => m.missionId === missionId).sort((a: ChatMessageRow, b: ChatMessageRow) => a.createdAt.localeCompare(b.createdAt)); }
 
-  async createGuidedQuestion(v: any) { const q = { id: this.id(), ...v, answer: null, answerText: null, status: "pending", createdAt: new Date().toISOString() }; this.guidedQuestions.push(q); return q; }
+  async createGuidedQuestion(v: { missionId: number; question: string; options: string }) { const q = { id: this.id(), ...v, answer: null, answerText: null, status: "pending", createdAt: new Date().toISOString() } as GuidedQuestionRow; this.guidedQuestions.push(q); return q; }
   async getPendingQuestion(missionId: number) { return this.guidedQuestions.find(q => q.missionId === missionId && q.status === "pending"); }
   async answerQuestion(id: number, answer: string, answerText?: string | null) { const q = this.guidedQuestions.find(q => q.id === id); if (q) { q.answer = answer; q.answerText = answerText ?? null; q.status = "answered"; } }
   async skipPendingQuestions(missionId: number) { this.guidedQuestions.filter(q => q.missionId === missionId && q.status === "pending").forEach(q => { q.answer = "(skipped)"; q.status = "answered"; }); }
 }
 
 export class InMemoryContentStore implements ContentStore {
-  private missionContents: any[] = [];
+  private missionContents: MissionContentRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
   async getMissionContent(missionId: number, contentType: string) { return this.missionContents.find(c => c.missionId === missionId && c.contentType === contentType); }
-  async upsertMissionContent(v: any) { const existing = this.missionContents.findIndex(c => c.missionId === v.missionId && c.contentType === v.contentType); if (existing >= 0) { this.missionContents[existing].markdownContent = v.markdownContent; } else { this.missionContents.push({ id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); } }
+  async upsertMissionContent(v: { missionId: number; contentType: string; markdownContent: string }) { const existing = this.missionContents.findIndex(c => c.missionId === v.missionId && c.contentType === v.contentType); if (existing >= 0) { this.missionContents[existing].markdownContent = v.markdownContent; } else { this.missionContents.push({ id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as MissionContentRow); } }
 }
 
 export class InMemoryRefDocStore implements RefDocStore {
-  private referenceDocs: any[] = [];
+  private referenceDocs: ReferenceDocRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
-  async createReferenceDoc(v: any) { const r = { id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; this.referenceDocs.push(r); return r; }
+  async createReferenceDoc(v: { missionId: number; title: string; slug: string; htmlContent: string; docType: string }) { const r = { id: this.id(), ...v, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as ReferenceDocRow; this.referenceDocs.push(r); return r; }
   async getReferenceDoc(id: number, missionId: number) { return this.referenceDocs.find(r => r.id === id && r.missionId === missionId); }
-  async listReferenceDocs(missionId: number) { return this.referenceDocs.filter(r => r.missionId === missionId).sort((a: any, b: any) => a.createdAt.localeCompare(b.createdAt)); }
+  async listReferenceDocs(missionId: number) { return this.referenceDocs.filter(r => r.missionId === missionId).sort((a: ReferenceDocRow, b: ReferenceDocRow) => a.createdAt.localeCompare(b.createdAt)); }
 }
 
 export class InMemoryLearningRecordStore implements LearningRecordStore {
-  private learningRecords: any[] = [];
+  private learningRecords: LearningRecordRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
-  async createLearningRecord(v: any) { const r = { id: this.id(), ...v, status: v.status ?? "active", supersededBy: v.supersededBy ?? null, createdAt: new Date().toISOString() }; this.learningRecords.push(r); return r; }
-  async listLearningRecords(missionId: number) { return this.learningRecords.filter(r => r.missionId === missionId).sort((a: any, b: any) => a.number - b.number); }
-  async updateLearningRecord(id: number, values: any) { const r = this.learningRecords.find(r => r.id === id); if (r) { if (values.status !== undefined) r.status = values.status; if (values.supersededBy !== undefined) r.supersededBy = values.supersededBy; } }
+  async createLearningRecord(v: { missionId: number; number: number; title: string; markdownContent: string; status?: string; supersededBy?: number | null }) { const r = { id: this.id(), ...v, status: v.status ?? "active", supersededBy: v.supersededBy ?? null, createdAt: new Date().toISOString() } as LearningRecordRow; this.learningRecords.push(r); return r; }
+  async listLearningRecords(missionId: number) { return this.learningRecords.filter(r => r.missionId === missionId).sort((a: LearningRecordRow, b: LearningRecordRow) => a.number - b.number); }
+  async updateLearningRecord(id: number, values: { status?: string; supersededBy?: number | null }) { const r = this.learningRecords.find(r => r.id === id); if (r) { if (values.status !== undefined) r.status = values.status as any; if (values.supersededBy !== undefined) r.supersededBy = values.supersededBy; } }
   async getLearningRecordCount(missionId: number) { return this.learningRecords.filter(r => r.missionId === missionId).length; }
 }
 
 export class InMemoryUserStore implements UserStore {
-  private users: any[] = [];
+  private users: UserRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
 
   async getUser(id: number) { return this.users.find(u => u.id === id); }
   async getUserByEmail(email: string) { return this.users.find(u => u.email === email); }
-  async createUser(v: any) { const u = { id: this.id(), name: v.name ?? "", ...v, createdAt: new Date().toISOString() }; this.users.push(u); return u; }
-  async updateUser(id: number, values: any) { const u = this.users.find(u => u.id === id); if (u) { if (values.name !== undefined) u.name = values.name; if (values.email !== undefined) u.email = values.email; if (values.passwordHash !== undefined) u.passwordHash = values.passwordHash; } }
+  async createUser(v: { email: string; passwordHash: string; name?: string }) { const u = { id: this.id(), name: v.name ?? "", ...v, createdAt: new Date().toISOString() } as UserRow; this.users.push(u); return u; }
+  async updateUser(id: number, values: { name?: string; email?: string; passwordHash?: string }) { const u = this.users.find(u => u.id === id); if (u) { if (values.name !== undefined) u.name = values.name; if (values.email !== undefined) u.email = values.email; if (values.passwordHash !== undefined) u.passwordHash = values.passwordHash; } }
 }
 
 // ── Composite in-memory store for tests that need the full ToolStore surface ──
@@ -634,16 +634,16 @@ export class InMemoryToolStore implements MissionStore, LessonStore, ChatStore, 
   private _lr = new InMemoryLearningRecordStore();
 
   // MissionStore
-  createMission = (v: any) => this._m.createMission(v);
+  createMission = (v: { userId: number; title: string; slug: string; status?: string; onboardingMode?: string }) => this._m.createMission(v);
   getMission = (id: number, userId: number) => this._m.getMission(id, userId);
-  listMissions = (userId: number, opts?: any) => this._m.listMissions(userId, opts);
+  listMissions = (userId: number, opts?: { status?: string; limit?: number }) => this._m.listMissions(userId, opts);
   updateMissionTitle = (id: number, title: string) => this._m.updateMissionTitle(id, title);
   updateMissionOnboardingMode = (id: number, mode: "guided" | "chat") => this._m.updateMissionOnboardingMode(id, mode);
-  updateMissionStatus = (id: number, status: any) => this._m.updateMissionStatus(id, status);
+  updateMissionStatus = (id: number, status: "onboarding" | "active" | "archived") => this._m.updateMissionStatus(id, status);
   deleteMission = (id: number) => this._m.deleteMission(id);
 
   // LessonStore
-  createLesson = (v: any) => this._l.createLesson(v);
+  createLesson = (v: { missionId: number; number: number; title: string; slug: string; htmlContent: string; status?: string; parentLessonId?: number; subNumber?: number }) => this._l.createLesson(v);
   getLesson = (missionId: number, number: number, subNumber?: number | null) => this._l.getLesson(missionId, number, subNumber);
   getLatestLesson = (missionId: number) => this._l.getLatestLesson(missionId);
   listLessons = (missionId: number) => this._l.listLessons(missionId);
@@ -660,31 +660,31 @@ export class InMemoryToolStore implements MissionStore, LessonStore, ChatStore, 
   updateLessonContent = (missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string) => this._l.updateLessonContent(missionId, number, subNumber, title, slug, htmlContent);
 
   // ChatStore
-  saveChatMessage = (v: any) => this._c.saveChatMessage(v);
+  saveChatMessage = (v: { missionId: number; role: "user" | "assistant"; content: string }) => this._c.saveChatMessage(v);
   getChatMessages = (missionId: number) => this._c.getChatMessages(missionId);
-  createGuidedQuestion = (v: any) => this._c.createGuidedQuestion(v);
+  createGuidedQuestion = (v: { missionId: number; question: string; options: string }) => this._c.createGuidedQuestion(v);
   getPendingQuestion = (missionId: number) => this._c.getPendingQuestion(missionId);
   answerQuestion = (id: number, answer: string, answerText?: string | null) => this._c.answerQuestion(id, answer, answerText);
   skipPendingQuestions = (missionId: number) => this._c.skipPendingQuestions(missionId);
 
   // ContentStore
   getMissionContent = (missionId: number, contentType: string) => this._ct.getMissionContent(missionId, contentType);
-  upsertMissionContent = (v: any) => this._ct.upsertMissionContent(v);
+  upsertMissionContent = (v: { missionId: number; contentType: string; markdownContent: string }) => this._ct.upsertMissionContent(v);
 
   // RefDocStore
-  createReferenceDoc = (v: any) => this._r.createReferenceDoc(v);
+  createReferenceDoc = (v: { missionId: number; title: string; slug: string; htmlContent: string; docType: string }) => this._r.createReferenceDoc(v);
   getReferenceDoc = (id: number, missionId: number) => this._r.getReferenceDoc(id, missionId);
   listReferenceDocs = (missionId: number) => this._r.listReferenceDocs(missionId);
 
   // LearningRecordStore
-  createLearningRecord = (v: any) => this._lr.createLearningRecord(v);
+  createLearningRecord = (v: { missionId: number; number: number; title: string; markdownContent: string; status?: string; supersededBy?: number | null }) => this._lr.createLearningRecord(v);
   listLearningRecords = (missionId: number) => this._lr.listLearningRecords(missionId);
-  updateLearningRecord = (id: number, values: any) => this._lr.updateLearningRecord(id, values);
+  updateLearningRecord = (id: number, values: { status?: string; supersededBy?: number | null }) => this._lr.updateLearningRecord(id, values);
   getLearningRecordCount = (missionId: number) => this._lr.getLearningRecordCount(missionId);
 }
 
 export class InMemorySessionStore implements SessionStore {
-  private sessions: any[] = [];
+  private sessions: SessionRow[] = [];
   private nextId = 1;
 
   private id() { return this.nextId++; }
