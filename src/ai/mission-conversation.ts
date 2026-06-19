@@ -49,7 +49,7 @@ export function createMissionConversation(
       const messages = await loadMessages(store, missionId);
 
       // 3. Build the system prompt based on mission status
-      const systemPrompt = buildSystemPrompt(missionStatus, onboardingMode);
+      const systemPrompt = await buildSystemPrompt(missionStatus, onboardingMode, store, missionId);
 
       // 4. Run the conversation loop
       let didActivate = false;
@@ -88,10 +88,12 @@ export function createMissionConversation(
 
 // ── Internal helpers ──
 
-function buildSystemPrompt(
+async function buildSystemPrompt(
   missionStatus: string,
-  onboardingMode?: string
-): string {
+  onboardingMode?: string,
+  store?: MissionStore,
+  missionId?: number
+): Promise<string> {
   if (missionStatus === "onboarding") {
     const mode = onboardingMode || "guided";
     const modeInstructions =
@@ -100,7 +102,18 @@ function buildSystemPrompt(
         : `\n\n## Chat Onboarding Mode\n\nThe user has chosen free-form chat onboarding. Have a natural conversation to understand their learning goals. When you have enough information, write MISSION.md and NOTES.md, call mark_mission_active, AND create the first lesson — all in the same response.`;
     return TEACHER_SYSTEM_PROMPT + modeInstructions;
   }
-  return TEACHER_SYSTEM_PROMPT;
+
+  let prompt = TEACHER_SYSTEM_PROMPT;
+
+  // Inject mission content so the AI always sees current goals without an extra tool-call round-trip
+  if (store && missionId) {
+    const content = await store.getMissionContent(missionId, "mission");
+    if (content?.markdownContent) {
+      prompt += `\n\nCurrent mission goals:\n${content.markdownContent}`;
+    }
+  }
+
+  return prompt;
 }
 
 async function generateMissionTitle(

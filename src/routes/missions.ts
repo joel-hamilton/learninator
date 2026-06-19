@@ -688,7 +688,22 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   if (!mission) return c.text("Not found", 404);
 
   const mode = (mission as Record<string, unknown>).onboardingMode as string || "guided";
-  const systemPrompt = getOnboardingPrompt(missionId, mode);
+  let systemPrompt: string;
+  if (mission.status === "onboarding") {
+    systemPrompt = getOnboardingPrompt(missionId, mode);
+  } else {
+    // Active or archived mission — inject mission content so AI sees current goals
+    systemPrompt = TEACHER_SYSTEM_PROMPT + `
+The current mission ID is ${missionId}.
+Mission title: ${mission.title}
+Mission status: ${mission.status}
+
+Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
+    const storedContent = await store.getMissionContent(missionId, "mission");
+    if (storedContent?.markdownContent) {
+      systemPrompt += `\n\nCurrent mission goals:\n${storedContent.markdownContent}`;
+    }
+  }
 
   await saveMessage(store, missionId, "user", message);
   const messages = await loadMessages(store, missionId);
