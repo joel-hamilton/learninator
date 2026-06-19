@@ -6,6 +6,8 @@ import * as schema from "../db/schema.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
 import { DrizzleMissionStore } from "../db/store.js";
+import { createEventBus } from "../ai/events.js";
+import type { EventBus } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
 import type { AiClient, AiMessage } from "../ai/types.js";
 import { createLogger } from "../logger.js";
@@ -13,6 +15,7 @@ import { createLogger } from "../logger.js";
 // ── Helpers ──
 
 const logger = createLogger("test");
+const testEvents = createEventBus();
 
 /** An AI client that always throws an error. */
 class ThrowingAiClient implements AiClient {
@@ -187,7 +190,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -230,7 +234,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -268,7 +273,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -309,7 +315,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -339,7 +346,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: new FakeAiClient([]),
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -369,7 +377,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -401,7 +410,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -439,7 +449,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -486,7 +497,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -503,5 +515,215 @@ describe("LessonGenerator", () => {
 
       expect(key1).toBe(key2);
     });
+  });
+});
+
+// ── Tests with DrizzleMissionStore (in-memory SQLite) ──
+
+describe("LessonGenerator with DrizzleMissionStore", () => {
+  let db: ReturnType<typeof createTestDb>;
+  let store: DrizzleMissionStore;
+  let bus: EventBus;
+  let generator: LessonGenerator;
+
+  beforeEach(async () => {
+    db = createTestDb();
+    store = new DrizzleMissionStore(db);
+    bus = createEventBus();
+    generator = new LessonGenerator({
+      ai: new FakeAiClient([]),
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+  });
+
+  /** Wait for the microtask queue to drain so the job IIFE can complete. */
+  async function drainMicrotasks() {
+    await new Promise((r) => setTimeout(r, 10));
+  }
+
+  /** Poll until the job is done, then consume it and verify not_found. */
+  async function consumeJob(key: string) {
+    await drainMicrotasks();
+    const first = generator.getJobStatus(key);
+    expect(first.status).toBe("done");
+    expect(generator.getJobStatus(key).status).toBe("not_found");
+  }
+
+  /** Poll until the job is in error, then consume it and verify not_found. */
+  async function consumeErrorJob(key: string) {
+    await drainMicrotasks();
+    const first = generator.getJobStatus(key);
+    if (first.status === "not_found") return;
+    expect(first.status).toBe("error");
+    expect(generator.getJobStatus(key).status).toBe("not_found");
+  }
+
+  it("generates a next lesson and completes with DrizzleMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_lesson", {
+        title: "Second Lesson",
+        slug: "second-lesson",
+        html_content: "<p>Second</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    generator = new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("next-1-1-m");
+    // Should be running immediately after creation
+    expect(generator.getJobStatus(key).status).toBe("running");
+    await consumeJob(key);
+  });
+
+  it("deduplicates with DrizzleMissionStore", () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_lesson", {
+        title: "Second", slug: "second", html_content: "<p>Second</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    generator = new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key1 = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+    const key2 = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key1).toBe(key2);
+  });
+
+  it("returns error status when AI fails with DrizzleMissionStore", async () => {
+    generator = new LessonGenerator({
+      ai: new ThrowingAiClient(),
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    await consumeErrorJob(key);
+  });
+
+  it("generates a sub-lesson with DrizzleMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_sub_lesson", {
+        parent_lesson_number: 1,
+        title: "Deeper Dive",
+        slug: "deeper-dive",
+        html_content: "<p>Deeper</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    generator = new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key = generator.generateSubLesson(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("sub-1-1-m");
+    await consumeJob(key);
+  });
+
+  it("generates a regenerate with DrizzleMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("regenerate_lesson", {
+        number: 1,
+        title: "First Lesson (easier)",
+        slug: "first-lesson-easier",
+        html_content: "<p>Easier</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    generator = new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key = generator.generateRegenerate(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+      "easier",
+    );
+
+    expect(key).toBe("regenerate-1-1-m");
+    await consumeJob(key);
+  });
+
+  it("generates a bridging sub-lesson with DrizzleMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_sub_lesson", {
+        parent_lesson_number: 1,
+        title: "Bridging",
+        slug: "bridging",
+        html_content: "<p>Bridge</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    generator = new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+
+    const key = generator.generateBridging(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("bridge-1-1-m");
+    await consumeJob(key);
   });
 });

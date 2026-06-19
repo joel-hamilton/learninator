@@ -2,10 +2,9 @@ import { conversationLoop } from "../ai/conversation.js";
 import type { ConversationLoopParams } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS, getRegenerateSystemPrompt, getBridgingSystemPrompt } from "../ai/teacher.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
-import { emit } from "../ai/events.js";
-import { eq, and, isNull, desc } from "drizzle-orm";
-import * as schema from "../db/schema.js";
 import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/types.js";
+import type { MissionStore, LessonStore } from "../db/store.js";
+import type { EventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 
 // ── Public types ──
@@ -16,10 +15,11 @@ export type JobStatus =
   | { status: "error"; error: string }
   | { status: "not_found" };
 
-export interface Deps {
+export interface GeneratorDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
-  db: any;
+  store: MissionStore & LessonStore;
+  events: EventBus;
   logger: Logger;
 }
 
@@ -36,6 +36,12 @@ interface InternalJob {
   error: string | null;
 }
 
+type FindResultFn = () => Promise<{
+  lessonNumber: number;
+  lessonSubNumber: number | null;
+  lessonTitle: string;
+} | null>;
+
 // ── Key helpers ──
 
 export function buildJobKey(
@@ -51,9 +57,9 @@ export function buildJobKey(
 
 export class LessonGenerator {
   private jobs = new Map<string, InternalJob>();
-  private deps: Deps;
+  private deps: GeneratorDeps;
 
-  constructor(deps: Deps) {
+  constructor(deps: GeneratorDeps) {
     this.deps = deps;
   }
 
@@ -70,80 +76,52 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "next");
     if (this.jobs.has(key)) return key;
 
-    const job: InternalJob = {
-      status: "running",
-      messages: ["Starting…"],
-      result: null,
-      error: null,
-    };
-    this.jobs.set(key, job);
+    const displayNum = this.formatLessonNumber(
+      lesson.number,
+      lesson.subNumber,
+    );
+    let userMessage = `The user just completed Lesson ${displayNum}: "${lesson.title}". Please create the next logical lesson.`;
+    if (opts?.feedback) {
+      userMessage += `\n\nThe user gave this feedback on the lesson: ${opts.feedback}`;
+    }
+    if (opts?.notes) {
+      userMessage += `\n\nThe user requested the next lesson cover: ${opts.notes}`;
+    }
+    userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Create the next main lesson using create_lesson. Do NOT use create_sub_lesson.`;
 
-    const { db, logger } = this.deps;
+    const systemPrompt =
+      TEACHER_SYSTEM_PROMPT +
+      [
+        "",
+        `The current mission ID is ${missionId}.`,
+        `Mission title: ${mission.title}`,
+        `Mission status: ${mission.status}`,
+        "",
+        `You are creating the next main lesson after Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what's been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. ALWAYS use create_lesson for a NEW main lesson. Do NOT use create_sub_lesson — this action is reserved for "Dive Deeper".`,
+      ].join("\n");
 
-    (async () => {
-      try {
-        const displayNum = this.formatLessonNumber(
-          lesson.number,
-          lesson.subNumber,
-        );
-        let userMessage = `The user just completed Lesson ${displayNum}: "${lesson.title}". Please create the next logical lesson.`;
-        if (opts?.feedback) {
-          userMessage += `\n\nThe user gave this feedback on the lesson: ${opts.feedback}`;
-        }
-        if (opts?.notes) {
-          userMessage += `\n\nThe user requested the next lesson cover: ${opts.notes}`;
-        }
-        userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Create the next main lesson using create_lesson. Do NOT use create_sub_lesson.`;
-
-        const systemPrompt =
-          TEACHER_SYSTEM_PROMPT +
-          [
-            "",
-            `The current mission ID is ${missionId}.`,
-            `Mission title: ${mission.title}`,
-            `Mission status: ${mission.status}`,
-            "",
-            `You are creating the next main lesson after Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what's been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. ALWAYS use create_lesson for a NEW main lesson. Do NOT use create_sub_lesson — this action is reserved for "Dive Deeper".`,
-          ].join("\n");
-
-        await this.runConversation(missionId, job, systemPrompt, [
-          { role: "user" as const, content: userMessage },
-        ]);
-
-        // Find the most recently created lesson for this mission
-        const [latestLesson] = await db
-          .select({
-            id: schema.lessons.id,
-            number: schema.lessons.number,
-            subNumber: schema.lessons.subNumber,
-            title: schema.lessons.title,
-          })
-          .from(schema.lessons)
-          .where(eq(schema.lessons.missionId, missionId))
-          .orderBy(desc(schema.lessons.id))
-          .limit(1);
-
+    this.runGenerationJob(
+      key,
+      missionId,
+      systemPrompt,
+      [{ role: "user" as const, content: userMessage }],
+      async () => {
+        const latest = await this.deps.store.getLatestLesson(missionId);
         if (
-          latestLesson &&
-          (latestLesson.number !== lesson.number ||
-            latestLesson.subNumber !== lesson.subNumber)
+          latest &&
+          (latest.number !== lesson.number ||
+            latest.subNumber !== lesson.subNumber)
         ) {
-          job.result = {
-            lessonNumber: latestLesson.number,
-            lessonSubNumber: latestLesson.subNumber,
-            lessonTitle: latestLesson.title,
+          return {
+            lessonNumber: latest.number,
+            lessonSubNumber: latest.subNumber,
+            lessonTitle: latest.title,
           };
         }
-        job.status = "done";
-      } catch (err: unknown) {
-        job.status = "error";
-        job.error =
-          err instanceof Error ? err.message : "Something went wrong.";
-        logger.error("generate-next failed:", job.error);
-      } finally {
-        setTimeout(() => this.jobs.delete(key), 60_000);
-      }
-    })();
+        return null;
+      },
+      "generate-next",
+    );
 
     return key;
   }
@@ -160,72 +138,45 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "sub");
     if (this.jobs.has(key)) return key;
 
-    const job: InternalJob = {
-      status: "running",
-      messages: ["Starting…"],
-      result: null,
-      error: null,
-    };
-    this.jobs.set(key, job);
+    const displayNum = this.formatLessonNumber(
+      lesson.number,
+      lesson.subNumber,
+    );
+    const userMessage = `The user wants to go deeper on Lesson ${displayNum}: "${lesson.title}". Please create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${lesson.number}.`;
 
-    const { db, logger } = this.deps;
+    const systemPrompt =
+      TEACHER_SYSTEM_PROMPT +
+      [
+        "",
+        `The current mission ID is ${missionId}.`,
+        `Mission title: ${mission.title}`,
+        `Mission status: ${mission.status}`,
+        "",
+        `You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what has been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. Use create_sub_lesson.`,
+      ].join("\n");
 
-    (async () => {
-      try {
-        const displayNum = this.formatLessonNumber(
-          lesson.number,
-          lesson.subNumber,
-        );
-        const userMessage = `The user wants to go deeper on Lesson ${displayNum}: "${lesson.title}". Please create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${lesson.number}.`;
-
-        const systemPrompt =
-          TEACHER_SYSTEM_PROMPT +
-          [
-            "",
-            `The current mission ID is ${missionId}.`,
-            `Mission title: ${mission.title}`,
-            `Mission status: ${mission.status}`,
-            "",
-            `You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what has been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. Use create_sub_lesson.`,
-          ].join("\n");
-
-        await this.runConversation(missionId, job, systemPrompt, [
-          { role: "user" as const, content: userMessage },
-        ]);
-
-        const [latestLesson] = await db
-          .select({
-            id: schema.lessons.id,
-            number: schema.lessons.number,
-            subNumber: schema.lessons.subNumber,
-            title: schema.lessons.title,
-          })
-          .from(schema.lessons)
-          .where(eq(schema.lessons.missionId, missionId))
-          .orderBy(desc(schema.lessons.id))
-          .limit(1);
-
+    this.runGenerationJob(
+      key,
+      missionId,
+      systemPrompt,
+      [{ role: "user" as const, content: userMessage }],
+      async () => {
+        const latest = await this.deps.store.getLatestLesson(missionId);
         if (
-          latestLesson &&
-          (latestLesson.number !== lesson.number ||
-            latestLesson.subNumber !== lesson.subNumber)
+          latest &&
+          (latest.number !== lesson.number ||
+            latest.subNumber !== lesson.subNumber)
         ) {
-          job.result = {
-            lessonNumber: latestLesson.number,
-            lessonSubNumber: latestLesson.subNumber,
-            lessonTitle: latestLesson.title,
+          return {
+            lessonNumber: latest.number,
+            lessonSubNumber: latest.subNumber,
+            lessonTitle: latest.title,
           };
         }
-        job.status = "done";
-      } catch (err: unknown) {
-        job.status = "error";
-        job.error =
-          err instanceof Error ? err.message : "Something went wrong.";
-        logger.error("generate-sub-lesson failed:", job.error);
-      } finally {
-        setTimeout(() => this.jobs.delete(key), 60_000);
-      }
-    })();
+        return null;
+      },
+      "generate-sub-lesson",
+    );
 
     return key;
   }
@@ -242,70 +193,39 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "regenerate");
     if (this.jobs.has(key)) return key;
 
-    const job: InternalJob = {
-      status: "running",
-      messages: ["Starting…"],
-      result: null,
-      error: null,
-    };
-    this.jobs.set(key, job);
+    const systemPrompt = getRegenerateSystemPrompt({
+      missionId,
+      missionTitle: mission.title,
+      lessonNumber: lesson.number,
+      lessonTitle: lesson.title,
+      direction,
+    });
 
-    const { db, logger } = this.deps;
+    const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
+    const userMessage = `Please regenerate Lesson ${displayNum}: "${lesson.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, check feedback history, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
 
-    (async () => {
-      try {
-        const systemPrompt = getRegenerateSystemPrompt({
+    this.runGenerationJob(
+      key,
+      missionId,
+      systemPrompt,
+      [{ role: "user" as const, content: userMessage }],
+      async () => {
+        const found = await this.deps.store.getLesson(
           missionId,
-          missionTitle: mission.title,
-          lessonNumber: lesson.number,
-          lessonTitle: lesson.title,
-          direction,
-        });
-
-        const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
-        const userMessage = `Please regenerate Lesson ${displayNum}: "${lesson.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, check feedback history, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
-
-        await this.runConversation(missionId, job, systemPrompt, [
-          { role: "user" as const, content: userMessage },
-        ]);
-
-        // Lesson was regenerated in-place — reference it by number
-        const conditions = [
-          eq(schema.lessons.missionId, missionId),
-          eq(schema.lessons.number, lesson.number),
-        ];
-        if (lesson.subNumber !== null) {
-          conditions.push(eq(schema.lessons.subNumber, lesson.subNumber));
-        } else {
-          conditions.push(isNull(schema.lessons.parentLessonId));
-        }
-
-        const [found] = await db
-          .select({
-            number: schema.lessons.number,
-            subNumber: schema.lessons.subNumber,
-            title: schema.lessons.title,
-          })
-          .from(schema.lessons)
-          .where(and(...conditions))
-          .limit(1);
-
+          lesson.number,
+          lesson.subNumber,
+        );
         if (found) {
-          job.result = {
+          return {
             lessonNumber: found.number,
             lessonSubNumber: found.subNumber,
             lessonTitle: found.title,
           };
         }
-        job.status = "done";
-      } catch (err: unknown) {
-        job.status = "error";
-        job.error = err instanceof Error ? err.message : "Something went wrong.";
-        logger.error("regenerate failed:", job.error);
-      } finally {
-        setTimeout(() => this.jobs.delete(key), 60_000);
-      }
-    })();
+        return null;
+      },
+      "regenerate",
+    );
 
     return key;
   }
@@ -321,63 +241,38 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "bridge");
     if (this.jobs.has(key)) return key;
 
-    const job: InternalJob = {
-      status: "running",
-      messages: ["Starting…"],
-      result: null,
-      error: null,
-    };
-    this.jobs.set(key, job);
+    const systemPrompt = getBridgingSystemPrompt({
+      missionId,
+      missionTitle: mission.title,
+      lessonNumber: lesson.number,
+      lessonTitle: lesson.title,
+    });
 
-    const { db, logger } = this.deps;
+    const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
+    const messages = [{ role: "user" as const, content: `Create a bridging sub-lesson for Lesson ${displayNum}: "${lesson.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.` }];
 
-    (async () => {
-      try {
-        const systemPrompt = getBridgingSystemPrompt({
-          missionId,
-          missionTitle: mission.title,
-          lessonNumber: lesson.number,
-          lessonTitle: lesson.title,
-        });
-
-        const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
-        const messages = [{ role: "user" as const, content: `Create a bridging sub-lesson for Lesson ${displayNum}: "${lesson.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.` }];
-
-        await this.runConversation(missionId, job, systemPrompt, messages);
-
-        // Find the newly created sub-lesson
-        const [latestLesson] = await db
-          .select({
-            id: schema.lessons.id,
-            number: schema.lessons.number,
-            subNumber: schema.lessons.subNumber,
-            title: schema.lessons.title,
-          })
-          .from(schema.lessons)
-          .where(eq(schema.lessons.missionId, missionId))
-          .orderBy(desc(schema.lessons.id))
-          .limit(1);
-
+    this.runGenerationJob(
+      key,
+      missionId,
+      systemPrompt,
+      messages,
+      async () => {
+        const latest = await this.deps.store.getLatestLesson(missionId);
         if (
-          latestLesson &&
-          (latestLesson.number !== lesson.number ||
-            latestLesson.subNumber !== lesson.subNumber)
+          latest &&
+          (latest.number !== lesson.number ||
+            latest.subNumber !== lesson.subNumber)
         ) {
-          job.result = {
-            lessonNumber: latestLesson.number,
-            lessonSubNumber: latestLesson.subNumber,
-            lessonTitle: latestLesson.title,
+          return {
+            lessonNumber: latest.number,
+            lessonSubNumber: latest.subNumber,
+            lessonTitle: latest.title,
           };
         }
-        job.status = "done";
-      } catch (err: unknown) {
-        job.status = "error";
-        job.error = err instanceof Error ? err.message : "Something went wrong.";
-        logger.error("generate-bridging failed:", job.error);
-      } finally {
-        setTimeout(() => this.jobs.delete(key), 60_000);
-      }
-    })();
+        return null;
+      },
+      "generate-bridging",
+    );
 
     return key;
   }
@@ -414,6 +309,45 @@ export class LessonGenerator {
   // ── Private ──
 
   /**
+   * Shared async job lifecycle: dedup is handled by callers.
+   * Encapsulates job creation, conversation loop, result-finding,
+   * error handling, and 60-second cleanup.
+   */
+  private runGenerationJob(
+    key: string,
+    missionId: number,
+    systemPrompt: string,
+    initialMessages: AiMessageParam[],
+    findResult: FindResultFn,
+    errorLabel: string,
+  ): void {
+    const job: InternalJob = {
+      status: "running",
+      messages: ["Starting…"],
+      result: null,
+      error: null,
+    };
+    this.jobs.set(key, job);
+
+    const { logger } = this.deps;
+
+    (async () => {
+      try {
+        await this.runConversation(missionId, job, systemPrompt, initialMessages);
+        job.result = await findResult();
+        job.status = "done";
+      } catch (err: unknown) {
+        job.status = "error";
+        job.error =
+          err instanceof Error ? err.message : "Something went wrong.";
+        logger.error(`${errorLabel} failed:`, job.error);
+      } finally {
+        setTimeout(() => this.jobs.delete(key), 60_000);
+      }
+    })();
+  }
+
+  /**
    * Common conversation loop with hooks that update job messages and emit events.
    */
   private async runConversation(
@@ -422,7 +356,7 @@ export class LessonGenerator {
     systemPrompt: string,
     initialMessages: AiMessageParam[],
   ): Promise<void> {
-    const { ai, toolExecutor } = this.deps;
+    const { ai, toolExecutor, events } = this.deps;
     let pendingToolNames: string[] = [];
 
     await conversationLoop({
@@ -445,10 +379,10 @@ export class LessonGenerator {
               TOOL_DISPLAY_NAMES[block.name] || block.name,
             );
           }
-          emit(missionId, { type: "tool_start", names: pendingToolNames });
+          events.emit(missionId, { type: "tool_start", names: pendingToolNames });
         },
         onAfterToolExecution: async (_results) => {
-          emit(missionId, { type: "tool_end", names: pendingToolNames });
+          events.emit(missionId, { type: "tool_end", names: pendingToolNames });
         },
         onTruncated: async () => {
           job.messages.push("Response was cut short…");
@@ -496,6 +430,6 @@ export class LessonGenerator {
   }
 }
 
-export function createLessonGenerator(deps: Deps): LessonGenerator {
+export function createLessonGenerator(deps: GeneratorDeps): LessonGenerator {
   return new LessonGenerator(deps);
 }

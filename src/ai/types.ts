@@ -73,10 +73,12 @@ export interface AiClient {
   ): Promise<AiMessage>
 }
 
-import type { DrizzleMissionStore } from "../db/store.js";
+import type { MissionStore, LessonStore, ChatStore, ContentStore, RefDocStore, LearningRecordStore } from "../db/store.js";
+
+export type ToolStore = MissionStore & LessonStore & ChatStore & ContentStore & RefDocStore & LearningRecordStore;
 
 export interface ToolHandlerContext {
-  store: DrizzleMissionStore
+  store: ToolStore
   missionId: number
   input: Record<string, unknown>
 }
