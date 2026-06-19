@@ -1,15 +1,7 @@
 import { HTMX_HEAD, HTMX_LOADING_BAR, svgIcon } from "./shared.js";
 import { lessonActionBar, completedLessonBar, siteWideIndicator } from "./fragments.js";
 import { ssePollerScript } from "../shared/sse-poller.js";
-
-function formatLessonNumber(num: number, sub: number | null): string {
-  const base = String(num).padStart(4, "0");
-  return sub !== null ? `${base}.${sub}` : base;
-}
-
-function lessonIdStr(number: number, subNumber: number | null): string {
-  return subNumber !== null ? `${number}.${subNumber}` : `${number}`;
-}
+import { formatLessonNumber, lessonIdStr } from "../shared/lesson-numbers.js";
 
 export function lessonPage(params: {
   missionId: number;

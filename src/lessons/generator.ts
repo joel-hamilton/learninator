@@ -10,6 +10,7 @@ import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/index.js";
 import type { MissionStore, LessonStore } from "../db/store.js";
 import type { EventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";
+import { formatLessonNumber } from "../shared/lesson-numbers.js";
 
 // ── Public types ──
 
@@ -80,7 +81,7 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "next");
     if (this.jobs.has(key)) return key;
 
-    const displayNum = this.formatLessonNumber(
+    const displayNum = formatLessonNumber(
       lesson.number,
       lesson.subNumber,
     );
@@ -142,7 +143,7 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, "sub");
     if (this.jobs.has(key)) return key;
 
-    const displayNum = this.formatLessonNumber(
+    const displayNum = formatLessonNumber(
       lesson.number,
       lesson.subNumber,
     );
@@ -205,7 +206,7 @@ export class LessonGenerator {
       direction,
     });
 
-    const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
+    const displayNum = formatLessonNumber(lesson.number, lesson.subNumber);
     const userMessage = `Please regenerate Lesson ${displayNum}: "${lesson.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, check feedback history, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
 
     this.runGenerationJob(
@@ -252,7 +253,7 @@ export class LessonGenerator {
       lessonTitle: lesson.title,
     });
 
-    const displayNum = this.formatLessonNumber(lesson.number, lesson.subNumber);
+    const displayNum = formatLessonNumber(lesson.number, lesson.subNumber);
     const messages = [{ role: "user" as const, content: `Create a bridging sub-lesson for Lesson ${displayNum}: "${lesson.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.` }];
 
     this.runGenerationJob(
@@ -393,14 +394,6 @@ export class LessonGenerator {
         },
       },
     });
-  }
-
-  private formatLessonNumber(
-    number: number,
-    subNumber: number | null,
-  ): string {
-    const base = String(number).padStart(4, "0");
-    return subNumber !== null ? `${base}.${subNumber}` : base;
   }
 
   private toolLabel(
