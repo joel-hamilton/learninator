@@ -71,7 +71,7 @@
 - [X] T010 [US2] Add `min-width: 0` to `.msg-row` in `src/views/shared.ts` to prevent flex items from ignoring `max-width: 88%`
 - [X] T011 [P] [US2] Add `max-width: 100%` to `.markdown-body table`, `.markdown-body img`, `.markdown-body pre` within `.msg` context in `src/views/shared.ts` to prevent wide tables/code/images from overflowing message bubbles
 - [X] T012 [P] [US2] Add `overflow-x: auto` to `.chat-panel-messages` in `src/views/lesson.ts` as a safety net for the chat panel container
-- [X] T013 [P] [US2] Add `overflow-wrap: break-word` to `#chat-messages` in mission chat and onboarding chat styles in `src/views/mission.ts` and `src/views/onboarding.ts`
+- [ ] T013 [P] [US2] Add `overflow-wrap: break-word` to `#chat-messages` in mission chat and onboarding chat styles in `src/views/mission.ts` and `src/views/onboarding.ts` (PARTIAL: mission.ts and free-form onboarding done; `guidedOnboardingLayout` in onboarding.ts line 128 still missing `overflow-wrap: break-word; word-break: break-word`)
 
 **Checkpoint**: Long unbroken strings wrap within message bubbles; no horizontal scrollbar on any page at ≥375px.
 

@@ -30,9 +30,9 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T001 Inject LessonGenerator into app context in `src/index.ts` — create `LessonGenerator` instance from `{ ai: resolvedAi, toolExecutor: createToolExecutor(store), db: resolvedDb, logger: createLogger("generator") }`, set on context via `c.set("lessonGenerator", generator)`
-- [ ] T002 Add `lessonGenerator` to `AppVariables` type in `src/types.ts` — import `LessonGenerator` from `lessons/generator.js`, add `lessonGenerator: LessonGenerator` to the interface
-- [ ] T003 Remove unused `completeBar()` function from `src/views/fragments.ts` (lines 81-97) — it's dead code, never imported
+- [x] T001 Inject LessonGenerator into app context in `src/index.ts` — create `LessonGenerator` instance from `{ ai: resolvedAi, toolExecutor: createToolExecutor(store), db: resolvedDb, logger: createLogger("generator") }`, set on context via `c.set("lessonGenerator", generator)`
+- [x] T002 Add `lessonGenerator` to `AppVariables` type in `src/types.ts` — import `LessonGenerator` from `lessons/generator.js`, add `lessonGenerator: LessonGenerator` to the interface
+- [x] T003 Remove unused `completeBar()` function from `src/views/fragments.ts` (lines 81-97) — it's dead code, never imported
 
 **Checkpoint**: `LessonGenerator` is available via `c.get("lessonGenerator")` in all route handlers. No visible behavior change yet.
 
@@ -52,14 +52,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Create `postCompletionBar()` function in `src/views/fragments.ts` — renders "What's next?" heading, "Continue Learning" button (POST to `/generate-next`), "Dive Deeper" button (POST to `/generate-sub-lesson`), "Explore Something New" link (GET to browse), and "Mark Incomplete" button. Replace the body of `completedLessonBar()` with this new content.
-- [ ] T008 [US1] Update `/complete` route handler in `src/routes/lessons.ts` (line 119-136) — switch response from `completedLessonBar()` to `postCompletionBar()` (or keep calling `completedLessonBar` with the updated implementation from T007)
-- [ ] T009 [US1] Refactor `generate-next` route handler in `src/routes/lessons.ts` (lines 178-293) to use `LessonGenerator.generateNext()` from context instead of inline job tracking — remove the local `GenerationJob` type and `generationJobs` Map from this handler
-- [ ] T010 [US1] Change the `generate-next` system prompt in `src/lessons/generator.ts` (lines 89-106) to ALWAYS instruct `create_lesson` — remove the "Decide whether... create_lesson or create_sub_lesson" language and replace with "Create the next main lesson using create_lesson. Do NOT use create_sub_lesson."
-- [ ] T011 [US1] Refactor `generate-sub-lesson` route handler in `src/routes/lessons.ts` (lines 321-440) to use `LessonGenerator.generateSubLesson()` from context instead of inline job tracking
-- [ ] T012 [US1] Add "Explore Something New" link to the post-completion bar in `src/views/fragments.ts` — link to `/missions/:missionId/browse` (the existing browse flow)
-- [ ] T013 [US1] Update `generate-next/status` route handler in `src/routes/lessons.ts` (lines 295-317) to use `LessonGenerator.getJobStatus()` with the key from `buildJobKey(missionId, number, subNumber, "next")`
-- [ ] T014 [US1] Update `generate-sub-lesson/status` route handler in `src/routes/lessons.ts` (lines 418-440) to use `LessonGenerator.getJobStatus()` with the key from `buildJobKey(missionId, number, subNumber, "sub")`
+- [x] T007 [US1] Create `postCompletionBar()` function in `src/views/fragments.ts` — renders "What's next?" heading, "Continue Learning" button (POST to `/generate-next`), "Dive Deeper" button (POST to `/generate-sub-lesson`), "Explore Something New" link (GET to browse), and "Mark Incomplete" button. Replace the body of `completedLessonBar()` with this new content.
+- [x] T008 [US1] Update `/complete` route handler in `src/routes/lessons.ts` (line 119-136) — switch response from `completedLessonBar()` to `postCompletionBar()` (or keep calling `completedLessonBar` with the updated implementation from T007)
+- [x] T009 [US1] Refactor `generate-next` route handler in `src/routes/lessons.ts` (lines 178-293) to use `LessonGenerator.generateNext()` from context instead of inline job tracking — remove the local `GenerationJob` type and `generationJobs` Map from this handler
+- [x] T010 [US1] Change the `generate-next` system prompt in `src/lessons/generator.ts` (lines 89-106) to ALWAYS instruct `create_lesson` — remove the "Decide whether... create_lesson or create_sub_lesson" language and replace with "Create the next main lesson using create_lesson. Do NOT use create_sub_lesson."
+- [x] T011 [US1] Refactor `generate-sub-lesson` route handler in `src/routes/lessons.ts` (lines 321-440) to use `LessonGenerator.generateSubLesson()` from context instead of inline job tracking
+- [x] T012 [US1] Add "Explore Something New" link to the post-completion bar in `src/views/fragments.ts` — link to `/missions/:missionId/browse` (the existing browse flow)
+- [x] T013 [US1] Update `generate-next/status` route handler in `src/routes/lessons.ts` (lines 295-317) to use `LessonGenerator.getJobStatus()` with the key from `buildJobKey(missionId, number, subNumber, "next")`
+- [x] T014 [US1] Update `generate-sub-lesson/status` route handler in `src/routes/lessons.ts` (lines 418-440) to use `LessonGenerator.getJobStatus()` with the key from `buildJobKey(missionId, number, subNumber, "sub")`
 
 **Checkpoint**: Post-completion navigation works end-to-end. Continue Learning always creates main lessons. Dive Deeper always creates sub-lessons. Explore Something New links to browse.
 
@@ -80,13 +80,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Redesign `lessonActionBar()` in `src/views/fragments.ts` (lines 26-49) — remove "New Lesson" and "More on This" buttons, keep only the 3 rating buttons and a prominent "Mark Complete" button. Remove emoji from rating button labels.
-- [ ] T020 [US2] Add POST `/regenerate` route handler in `src/routes/lessons.ts` — parse `direction` from body, validate it's "harder" or "easier", call `lessonGenerator.generateRegenerate()`, return `regenerationPollingBar()`
-- [ ] T021 [US2] Add GET `/regenerate/status` route handler in `src/routes/lessons.ts` — poll `lessonGenerator.getJobStatus()` with regenerate key, return appropriate polling/done/error bar
-- [ ] T022 [US2] Add POST `/generate-bridging` route handler in `src/routes/lessons.ts` — call `lessonGenerator.generateBridging()`, return `bridgingPollingBar()`
-- [ ] T023 [US2] Add GET `/generate-bridging/status` route handler in `src/routes/lessons.ts` — poll `lessonGenerator.getJobStatus()` with bridge key, return appropriate polling/done/error bar
-- [ ] T024 [US2] Update `/feedback` route handler in `src/routes/lessons.ts` (lines 80-99) — keep the same logic but ensure the response `feedbackThanksBar()` links to the new working regenerate/bridging endpoints
-- [ ] T025 [US2] Update `feedbackThanksBar()` in `src/views/fragments.ts` (lines 51-79) — point "Make Harder"/"Make Easier" buttons at `/regenerate` and "Bridge First" at `/generate-bridging` (these are already correctly targeted — verify no changes needed)
+- [x] T019 [US2] Redesign `lessonActionBar()` in `src/views/fragments.ts` (lines 26-49) — remove "New Lesson" and "More on This" buttons, keep only the 3 rating buttons and a prominent "Mark Complete" button. Remove emoji from rating button labels.
+- [x] T020 [US2] Add POST `/regenerate` route handler in `src/routes/lessons.ts` — parse `direction` from body, validate it's "harder" or "easier", call `lessonGenerator.generateRegenerate()`, return `regenerationPollingBar()`
+- [x] T021 [US2] Add GET `/regenerate/status` route handler in `src/routes/lessons.ts` — poll `lessonGenerator.getJobStatus()` with regenerate key, return appropriate polling/done/error bar
+- [x] T022 [US2] Add POST `/generate-bridging` route handler in `src/routes/lessons.ts` — call `lessonGenerator.generateBridging()`, return `bridgingPollingBar()`
+- [x] T023 [US2] Add GET `/generate-bridging/status` route handler in `src/routes/lessons.ts` — poll `lessonGenerator.getJobStatus()` with bridge key, return appropriate polling/done/error bar
+- [x] T024 [US2] Update `/feedback` route handler in `src/routes/lessons.ts` (lines 80-99) — keep the same logic but ensure the response `feedbackThanksBar()` links to the new working regenerate/bridging endpoints
+- [x] T025 [US2] Update `feedbackThanksBar()` in `src/views/fragments.ts` (lines 51-79) — point "Make Harder"/"Make Easier" buttons at `/regenerate` and "Bridge First" at `/generate-bridging` (these are already correctly targeted — verify no changes needed)
 
 **Checkpoint**: All adjustment buttons work. Regenerate replaces lesson content in-place. Bridging creates a sub-lesson with prerequisite content. No dead buttons remain in any state.
 
@@ -105,9 +105,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Update `generate-next` system prompt in `src/lessons/generator.ts` to emphasize feedback-driven calibration — ensure the prompt instructs the AI to call `list_feedback_history` before creating content and to adjust difficulty based on patterns (already partially done in the existing text, verify and strengthen)
-- [ ] T029 [US3] Update `generate-sub-lesson` system prompt in `src/lessons/generator.ts` to include the same feedback calibration instruction as generate-next
-- [ ] T030 [US3] Update `generateRegenerate` system prompt in `src/lessons/generator.ts` to pass the student's full feedback history context (it already calls `list_feedback_history` via the system prompt from `getRegenerateSystemPrompt()` — verify it's wired correctly)
+- [x] T028 [US3] Update `generate-next` system prompt in `src/lessons/generator.ts` to emphasize feedback-driven calibration — ensure the prompt instructs the AI to call `list_feedback_history` before creating content and to adjust difficulty based on patterns (already partially done in the existing text, verify and strengthen)
+- [x] T029 [US3] Update `generate-sub-lesson` system prompt in `src/lessons/generator.ts` to include the same feedback calibration instruction as generate-next
+- [x] T030 [US3] Update `generateRegenerate` system prompt in `src/lessons/generator.ts` to pass the student's full feedback history context (it already calls `list_feedback_history` via the system prompt from `getRegenerateSystemPrompt()` — verify it's wired correctly)
 
 **Checkpoint**: AI consistently reads feedback history and calibrates lesson difficulty. The calibration happens automatically without the student needing to repeat preferences.
 
@@ -117,8 +117,8 @@
 
 **Purpose**: Clean up remaining issues, remove the inline job tracking completely, final validation.
 
-- [ ] T031 Remove the module-level `generationJobs` Map and `GenerationJob` type from `src/routes/lessons.ts` (lines 163-176) once all route handlers have been migrated to `LessonGenerator`
-- [ ] T032 [P] Remove unused imports from `src/routes/lessons.ts` — `generationPollingBar`, `generationRunningBar`, `generationDoneBar`, `generationErrorBar`, `generationMissingBar` may no longer be directly used if all polling goes through LessonGenerator (verify each is still needed)
+- [x] T031 Remove the module-level `generationJobs` Map and `GenerationJob` type from `src/routes/lessons.ts` (lines 163-176) once all route handlers have been migrated to `LessonGenerator`
+- [x] T032 [P] Remove unused imports from `src/routes/lessons.ts` — `generationPollingBar`, `generationRunningBar`, `generationDoneBar`, `generationErrorBar`, `generationMissingBar` may no longer be directly used if all polling goes through LessonGenerator (verify each is still needed)
 - [ ] T033 Run full test suite with `npm test` and fix any regressions
 - [ ] T034 Run quickstart validation scenarios from `specs/008-post-lesson-navigation/quickstart.md` manually against the running dev server
 
@@ -229,7 +229,7 @@ Execute sequentially: Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6. W
 
 ## Notes
 
-- [P] tasks = different files, no dependencies on incomplete tasks
+- [P] tasks = different files, no dependencies on other incomplete tasks
 - [Story] label maps task to specific user story for traceability
 - Each user story should be independently completable and testable
 - The `LessonGenerator` class already has all four generation methods (`generateNext`, `generateSubLesson`, `generateRegenerate`, `generateBridging`) and `getJobStatus()` — tasks are about wiring, not rewriting

@@ -34,7 +34,7 @@ mission content via `write_mission_content`, confirming the change in its reply.
 more on practical examples"; verify the AI calls `write_mission_content` and
 confirms the update in its text reply.
 
-- [ ] T004 [US2] Verify in src/ai/teacher.ts that the `write_mission_content` tool description makes clear the AI should use it for user-driven goal changes during chat (read-only review; no code change unless the wording is unclear)
+- [x] T004 [US2] Verify in src/ai/teacher.ts that the `write_mission_content` tool description makes clear the AI should use it for user-driven goal changes during chat (read-only review; no code change unless the wording is unclear)
 - [ ] T005 [US2] Add a test in src/test/chat.test.ts: POST a chat message requesting a goal change to /missions/:id/chat (active mission). Queue a `FakeAiClient` sequence of `toolUseResponse("write_mission_content", { content_type: "mission", markdown_content: "..." })` followed by `textResponse("Updated your mission to focus on practical examples.")`. Assert (a) the response HTML contains the confirmation text, (b) `store.getMissionContent(missionId, "mission")` returns the new markdown
 - [ ] T006 [P] [US2] Add a test in src/test/chat.test.ts asserting that a normal learning question (no goal-change intent) does NOT cause `write_mission_content` to be called — queue only a `textResponse`, send the message, assert the stored mission_content row is unchanged
 
