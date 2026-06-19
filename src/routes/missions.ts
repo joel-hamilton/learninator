@@ -10,7 +10,8 @@ import {
 } from "../ai/index.js";
 import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/index.js";
 import type { AppVariables } from "../types.js";
-import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";import { formatMarkdown } from "../shared/markdown.js";
+import { saveMessage, loadMessages } from "../ai/persistence.js";import { contentToText } from "../views/shared.js";
+import { formatMarkdown } from "../shared/markdown.js";
 import { generateSlug } from "../shared/slug.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, onboardingLayout, newMissionPage } from "../views/onboarding.js";

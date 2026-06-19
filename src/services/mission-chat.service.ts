@@ -5,7 +5,7 @@ import type { WorkflowStateManager } from "../ai/workflow-state.js";
 import type { MissionStore, ChatStore, ContentStore } from "../db/store.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { saveMessage, loadMessages } from "../shared/messages.js";
+import { saveMessage, loadMessages } from "../ai/persistence.js";
 import { AIError } from "../ai/errors.js";
 
 // ── Types ─────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ import type {
 import type { Logger } from "../logger.js";
 import type { EventBus } from "./events.js";
 import type { ChatStore } from "../db/store.js";
-import { saveMessage } from "../shared/messages.js";
+import { saveMessage } from "./persistence.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
 export interface ConversationHooks {

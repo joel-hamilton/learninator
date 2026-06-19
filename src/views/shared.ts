@@ -742,6 +742,26 @@ export function userInitial(user: { name?: string | null; email: string }): stri
   return user.email.charAt(0).toUpperCase();
 }
 
+/**
+ * Convert a stored chat message content string to plain display text.
+ * Handles JSON-stringified content blocks, extracting only text-type blocks.
+ */
+export function contentToText(content: string): string {
+  try {
+    const parsed = JSON.parse(content);
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((b: { type: string }) => b.type === "text")
+        .map((b: { text: string }) => b.text)
+        .join("\n");
+    }
+    return String(parsed);
+  } catch {
+    return content;
+  }
+}
+
 /** User dropdown menu for the header. */
 export function userMenu(user: { name?: string | null; email: string }): string {
   const initial = userInitial(user);

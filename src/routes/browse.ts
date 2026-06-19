@@ -8,7 +8,7 @@ import { browsePage, browseOptionsFragment, refreshOptionsFragment, optionsOnly,
 import { createTopicExplorer, type TopicExplorer } from "../browse/explorer.js";
 import { generateSlug } from "../shared/slug.js";
 import { AIError } from "../ai/errors.js";
-import { saveMessage } from "../shared/messages.js";
+import { saveMessage } from "../ai/persistence.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 

@@ -1,6 +1,6 @@
-import { eq, asc } from "drizzle-orm";
-import type { AiMessageParam } from "../ai/index.js";
+import type { AiMessageParam } from "./types.js";
 import type { ChatStore } from "../db/store.js";
+
 export async function saveMessage(store: ChatStore, missionId: number, role: "user" | "assistant", content: unknown) {
   await store.saveChatMessage({
     missionId,
@@ -52,20 +52,4 @@ export async function loadMessages(store: ChatStore, missionId: number): Promise
   }
 
   return messages;
-}
-
-export function contentToText(content: string): string {
-  try {
-    const parsed = JSON.parse(content);
-    if (typeof parsed === "string") return parsed;
-    if (Array.isArray(parsed)) {
-      return parsed
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
-        .join("\n");
-    }
-    return String(parsed);
-  } catch {
-    return content;
-  }
 }
