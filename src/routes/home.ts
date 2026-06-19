@@ -6,9 +6,91 @@ import type { AppVariables } from "../types.js";
 import type { User } from "../types.js";
 import { layout } from "../views/home.js";
 import { svgIcon } from "../views/shared.js";
+import type { MissionStore, MissionRow } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const homeRoutes = new Hono<{ Variables: AppVariables }>();
+
+// ── Shared card render helpers ──────────────────────────────────────────
+
+function getStatusBadge(status: string): string {
+  if (status === "onboarding") return '<span class="badge badge-in-progress">Setting up</span>';
+  if (status === "active") return '<span class="badge badge-active">Active</span>';
+  return '<span class="badge badge-default">Archived</span>';
+}
+
+function renderActiveCard(m: MissionRow): string {
+  const title = m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const updated = new Date(m.updatedAt).toLocaleDateString();
+  return `<div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
+    <div class="info">
+      <h3>${title}</h3>
+      <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${updated}</div>
+    </div>
+    <div class="actions" onclick="event.stopPropagation()">
+      <form hx-post="/missions/${m.id}/archive" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+        <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
+      </form>
+    </div>
+  </div>`;
+}
+
+function renderArchivedCard(m: MissionRow): string {
+  const title = m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const updated = new Date(m.updatedAt).toLocaleDateString();
+  return `<div class="mission-card mission-card--archived" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
+    <div class="info">
+      <h3>${title}</h3>
+      <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${updated}</div>
+    </div>
+    <div class="actions" onclick="event.stopPropagation()">
+      <form hx-post="/missions/${m.id}/restore" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+        <button type="submit" class="btn btn-ghost btn-sm">${svgIcon("rotateCcw")} Restore</button>
+      </form>
+      <form hx-post="/missions/${m.id}/delete" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
+        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
+      </form>
+    </div>
+  </div>`;
+}
+
+// ── Section rendering ───────────────────────────────────────────────────
+
+export function renderMissionSections(missions: MissionRow[]): { activeSectionHtml: string; archivedSectionHtml: string } {
+  const active = missions.filter(m => m.status !== "archived");
+  const archived = missions.filter(m => m.status === "archived");
+
+  const activeCards = active.map(renderActiveCard).join("");
+  const archivedCards = archived.map(renderArchivedCard).join("");
+
+  const activeSectionHtml = `<div id="active-section">
+    <div class="section-label">Missions</div>
+    <div class="mission-list stagger">
+      ${activeCards || '<p style="color:var(--text-muted);padding:1rem 0;">No active missions. Start one above!</p>'}
+    </div>
+  </div>`;
+
+  const archivedSectionHtml = archived.length > 0
+    ? `<div id="archived-section">
+        <details class="archived-section">
+          <summary>${svgIcon("chevronDown", "chevron")}<span class="section-label" style="margin:0;cursor:pointer">Archived (${archived.length})</span></summary>
+          <div class="mission-list stagger">${archivedCards}</div>
+        </details>
+      </div>`
+    : `<div id="archived-section"></div>`;
+
+  return { activeSectionHtml, archivedSectionHtml };
+}
+
+export async function renderOobSections(store: MissionStore, userId: number): Promise<string> {
+  const missions = await store.listMissions(userId);
+  const { activeSectionHtml, archivedSectionHtml } = renderMissionSections(missions);
+
+  return activeSectionHtml.replace('<div id="active-section"', '<div id="active-section" hx-swap-oob="innerHTML:#active-section"')
+    + archivedSectionHtml.replace('<div id="archived-section"', '<div id="archived-section" hx-swap-oob="innerHTML:#archived-section"');
+}
+
+// ── Home page ──
 
 homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -41,53 +123,7 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
     `));
   }
 
-  const active = missionRows.filter(m => m.status !== "archived");
-  const archived = missionRows.filter(m => m.status === "archived");
-
-  const getStatusBadge = (status: string): string => {
-    if (status === "onboarding") return '<span class="badge badge-in-progress">Setting up</span>';
-    if (status === "active") return '<span class="badge badge-active">Active</span>';
-    return '<span class="badge badge-default">Archived</span>';
-  };
-
-  const renderActiveCard = (m: typeof missionRows[number]) => `
-    <div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
-      <div class="info">
-        <h3>${m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h3>
-        <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
-      </div>
-      <div class="actions" onclick="event.stopPropagation()">
-        <form hx-post="/missions/${m.id}/archive" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
-          <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
-        </form>
-      </div>
-    </div>
-  `;
-
-  const renderArchivedCard = (m: typeof missionRows[number]) => `
-    <div class="mission-card mission-card--archived" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
-      <div class="info">
-        <h3>${m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</h3>
-        <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
-      </div>
-      <div class="actions" onclick="event.stopPropagation()">
-        <form hx-post="/missions/${m.id}/restore" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
-          <button type="submit" class="btn btn-ghost btn-sm">${svgIcon("rotateCcw")} Restore</button>
-        </form>
-        <form hx-post="/missions/${m.id}/delete" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
-          <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
-        </form>
-      </div>
-    </div>
-  `;
-
-  const activeCards = active.map(renderActiveCard).join("");
-  const archivedCards = archived.map(renderArchivedCard).join("");
-
-  const archivedSection = archived.length > 0 ? `
-    <div class="section-label" style="margin-top:2.5rem;">Archived</div>
-    <div class="mission-list stagger">${archivedCards}</div>
-  ` : "";
+  const { activeSectionHtml, archivedSectionHtml } = renderMissionSections(missionRows);
 
   return c.html(layout(user, `
     <div class="welcome">
@@ -98,11 +134,8 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
       <a href="/missions/new">${svgIcon("plus")} Start a new mission</a>
       <a href="/browse" class="btn btn-secondary btn-sm">🧭 Browse topics</a>
     </div>
-    <div class="section-label">Missions</div>
-    <div class="mission-list stagger">
-      ${activeCards || '<p style="color:var(--text-muted);padding:1rem 0;">No active missions. Start one above!</p>'}
-    </div>
-    ${archivedSection}
+    ${activeSectionHtml}
+    ${archivedSectionHtml}
   `));
 });
 

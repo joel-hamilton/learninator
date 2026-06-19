@@ -27,7 +27,7 @@
 
 **Purpose**: Verify current state and prepare for changes
 
-- [ ] T001 Verify existing archive/restore/delete behavior in browser and review current test coverage in `src/test/missions.test.ts`
+- [x] T001 Verify existing archive/restore/delete behavior in browser and review current test coverage in `src/test/missions.test.ts`
 
 ---
 
@@ -37,8 +37,8 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Extract mission card render functions (`renderActiveCard`, `renderArchivedCard`) and section assembly logic into a reusable helper in `src/routes/home.ts` — export `renderMissionSections(userId, store)` that returns `{ activeSectionHtml, archivedSectionHtml }` and add persistent `id="active-section"` and `id="archived-section"` containers (always rendered, even when empty)
-- [ ] T003 Add `<details>` wrapper around the archived section in `src/routes/home.ts` with a `<summary>` header showing "Archived (N)" count, closed by default (no `open` attribute)
+- [x] T002 Extract mission card render functions (`renderActiveCard`, `renderArchivedCard`) and section assembly logic into a reusable helper in `src/routes/home.ts` — export `renderMissionSections(userId, store)` that returns `{ activeSectionHtml, archivedSectionHtml }` and add persistent `id="active-section"` and `id="archived-section"` containers (always rendered, even when empty)
+- [x] T003 Add `<details>` wrapper around the archived section in `src/routes/home.ts` with a `<summary>` header showing "Archived (N)" count, closed by default (no `open` attribute)
 
 **Checkpoint**: Home page renders with stable `#active-section` and `#archived-section` containers. Archived section is wrapped in a collapsed `<details>` element. All existing tests pass.
 
@@ -52,11 +52,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Create a shared section-render helper `renderOobSections(userId, store)` in `src/routes/home.ts` that queries missions, renders both `#active-section` and `#archived-section` divs with `hx-swap-oob="innerHTML:#active-section"` and `hx-swap-oob="innerHTML:#archived-section"` attributes, handling the empty state for each
-- [ ] T005 [US1] Modify archive endpoint POST `/missions/:missionId/archive` in `src/routes/missions.ts` to call `renderOobSections()` after `updateMissionStatus()` and return the OOB HTML instead of empty string
-- [ ] T006 [US1] Modify restore endpoint POST `/missions/:missionId/restore` in `src/routes/missions.ts` to call `renderOobSections()` after `updateMissionStatus()` and return the OOB HTML instead of empty string
-- [ ] T007 [US1] Modify delete endpoint POST `/missions/:missionId/delete` in `src/routes/missions.ts` to call `renderOobSections()` after `deleteMission()` and return the OOB HTML instead of empty string
-- [ ] T008 [US1] Add/update tests in `src/test/missions.test.ts` for archive returning OOB swaps that populate `#archived-section`, restore returning OOB swaps for both sections, delete returning updated `#archived-section`, and edge cases (first archive, last restore, last delete)
+- [x] T004 [US1] Create a shared section-render helper `renderOobSections(userId, store)` in `src/routes/home.ts` that queries missions, renders both `#active-section` and `#archived-section` divs with `hx-swap-oob="innerHTML:#active-section"` and `hx-swap-oob="innerHTML:#archived-section"` attributes, handling the empty state for each
+- [x] T005 [US1] Modify archive endpoint POST `/missions/:missionId/archive` in `src/routes/missions.ts` to call `renderOobSections()` after `updateMissionStatus()` and return the OOB HTML instead of empty string
+- [x] T006 [US1] Modify restore endpoint POST `/missions/:missionId/restore` in `src/routes/missions.ts` to call `renderOobSections()` after `updateMissionStatus()` and return the OOB HTML instead of empty string
+- [x] T007 [US1] Modify delete endpoint POST `/missions/:missionId/delete` in `src/routes/missions.ts` to call `renderOobSections()` after `deleteMission()` and return the OOB HTML instead of empty string
+- [x] T008 [US1] Add/update tests in `src/test/missions.test.ts` for archive returning OOB swaps that populate `#archived-section`, restore returning OOB swaps for both sections, delete returning updated `#archived-section`, and edge cases (first archive, last restore, last delete)
 
 **Checkpoint**: Archive, restore, and delete all update both sections immediately. All tests pass.
 
@@ -70,10 +70,10 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Add CSS in `src/views/home.ts` for the `<details>` archived section: hide default disclosure triangle (`list-style: none`, `::-webkit-details-marker`), style the `<summary>` as a clickable header matching `.section-label` design, add chevron rotation transition on `[open]`
-- [ ] T010 [US2] Verify chevron icon exists in `src/views/shared.ts` (check for `chevronDown` or similar); add if missing
-- [ ] T011 [US2] Ensure the archived section count label in `<summary>` stays correct after OOB swaps — the count must reflect the actual number of archived missions after each archive/restore/delete operation
-- [ ] T012 [US2] Add/update tests in `src/test/missions.test.ts` to verify the `<details>` element is present (without `open` attribute) in the home page response when archived missions exist, and absent or empty `#archived-section` when none exist
+- [x] T009 [US2] Add CSS in `src/views/home.ts` for the `<details>` archived section: hide default disclosure triangle (`list-style: none`, `::-webkit-details-marker`), style the `<summary>` as a clickable header matching `.section-label` design, add chevron rotation transition on `[open]`
+- [x] T010 [US2] Verify chevron icon exists in `src/views/shared.ts` (check for `chevronDown` or similar); add if missing
+- [x] T011 [US2] Ensure the archived section count label in `<summary>` stays correct after OOB swaps — the count must reflect the actual number of archived missions after each archive/restore/delete operation
+- [x] T012 [US2] Add/update tests in `src/test/missions.test.ts` to verify the `<details>` element is present (without `open` attribute) in the home page response when archived missions exist, and absent or empty `#archived-section` when none exist
 
 **Checkpoint**: Archived section is collapsed by default, expands/collapses on click, count stays accurate across archive/restore/delete operations.
 
@@ -83,9 +83,9 @@
 
 **Purpose**: Final validation and cleanup
 
-- [ ] T013 Run `quickstart.md` validation scenarios manually
-- [ ] T014 [P] Run full test suite `npm test` and fix any regressions
-- [ ] T015 [P] Review error handling: verify 404/400 responses from archive/restore/delete endpoints are still `c.text()` (not HTML) so HTMX doesn't swap on errors
+- [x] T013 Run `quickstart.md` validation scenarios manually
+- [x] T014 [P] Run full test suite `npm test` and fix any regressions
+- [x] T015 [P] Review error handling: verify 404/400 responses from archive/restore/delete endpoints are still `c.text()` (not HTML) so HTMX doesn't swap on errors
 
 ---
 

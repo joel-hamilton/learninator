@@ -113,6 +113,25 @@ ${HTMX_HEAD}
   .mission-card--archived { opacity: 0.65; }
   .mission-card--archived:hover { opacity: 0.85; }
   .mission-card .actions .btn-primary { font-weight: 600; }
+
+  /* ── Archived Section (details/summary) ── */
+  .archived-section summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+  }
+  .archived-section summary::-webkit-details-marker { display: none; }
+  .archived-section summary .chevron {
+    transition: transform 0.2s;
+    width: 1em;
+    height: 1em;
+  }
+  .archived-section[open] summary .chevron {
+    transform: rotate(180deg);
+  }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">

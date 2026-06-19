@@ -13,6 +13,7 @@ import { guidedOnboardingLayout, guidedQuestionSection, guidedThinkingSection, o
 import { chatMessageBubble, generationProgressPanel, emptyLessonsMessage, emptyReferencesMessage, emptyRecordsMessage, lessonCard, referenceDocCard, learningRecordCard } from "../views/fragments.js";
 import { validateChatMessage, validateTitle, validateTopic, validateGuidedAnswer, rateLimitedFragment } from "../security/index.js";
 import type { MissionStore } from "../db/store.js";
+import { renderOobSections } from "./home.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const missionRoutes = new Hono<{ Variables: AppVariables }>();
@@ -584,6 +585,8 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
   `, "resources", `/missions/${id}`, "Mission"));
 });
 
+import { renderOobSections } from "./home.js";
+
 // ── Archive ──
 missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -595,7 +598,7 @@ missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
   if (mission.status === "archived") return c.text("Already archived", 400);
 
   await store.updateMissionStatus(id, "archived");
-  return c.html("");
+  return c.html(await renderOobSections(store, user.id));
 });
 
 // ── Restore ──
@@ -609,7 +612,7 @@ missionRoutes.post("/:missionId/restore", auth.requireAuth, async (c: Ctx) => {
   if (mission.status !== "archived") return c.text("Not archived", 400);
 
   await store.updateMissionStatus(id, "active");
-  return c.html("");
+  return c.html(await renderOobSections(store, user.id));
 });
 
 // ── Delete (archived only) ──
@@ -623,7 +626,7 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   if (mission.status !== "archived") return c.text("Must be archived first", 400);
 
   await store.deleteMission(id);
-  return c.html("");
+  return c.html(await renderOobSections(store, user.id));
 });
 
 // ── Chat page (for active missions) ──
