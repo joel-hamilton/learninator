@@ -12,7 +12,6 @@ import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/index.js";
 import type { AppVariables } from "../types.js";
 import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";import { formatMarkdown } from "../shared/markdown.js";
 import { generateSlug } from "../shared/slug.js";
-import { formatAIError } from "../shared/errors.js";
 import { handleActivation } from "../shared/activate-mission.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { missionLayout } from "../views/mission.js";
@@ -340,7 +339,7 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let us continue.")));
   } catch (err: unknown) {
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(`<div class="msg assistant" style="color:#c00;"><strong>${msg}</strong></div>`);
   }
 });

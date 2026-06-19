@@ -7,7 +7,7 @@ import { layout } from "../views/home.js";
 import { browsePage, browseOptionsFragment, refreshOptionsFragment, optionsOnly, errorState, BROWSE_STYLES } from "../views/browse.js";
 import { createTopicExplorer, type TopicExplorer } from "../browse/explorer.js";
 import { generateSlug } from "../shared/slug.js";
-import { formatAIError } from "../shared/errors.js";
+import { AIError } from "../ai/errors.js";
 import { saveMessage } from "../shared/messages.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -88,7 +88,7 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
     return c.html(BROWSE_STYLES + browseOptionsFragment(result.options, result.path, result.iteration, result.isLastQuestion));
   } catch (err) {
     log.error("Browse select AI error:", err);
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(BROWSE_STYLES + errorState(msg));
   }
 });

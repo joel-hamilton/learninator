@@ -12,6 +12,21 @@ export class AIError extends Error {
     super(message)
     this.name = "AIError"
   }
+
+  /**
+   * Return a user-facing error message string.
+   * When `recoverable` is true, appends a retry hint.
+   * The `fallback` parameter is accepted for API consistency but is unused
+   * by this method -- callers perform the `instanceof` guard themselves
+   * and supply the fallback at the call site.
+   * Never throws.
+   */
+  toUserMessage(_fallback?: string): string {
+    if (this.recoverable) {
+      return this.message + " It may help to wait a moment and retry.";
+    }
+    return this.message;
+  }
 }
 
 export function wrapError(err: unknown): never {

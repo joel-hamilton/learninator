@@ -12,7 +12,6 @@ import { formatMarkdown } from "../shared/markdown.js";
 import { chatMessageBubble } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { validateChatMessage, rateLimitedFragment } from "../security/index.js";
-import { formatAIError } from "../shared/errors.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -55,7 +54,7 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     const text = result.text || "Done! Anything else you'd like to work on?";
     return c.html(chatMessageBubble("assistant", formatMarkdown(text), userInitial(user)));
   } catch (err: unknown) {
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(`<div class="msg assistant" style="color:var(--danger);"><strong>${msg}</strong></div>`);
   }
 });

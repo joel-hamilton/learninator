@@ -3,7 +3,7 @@ import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
 import { TEACHER_TOOLS } from "../ai/teacher.js";
-import { formatAIError } from "../shared/errors.js";
+import { AIError } from "../ai/errors.js";
 import { handleActivation } from "../shared/activate-mission.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { validateGuidedAnswer } from "../security/index.js";
@@ -49,7 +49,7 @@ onboardingRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ct
 
     return c.html(guidedThinkingSection(missionId));
   } catch (err: unknown) {
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${msg}</p></div></div>`);
   }
 });
@@ -103,7 +103,7 @@ onboardingRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: C
 
     return c.html(guidedThinkingSection(missionId));
   } catch (err: unknown) {
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(`<div id="question-section"><div class="question-card"><p style="color:#c00;">${msg}</p></div></div>`);
   }
 });

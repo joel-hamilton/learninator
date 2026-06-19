@@ -19,7 +19,6 @@ import {
 } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
-import { formatAIError } from "../shared/errors.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
 import { buildJobKey } from "../lessons/generator.js";
@@ -195,7 +194,7 @@ lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let me think about that…"), userInitial(user)));
   } catch (err: unknown) {
-    const msg = formatAIError(err);
+    const msg = err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again.";
     return c.html(`<div class="msg assistant" style="color:var(--danger);"><strong>${msg}</strong></div>`);
   }
 });
