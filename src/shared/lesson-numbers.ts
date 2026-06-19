@@ -13,3 +13,11 @@ export function formatLessonNumber(num: number, sub: number | null): string {
 export function lessonIdStr(number: number, subNumber: number | null): string {
   return subNumber !== null ? `${number}.${subNumber}` : `${number}`;
 }
+
+export function parseLessonParam(param: string): { number: number; subNumber: number | null } {
+  const parts = param.split(".");
+  return {
+    number: parseInt(parts[0], 10),
+    subNumber: parts.length > 1 ? parseInt(parts[1], 10) : null,
+  };
+}

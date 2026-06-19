@@ -19,6 +19,7 @@ import {
 } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
+import { parseLessonParam } from "../shared/lesson-numbers.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
 import { buildJobKey } from "../lessons/generator.js";
 import { lessonGenerationRoutes } from "./lesson-generation.js";
@@ -28,16 +29,6 @@ export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
 
 // ── Sub-routers ──────────────────────────────────────────────────────
 lessonRoutes.route("/", lessonGenerationRoutes);
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-function parseLessonParam(param: string): { number: number; subNumber: number | null } {
-  const parts = param.split(".");
-  return {
-    number: parseInt(parts[0], 10),
-    subNumber: parts.length > 1 ? parseInt(parts[1], 10) : null,
-  };
-}
 
 // ── GET lesson ──
 

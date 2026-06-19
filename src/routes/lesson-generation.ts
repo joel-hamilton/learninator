@@ -18,18 +18,11 @@ import {
   bridgingErrorBar,
 } from "../views/fragments.js";
 import { validateNotes, rateLimitedFragment } from "../security/index.js";
+import { parseLessonParam } from "../shared/lesson-numbers.js";
 import { buildJobKey } from "../lessons/generator.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonGenerationRoutes = new Hono<{ Variables: AppVariables }>();
-
-function parseLessonParam(param: string): { number: number; subNumber: number | null } {
-  const parts = param.split(".");
-  return {
-    number: parseInt(parts[0], 10),
-    subNumber: parts.length > 1 ? parseInt(parts[1], 10) : null,
-  };
-}
 
 function renderJobStatus(
   c: Ctx,

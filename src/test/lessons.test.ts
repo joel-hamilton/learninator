@@ -4,6 +4,37 @@ import { FakeAiClient } from "../ai/index.js";
 import * as schema from "../db/schema.js";
 import { createTestDb, createTestApp, seedUser, login, authedReq } from "./helpers.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { parseLessonParam } from "../shared/lesson-numbers.js";
+
+describe("parseLessonParam", () => {
+  it.each([
+    ["1",         1,   null],
+    ["1.2",       1,   2],
+    ["42",        42,  null],
+    ["42.7",      42,  7],
+    ["",          NaN, null],
+    [".",         NaN, NaN],
+    ["1.2.3",     1,   2],
+    ["abc",       NaN, null],
+    ["1.",        1,   NaN],
+    [".1",        NaN, 1],
+  ] as const)("parseLessonParam(%j) -> { number: %s, subNumber: %s }", (input, expectedNumber, expectedSub) => {
+    const result = parseLessonParam(input);
+    if (typeof expectedNumber === "number" && isNaN(expectedNumber)) {
+      expect(isNaN(result.number)).toBe(true);
+    } else {
+      expect(result.number).toBe(expectedNumber);
+    }
+    if (expectedSub === null) {
+      expect(result.subNumber).toBeNull();
+    } else if (typeof expectedSub === "number" && isNaN(expectedSub)) {
+      expect(result.subNumber).not.toBeNull();
+      expect(isNaN(result.subNumber!)).toBe(true);
+    } else {
+      expect(result.subNumber).toBe(expectedSub);
+    }
+  });
+});
 
 describe("lessons", () => {
   let db: BetterSQLite3Database<typeof schema>;
