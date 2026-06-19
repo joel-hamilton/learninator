@@ -13,6 +13,7 @@ import type { RateLimiter } from "./security/rate-limiter.js";
 import { db } from "./db/index.js";
 import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
+import { csrfMiddleware } from "./auth/csrf.js";
 import { createLessonGenerator } from "./lessons/generator.js";
 import { createMissionChatService } from "./services/mission-chat.service.js";
 import { homeRoutes } from "./routes/home.js";
@@ -88,6 +89,7 @@ export function createApp(opts?: {
   });
 
   app.use("*", auth.sessionMiddleware);
+  app.use("*", csrfMiddleware);
 
   // Profile report (authenticated; only active when PROFILE is enabled)
   app.get("/debug/profile", auth.requireAuth, async (c) => {

@@ -8,7 +8,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 describe("lessons", () => {
   let db: BetterSQLite3Database<typeof schema>;
   let app: ReturnType<typeof createTestApp>;
-  let cookie: string;
+  let lr: any;
   let missionId: number;
   let lessonId: number;
 
@@ -16,7 +16,7 @@ describe("lessons", () => {
     db = createTestDb();
     app = createTestApp(new FakeAiClient([]), db);
     await seedUser(db, "user@test.com", "password123");
-    cookie = await login(app, "user@test.com", "password123");
+    lr = await login(app, "user@test.com", "password123");
 
     const [mission] = await db
       .insert(schema.missions)
@@ -46,7 +46,7 @@ describe("lessons", () => {
   it("GET /missions/:id/lessons/1 shows lesson and marks in_progress", async () => {
     const res = await authedReq(
       app,
-      cookie,
+      lr,
       "GET",
       `/missions/${missionId}/lessons/1`,
     );
@@ -65,7 +65,7 @@ describe("lessons", () => {
   it("POST /missions/:id/lessons/1/complete marks lesson completed", async () => {
     const res = await authedReq(
       app,
-      cookie,
+      lr,
       "POST",
       `/missions/${missionId}/lessons/1/complete`,
     );
@@ -90,7 +90,7 @@ describe("lessons", () => {
 
     const res = await authedReq(
       app,
-      cookie,
+      lr,
       "POST",
       `/missions/${missionId}/lessons/1/incomplete`,
     );
@@ -107,7 +107,7 @@ describe("lessons", () => {
   it("POST /missions/:id/lessons/1/feedback saves rating", async () => {
     const res = await authedReq(
       app,
-      cookie,
+      lr,
       "POST",
       `/missions/${missionId}/lessons/1/feedback`,
       { rating: "just_right", feedbackText: "Great lesson!" },

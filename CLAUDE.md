@@ -162,10 +162,9 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/011-eliminate-duplicate-modules/plan.md
-Feature: Eliminate Duplicate Modules — resolve the dead/duplicate extraction problem
-where src/onboarding/index.ts and src/browse/explorer.ts were extracted as clean modules
-but route files retained inline copies. Implementation created MissionChatService as the
-canonical service, wired routes to TopicExplorer, deleted mission-conversation.ts and the
-dead onboarding module.
+Current plan: specs/018-harden-session-auth/plan.md
+Feature: Harden Session Auth — replace raw-user-ID cookies with server-side session
+tokens (UUID v4), add CSRF protection for all state-changing requests, rate-limit
+auth endpoints by IP, set Secure cookie flag conditionally on NODE_ENV, and add
+opportunistic expired-session cleanup.
 <!-- SPECKIT END -->

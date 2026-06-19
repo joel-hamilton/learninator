@@ -135,9 +135,9 @@ describe("Profile Report (US2)", () => {
     // Access profile store directly from the app's context isn't easy,
     // so verify via the report endpoint instead
     const user = await seedUser(db, "prof@test.com", "password123");
-    const cookie = await login(app, "prof@test.com", "password123");
+    const lr = await login(app, "prof@test.com", "password123");
 
-    const res = await authedReq(app, cookie, "GET", "/debug/profile");
+    const res = await authedReq(app, lr, "GET", "/debug/profile");
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("GET:");
@@ -152,9 +152,9 @@ describe("Profile Report (US2)", () => {
     const app = createApp({ ai: new FakeAiClient([]), db });
 
     const user = await seedUser(db, "prof2@test.com", "password123");
-    const cookie = await login(app, "prof2@test.com", "password123");
+    const lr = await login(app, "prof2@test.com", "password123");
 
-    const res = await authedReq(app, cookie, "GET", "/debug/profile");
+    const res = await authedReq(app, lr, "GET", "/debug/profile");
     // When PROFILE is off, the route doesn't exist → 404, or returns disabled message
     const valid = res.status === 404 || (res.status === 200 && (await res.text()).includes("disabled"));
     expect(valid).toBe(true);
@@ -179,9 +179,9 @@ describe("Profile Report (US2)", () => {
     await app.request("/missions");
 
     const user = await seedUser(db, "prof3@test.com", "password123");
-    const cookie = await login(app, "prof3@test.com", "password123");
+    const lr = await login(app, "prof3@test.com", "password123");
 
-    const res = await authedReq(app, cookie, "GET", "/debug/profile");
+    const res = await authedReq(app, lr, "GET", "/debug/profile");
     expect(res.status).toBe(200);
     const contentType = res.headers.get("Content-Type") || "";
     expect(contentType).toContain("text/html");

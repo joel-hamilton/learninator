@@ -8,7 +8,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 describe("chat", () => {
   let db: BetterSQLite3Database<typeof schema>;
   let app: ReturnType<typeof createTestApp>;
-  let cookie: string;
+  let lr: any;
   let missionId: number;
 
   beforeEach(async () => {
@@ -21,7 +21,7 @@ describe("chat", () => {
       new FakeAiClient([FakeAiClient.textResponse("Here is the answer.")]),
       db,
     );
-    cookie = await login(app, "user@test.com", "password123");
+    lr = await login(app, "user@test.com", "password123");
     const [mission] = await db
       .insert(schema.missions)
       .values({
@@ -42,7 +42,7 @@ describe("chat", () => {
     it("returns assistant reply and saves messages", async () => {
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "explain this" },
@@ -74,7 +74,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -88,7 +88,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "what lessons do I have?" },
@@ -112,7 +112,7 @@ describe("chat", () => {
         FakeAiClient.textResponse("Let's get started with Rust!"),
       ]);
       app = createTestApp(fakeAi, db);
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -135,7 +135,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "let's go" },
@@ -151,7 +151,7 @@ describe("chat", () => {
         FakeAiClient.textResponse("What would you like to learn?"),
       ]);
       app = createTestApp(fakeAi, db);
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -165,7 +165,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "hello" },
@@ -204,12 +204,12 @@ describe("chat", () => {
         new FakeAiClient([FakeAiClient.textResponse("ok")]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
 
       // User A tries to chat on user B's mission → 404
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionB.id}/chat`,
         { message: "gimme content" },
@@ -229,7 +229,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [missionA] = await db
         .insert(schema.missions)
         .values({
@@ -243,7 +243,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "update my goals" },
@@ -263,7 +263,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -277,7 +277,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "change my goals to focus on Rust" },
@@ -297,7 +297,7 @@ describe("chat", () => {
         FakeAiClient.textResponse("Sorry, I couldn't update the mission goals. The store seems unavailable."),
       ]);
       app = createTestApp(fakeAi, db);
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -320,7 +320,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "update my goals" },
@@ -344,7 +344,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -358,7 +358,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "make it better" },
@@ -379,7 +379,7 @@ describe("chat", () => {
         FakeAiClient.textResponse("I've set your mission goals. Let's get started!"),
       ]);
       app = createTestApp(fakeAi, db);
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -393,7 +393,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "set my goals to practical Rust exercises" },
@@ -419,7 +419,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -433,7 +433,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "make it harder but also easier" },
@@ -456,7 +456,7 @@ describe("chat", () => {
         ]),
         db,
       );
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
       const [mission] = await db
         .insert(schema.missions)
         .values({
@@ -471,7 +471,7 @@ describe("chat", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/chat`,
         { message: "teach me guitar" },

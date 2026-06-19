@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, isNull, count, max } from "drizzle-orm";
+import { eq, and, asc, desc, isNull, count, max, sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 
@@ -23,6 +23,7 @@ export type NewLearningRecord = typeof schema.learningRecords.$inferInsert;
 export type MissionContentRow = typeof schema.missionContent.$inferSelect;
 export type NewMissionContent = typeof schema.missionContent.$inferInsert;
 export type UserRow = typeof schema.users.$inferSelect;
+export type SessionRow = typeof schema.sessions.$inferSelect;
 
 // ── Focused store interfaces ───────────────────────────────────────────
 
@@ -99,9 +100,16 @@ export interface UserStore {
   updateUser(id: number, values: { name?: string; email?: string; passwordHash?: string }): Promise<void>;
 }
 
+export interface SessionStore {
+  createSession(values: { userId: number; token: string; csrfToken: string; expiresAt: string }): Promise<SessionRow>;
+  getSessionByToken(token: string): Promise<SessionRow | undefined>;
+  deleteSession(token: string): Promise<void>;
+  deleteExpiredSessions(): Promise<void>;
+}
+
 // ── Drizzle composite implementation ───────────────────────────────────
 
-export class DrizzleMissionStore implements MissionStore, LessonStore, ChatStore, ContentStore, RefDocStore, LearningRecordStore, UserStore {
+export class DrizzleMissionStore implements MissionStore, LessonStore, ChatStore, ContentStore, RefDocStore, LearningRecordStore, UserStore, SessionStore {
   constructor(private db: BetterSQLite3Database<typeof schema>) {}
 
   // Missions
@@ -482,6 +490,35 @@ export class DrizzleMissionStore implements MissionStore, LessonStore, ChatStore
       await this.db.update(schema.users).set(setData).where(eq(schema.users.id, id));
     }
   }
+
+  // Sessions
+  async createSession(values: { userId: number; token: string; csrfToken: string; expiresAt: string }) {
+    const [row] = await this.db.insert(schema.sessions).values({
+      userId: values.userId,
+      token: values.token,
+      csrfToken: values.csrfToken,
+      expiresAt: values.expiresAt,
+    }).returning();
+    return row;
+  }
+
+  async getSessionByToken(token: string) {
+    const [row] = await this.db.select().from(schema.sessions)
+      .where(eq(schema.sessions.token, token))
+      .limit(1);
+    return row;
+  }
+
+  async deleteSession(token: string) {
+    await this.db.delete(schema.sessions).where(eq(schema.sessions.token, token));
+  }
+
+  async deleteExpiredSessions() {
+    await this.db.delete(schema.sessions)
+      .where(/* expiresAt <= now */
+        sql`${schema.sessions.expiresAt} <= ${new Date().toISOString()}`
+      );
+  }
 }
 
 // ── In-memory stores for tests ─────────────────────────────────────────
@@ -583,4 +620,23 @@ export class InMemoryUserStore implements UserStore {
   async getUserByEmail(email: string) { return this.users.find(u => u.email === email); }
   async createUser(v: any) { const u = { id: this.id(), name: v.name ?? "", ...v, createdAt: new Date().toISOString() }; this.users.push(u); return u; }
   async updateUser(id: number, values: any) { const u = this.users.find(u => u.id === id); if (u) { if (values.name !== undefined) u.name = values.name; if (values.email !== undefined) u.email = values.email; if (values.passwordHash !== undefined) u.passwordHash = values.passwordHash; } }
+}
+
+export class InMemorySessionStore implements SessionStore {
+  private sessions: any[] = [];
+  private nextId = 1;
+
+  private id() { return this.nextId++; }
+
+  async createSession(v: { userId: number; token: string; csrfToken: string; expiresAt: string }) {
+    const s = { id: this.id(), userId: v.userId, token: v.token, csrfToken: v.csrfToken, expiresAt: v.expiresAt, createdAt: new Date().toISOString() };
+    this.sessions.push(s);
+    return s;
+  }
+  async getSessionByToken(token: string) { return this.sessions.find(s => s.token === token); }
+  async deleteSession(token: string) { this.sessions = this.sessions.filter(s => s.token !== token); }
+  async deleteExpiredSessions() {
+    const now = new Date().toISOString();
+    this.sessions = this.sessions.filter(s => s.expiresAt > now);
+  }
 }
