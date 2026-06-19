@@ -7,7 +7,7 @@ import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
 import { DrizzleMissionStore } from "../db/store.js";
 import { createEventBus } from "../ai/events.js";
-import type { EventBus } from "../ai/events.js";
+import type { EventBus, ToolEvent, WorkflowEvent } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
 import type { AiClient, AiMessage } from "../ai/types.js";
 import { createLogger } from "../logger.js";
@@ -516,7 +516,115 @@ describe("LessonGenerator", () => {
       expect(key1).toBe(key2);
     });
   });
+
+  describe("event emission", () => {
+    it("emits tool_start and tool_end events via the injected EventBus", async () => {
+      await db.insert(schema.lessons).values({
+        missionId: 1,
+        number: 1,
+        title: "First Lesson",
+        slug: "first-lesson",
+        htmlContent: "<p>First</p>",
+        status: "in_progress",
+      });
+
+      const client = new FakeAiClient([
+        FakeAiClient.toolUseResponse("list_feedback_history", {}),
+        FakeAiClient.toolUseResponse("create_lesson", {
+          title: "Second Lesson",
+          slug: "second-lesson",
+          html_content: "<p>Second</p>",
+        }),
+        FakeAiClient.textResponse("Done"),
+      ]);
+
+      const events = new FakeEventBus();
+
+      generator = new LessonGenerator({
+        ai: client,
+        toolExecutor: executor,
+        store: new DrizzleMissionStore(db),
+        logger,
+        events,
+      });
+
+      const key = generator.generateNext(
+        1,
+        { number: 1, subNumber: null, title: "First Lesson" },
+        { title: "Test Mission", status: "active" },
+      );
+
+      await pollUntilDone(generator, key);
+
+      const calls = events.emits;
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+
+      const startEvent = calls.find((c) => c.event.type === "tool_start");
+      const endEvent = calls.find((c) => c.event.type === "tool_end");
+      expect(startEvent).toBeDefined();
+      expect(endEvent).toBeDefined();
+      expect(startEvent!.missionId).toBe(1);
+      expect(endEvent!.missionId).toBe(1);
+      expect(startEvent!.event.names).toContain("Listing feedback");
+    });
+
+    it("does not throw when events dep is omitted", async () => {
+      await db.insert(schema.lessons).values({
+        missionId: 1,
+        number: 1,
+        title: "First Lesson",
+        slug: "first-lesson",
+        htmlContent: "<p>First</p>",
+        status: "in_progress",
+      });
+
+      const client = new FakeAiClient([
+        FakeAiClient.toolUseResponse("create_lesson", {
+          title: "Second Lesson",
+          slug: "second-lesson",
+          html_content: "<p>Second</p>",
+        }),
+        FakeAiClient.textResponse("Done!"),
+      ]);
+
+      // No events in deps — should not crash
+      generator = new LessonGenerator({
+        ai: client,
+        toolExecutor: executor,
+        store: new DrizzleMissionStore(db),
+        logger,
+      });
+
+      const key = generator.generateNext(
+        1,
+        { number: 1, subNumber: null, title: "First Lesson" },
+        { title: "Test Mission", status: "active" },
+      );
+
+      await pollUntilDone(generator, key);
+      expect(generator.getJobStatus(key).status).toBe("not_found");
+    });
+  });
 });
 
-// Note: DrizzleMissionStore tests for generator are covered by the main
-// LessonGenerator describe block above, which uses createTestDb().
+/** Simple spy implementing EventBus for tests. */
+class FakeEventBus implements EventBus {
+  emits: { missionId: number; event: ToolEvent }[] = [];
+  userEmits: { userId: number; event: WorkflowEvent }[] = [];
+
+  subscribe(_missionId: number, _cb: (event: ToolEvent) => void): () => void {
+    return () => {};
+  }
+
+  emit(missionId: number, event: ToolEvent): void {
+    this.emits.push({ missionId, event });
+  }
+
+  subscribeUser(_userId: number, _cb: (event: WorkflowEvent) => void): () => void {
+    return () => {};
+  }
+
+  emitUser(userId: number, event: WorkflowEvent): void {
+    this.userEmits.push({ userId, event });
+  }
+}

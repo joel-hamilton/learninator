@@ -81,10 +81,3 @@ export function createEventBus(): EventBus {
   return { subscribe, emit, subscribeUser, emitUser };
 }
 
-/** Default singleton event bus for backward compatibility during migration. */
-const defaultBus = createEventBus();
-
-export const subscribe = defaultBus.subscribe;
-export const emit = defaultBus.emit;
-export const subscribeUser = defaultBus.subscribeUser;
-export const emitUser = defaultBus.emitUser;

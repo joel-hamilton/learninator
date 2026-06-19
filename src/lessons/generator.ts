@@ -19,7 +19,7 @@ export interface GeneratorDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
   store: MissionStore & LessonStore;
-  events: EventBus;
+  events?: EventBus;
   logger: Logger;
 }
 
@@ -379,10 +379,10 @@ export class LessonGenerator {
               TOOL_DISPLAY_NAMES[block.name] || block.name,
             );
           }
-          events.emit(missionId, { type: "tool_start", names: pendingToolNames });
+          events?.emit(missionId, { type: "tool_start", names: pendingToolNames });
         },
         onAfterToolExecution: async (_results) => {
-          events.emit(missionId, { type: "tool_end", names: pendingToolNames });
+          events?.emit(missionId, { type: "tool_end", names: pendingToolNames });
         },
         onTruncated: async () => {
           job.messages.push("Response was cut short…");
