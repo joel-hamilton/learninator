@@ -1,71 +1,48 @@
 # Research: Eliminate Duplicate Modules
 
-## R1: Workflow/Event Hook Design for OnboardingModule
+**Date**: 2026-06-19 | **Plan**: [plan.md](./plan.md)
 
-**Decision**: Add optional `workflowState` and `events` fields to `OnboardingDeps`. The module's internal `runConversationLoop` checks for their presence before calling workflow methods.
+## R1: Current state — what's already been done
 
-**Rationale**: The route-inline `runConversationLoop` (missions.ts:81-134) calls `wfState.startWorkflow()`, `wfState.stepUpdate()`, `wfState.completeWorkflow()`, and `wfState.failWorkflow()`, plus `events.emit()` via `createStandardHooks`. The extracted module (onboarding/index.ts) already calls `createStandardHooks` with emit support — the missing piece is the workflow lifecycle. Adding optional deps preserves backward compatibility (tests don't need workflow state).
+**Decision**: The implementation on this branch has already resolved most of the duplication. A new `src/services/mission-chat.service.ts` was created as the canonical service for all mission chat and onboarding. Routes delegate to `missionChatService.run()` and `missionChatService.generateTitle()`. Browse routes already use `TopicExplorer` via `createTopicExplorer()`. The original third implementation (`src/ai/mission-conversation.ts`) is already deleted.
 
-**Alternatives considered**:
-- Callback/hook pattern: Would work but adds complexity. Optional DI is simpler and follows existing patterns.
-- Wrapping in the route: Would defeat the purpose of using the module — routes would still need duplicate logic.
-- Requiring workflowState always: Breaks the extracted module's testability — tests would need a fake workflow manager.
-
-## R2: contentToText vs extractText Resolution
-
-**Decision**: Replace the extracted module's `extractText` helper with the shared `contentToText` import from `src/shared/messages.ts`.
-
-**Rationale**: Both functions do the same thing (extract text from string or content block array). The route-inline `generateMissionTitle` already imports `contentToText` from `src/shared/messages.ts`. Using the shared version eliminates the duplicate and ensures consistent behavior.
-
-**Alternatives considered**: None — this is a straightforward dedup.
-
-## R3: Prompt Reconciliation Between Three Implementations
-
-**Decision**: Keep the onboarding module's prompt variant ("Do NOT create lessons during onboarding — wait until the mission is active") and discard `mission-conversation.ts`'s variant ("AND create the first lesson").
-
-**Rationale**: Spec 007 (Chat-Based Mission Editing) intentionally separated activation from lesson creation. The onboarding module's prompt matches this decision. `mission-conversation.ts` predates spec 007 and its prompt is incorrect.
-
-**Alternatives considered**: None — the correct variant is unambiguous per spec 007.
-
-## R4: mission-conversation.ts Test Migration
-
-**Decision**: Delete `src/ai/mission-conversation.ts` and `src/ai/mission-conversation.test.ts`. Merge its content-injection logic (`buildSystemPrompt`'s mission content loading) into the onboarding module. Migrate equivalent test coverage into the existing test suite.
-
-**Rationale**: `mission-conversation.ts` has 6 test cases but zero production usage. The onboarding module already covers the same functionality. The one unique feature (content injection for active missions) is already implemented in `missions.ts` routes (lines 695-705) — the module just needs the same capability. The test for content injection is covered by `chat.test.ts` "mission content in context (US1)" tests.
+**Rationale**: The service-layer approach is superior to wiring routes directly to `createOnboarding()` because it:
+- Unifies onboarding chat AND active-mission chat in one service
+- Integrates workflow state (`WorkflowStateManager`) and event bus (`EventBus`) natively
+- Injects mission content and lesson context into the system prompt for active-mission chats
+- Handles all AI interaction patterns (guided pause, skip, mode switch, chat, lesson generation)
+- Already wired to all 5 route files (missions.ts, onboarding.ts, chat.ts, lessons.ts)
 
 **Alternatives considered**:
-- Merge onboarding into mission-conversation: Would move the module from `src/onboarding/` to `src/ai/`. The spec favors `src/onboarding/` as the domain-appropriate location.
-- Keep both: Violates FR-013 (exactly one must survive).
+- Wiring routes to `createOnboarding()` from `src/onboarding/index.ts`: Rejected because that module lacks workflow/event support, mission content injection, and lesson context — adding those would duplicate `mission-chat.service.ts`.
+- Keeping both `onboarding/index.ts` and `mission-chat.service.ts`: Rejected — creates confusion. The spec requires exactly one implementation (FR-013).
 
-## R5: TopicExplorer Data Contract Alignment
+## R2: Remaining dead code — `src/onboarding/index.ts`
 
-**Decision**: TopicExplorer's existing interface is already compatible with the route handlers. The routes will keep their HTTP-specific code (HTML rendering, `HX-Redirect`) and delegate AI logic to TopicExplorer.
+**Decision**: Delete `src/onboarding/index.ts` and `src/onboarding/index.test.ts`. The module has zero production imports — only its own test file references `createOnboarding`. The `mission-chat.service.ts` covers the union of all onboarding scenarios plus active-mission chat, lesson context, and content injection.
 
-**Rationale**: 
-- `TopicExplorer.explore()` returns `{ options, isLastQuestion }` — the route calls `optionsOnly()` view with these values.
-- `TopicExplorer.select()` returns either `{ type: "options", options, path, iteration, isLastQuestion }` or `{ type: "create_mission", topic, path }` — the route renders HTML or calls `createMissionAndRedirect()`.
-- `TopicExplorer.refresh()` returns `{ options, isLastQuestion }` — the route calls `refreshOptionsFragment()`.
-- The `createMissionAndRedirect()` function stays in the routes file (HTTP concern).
+**Rationale**: FR-013 requires exactly one implementation to survive. The surviving implementation is `src/services/mission-chat.service.ts`. The onboarding module (`src/onboarding/index.ts`) became dead code when routes were wired to `missionChatService` instead.
 
-**Alternatives considered**: None — the contracts already align.
+**Test coverage**: The onboarding module's test (`onboarding/index.test.ts`) has 13 test cases covering start, continueGuided, answerQuestion, skipQuestions, and switchMode. The same scenarios are exercised at the HTTP level through existing tests (`missions.test.ts`, `chat.test.ts`, `onboarding.test.ts`). Per the Constitution's Principle II (HTTP-Level Integration Testing), HTTP-level coverage is the project's preferred testing approach. No coverage is lost.
 
-## R6: FakeAiClient Response Sequencing Impact
+**Alternatives considered**:
+- Keeping `onboarding/index.ts` as-is: Rejected — violates FR-013. Dead code.
+- Porting onboarding tests to a `mission-chat.service.test.ts`: Rejected as out of scope for this refactor. HTTP-level tests already cover the service's behavior.
 
-**Decision**: The refactor does NOT change the number or order of AI calls per flow. The onboarding module uses the same `conversationLoop()` with the same `TEACHER_TOOLS`. No test fixture updates needed.
+## R3: Browse migration — verified complete
 
-**Rationale**: Verified by comparing:
-- Route-inline `runConversationLoop` → calls `conversationLoop({client, toolExecutor, ...})` 
-- Module's `runConversationLoop` → calls `conversationLoop({client: ai, toolExecutor, ...})`
-Both pass the same parameters. Both wrap with `createStandardHooks`. Both check for `mark_mission_active`. The `generateMissionTitle` call is also identical (same prompt, same message slicing, same model: "low").
+**Decision**: No additional work needed. `src/routes/browse.ts` already uses `createTopicExplorer()` for all three routes. No inline `BROWSE_SYSTEM_PROMPT`, `parseBrowseResponse`, `FALLBACK_OPTIONS`, or `FALLBACK_NARROW_OPTIONS` remain.
 
-The only difference is adding workflow/event hooks — these are side effects, not AI calls.
+**Rationale**: Confirmed via grep — constants and functions exist only in `src/browse/explorer.ts`. Route file is 121 lines, meeting SC-003.
 
-**Alternatives considered**: N/A — no impact on sequencing.
+## R4: Prompt consistency
 
-## R7: Re-export of mission-conversation.ts
+**Decision**: The guiding prompt in `mission-chat.service.ts` says "Do NOT create lessons during onboarding — wait until the mission is active." This matches the spec's assumption that the `mission-conversation.ts` variant ("AND create the first lesson") was the buggy one and should be corrected.
 
-**Decision**: `src/ai/index.ts` does NOT re-export anything from `mission-conversation.ts`. No import changes needed for the deletion.
+**Rationale**: Spec 007 intentionally separated activation from lesson creation.
 
-**Rationale**: Confirmed by reading `src/ai/index.ts` — it only re-exports types, `AnthropicAiClient`, `FakeAiClient`, and `AIError`. The `mission-conversation.ts` module is only imported by its own test file.
+## R5: FakeAiClient response sequencing
 
-**Alternatives considered**: N/A — no re-export exists.
+**Decision**: No fixture changes needed. The `missionChatService.run()` method calls `conversationLoop()` with the same parameters as the inline code did. Activation still triggers `generateTitle()` (one additional `ai.chat()` call with model: "low"). The call sequence is unchanged from the inline implementation.
+
+**Rationale**: Confirmed by comparing the service's `run()` method with the former inline `runConversationLoop()`.

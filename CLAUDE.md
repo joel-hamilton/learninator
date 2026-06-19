@@ -17,7 +17,7 @@ Multi-user AI tutoring webapp based on mattpocock/skills teach skill. Uses Claud
 ```
 src/
   index.ts              # createApp() factory + production server startup
-  types.ts              # AppVariables (user, db, ai, toolExecutor, logger)
+  types.ts              # AppVariables (user, db, ai, toolExecutor, logger, missionChatService)
   db/
     schema.ts           # Drizzle schema definitions (7 tables)
     index.ts            # DB connection singleton
@@ -33,22 +33,24 @@ src/
     teacher.ts          # TEACHER_SYSTEM_PROMPT + TEACHER_TOOLS definitions
     tools.ts            # Tool implementations (15 tools, DB read/write)
     conversation.ts     # conversationLoop() — multi-turn tool-use loop
-    mission-conversation.ts  # createMissionConversation() — chat + activation
     events.ts           # SSE event emitter for tool-call visibility
     errors.ts           # AIError class
-  onboarding/
-    index.ts            # createOnboarding() — guided Q&A state machine
+    workflow-state.ts   # WorkflowStateManager — site-wide progress indicator
+  services/
+    mission-chat.service.ts  # createMissionChatService() — unified chat + onboarding + activation
   lessons/
     generator.ts        # LessonGenerator — background lesson/sub-lesson creation
   browse/
     explorer.ts         # TopicExplorer — AI-driven topic navigation
   routes/
     home.ts             # Dashboard (mission list, new mission form)
-    missions.ts         # Mission CRUD, guided onboarding endpoints, delete
+    missions.ts         # Mission CRUD, delegates to missionChatService
+    onboarding.ts       # Guided Q&A endpoints, delegates to missionChatService
+    mission-tabs.ts     # Sidebar tab routes (overview, notes, references, records)
     lessons.ts          # Lesson view, complete/incomplete/feedback, generation
-    chat.ts             # AI chat for existing missions
+    chat.ts             # AI chat for existing missions, delegates to missionChatService
     settings.ts         # Profile name + password change
-    browse.ts           # Topic browse flow with AI-driven narrowing
+    browse.ts           # Topic browse flow, delegates to TopicExplorer
   shared/
     messages.ts         # saveMessage() / loadMessages() — chat persistence
     markdown.ts         # Markdown formatting
@@ -62,6 +64,7 @@ src/
     missions.test.ts    # Mission creation, guided onboarding golden path, skip
     lessons.test.ts     # View, complete, incomplete, feedback
     chat.test.ts        # Simple reply, tool-using chat, activation
+    onboarding.test.ts  # Guided onboarding HTTP-level tests
 ```
 
 ## Request flow
@@ -77,8 +80,8 @@ src/
 - **Hono context**: Uses `{ Variables: AppVariables }` for typed injection. `AppVariables` includes `user`, `db`, `ai`, `toolExecutor`, and `logger`.
 - **DB queries**: Drizzle `and()` for multiple where conditions, `eq()` takes typed column values.
 - **AI interaction**: Function tools (`TEACHER_TOOLS`) let the AI read/write DB. Tool calls are executed server-side via `createToolExecutor(store)`. Multi-turn conversations use `conversationLoop()` from `ai/conversation.ts`.
-- **Onboarding state machine**: `createOnboarding()` in `onboarding/index.ts` handles guided Q&A mode (ask_guided_question tool with `pauseOnTools`) and chat mode. Mission activation triggers `generateMissionTitle()` via a low-model `ai.chat()` call.
-- **Mission chat**: `createMissionConversation()` in `ai/mission-conversation.ts` handles the unified chat flow — saves messages, runs `conversationLoop()`, and returns either a text reply or an activation redirect.
+- **Onboarding & mission chat**: `createMissionChatService()` in `services/mission-chat.service.ts` handles all AI conversation — guided Q&A mode (ask_guided_question tool with `pauseOnTools`), free-form chat mode, mission activation (triggers `generateMissionTitle()` via a low-model `ai.chat()` call), and active-mission chat with content/lesson context injection. Routes (missions, onboarding, chat, lessons) delegate to `missionChatService.run()`.
+- **Browse exploration**: `TopicExplorer` in `browse/explorer.ts` drives topic navigation via `explore()`, `select()`, and `refresh()`. Browse routes delegate to it for AI calls; HTTP concerns (HX-Redirect, htmx fragments) stay in the route layer.
 - **htmx**: All forms use htmx attributes (`hx-post`, `hx-target`, `hx-swap`). Server returns HTML fragments, not JSON.
 - **Immediate feedback**: Any user interaction that triggers an AI call MUST show immediate visible feedback — the clicked element should dim/change instantly via CSS (`htmx-request` class), and a loading indicator should appear. Never leave the user staring at an unchanged screen while waiting for the AI.
 - **Lessons**: AI-generated HTML rendered in sandboxed iframes. Lesson HTML should be self-contained with inline CSS/JS.
@@ -159,9 +162,8 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/013-split-monolithic-store/plan.md
-Feature: Complete Mission Editing Coverage — fill all test-coverage and behavior
-gaps found in the 007-chat-based-mission-editing analysis: inject mission content
-into chat context, enforce cross-user scoping, verify sidebar tab routes, and
-test all five edge cases.
+Current plan: specs/011-eliminate-duplicate-modules/plan.md
+Feature: Eliminate Duplicate Modules — remove dead/duplicate onboarding and
+browse implementations (3 onboarding → 1, 2 browse → 1). Routes delegate to
+mission-chat.service.ts (onboarding + chat) and TopicExplorer (browse).
 <!-- SPECKIT END -->

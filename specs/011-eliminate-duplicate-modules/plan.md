@@ -1,12 +1,18 @@
 # Implementation Plan: Eliminate Duplicate Modules
 
-**Branch**: `ai/011-eliminate-duplicate-modules` | **Date**: 2026-06-18 | **Spec**: [spec.md](./spec.md)
+**Branch**: `ai/011-eliminate-duplicate-modules` | **Date**: 2026-06-19 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `specs/011-eliminate-duplicate-modules/spec.md`
 
 ## Summary
 
-Resolve the dead/duplicate extraction problem where `src/onboarding/index.ts` and `src/browse/explorer.ts` were extracted as clean modules but `src/routes/missions.ts` and `src/routes/browse.ts` retain full inline copies of the same logic. Wire routes to use the extracted modules, extend the onboarding module's dependency injection to support workflow/event hooks, delete the third redundant onboarding implementation (`src/ai/mission-conversation.ts`), and verify all dead code is removed.
+Resolve the dead/duplicate extraction problem. The implementation on this branch has already:
+- Created `src/services/mission-chat.service.ts` as the canonical service for mission chat and onboarding (replacing inline code in routes AND the deleted `mission-conversation.ts`)
+- Wired all routes to `missionChatService.run()` and `missionChatService.generateTitle()`
+- Wired browse routes to `TopicExplorer` via `createTopicExplorer()`
+- Deleted `src/ai/mission-conversation.ts` (the third redundant implementation)
+
+**Remaining work**: Delete the dead `src/onboarding/index.ts` module (zero production imports) and its test file. Verify all tests pass, inline code is gone, and the app boots cleanly.
 
 ## Technical Context
 
@@ -26,7 +32,7 @@ Resolve the dead/duplicate extraction problem where `src/onboarding/index.ts` an
 
 **Constraints**: All existing tests must pass. No schema changes. No view changes. No test infrastructure changes.
 
-**Scale/Scope**: ~5 files modified, ~200 LOC deleted (inline duplicates), ~30 LOC added (workflow hooks in module), 1 file deleted (mission-conversation.ts + its test)
+**Scale/Scope**: 2 files deleted (onboarding/index.ts + test), 0 files added (mission-chat.service.ts already exists), verification-only on remaining files.
 
 ## Constitution Check
 
@@ -34,10 +40,10 @@ Resolve the dead/duplicate extraction problem where `src/onboarding/index.ts` an
 
 | Gate | Status | Notes |
 |------|--------|-------|
-| I. Factory-Based Testability | PASS | Onboarding module already uses factory pattern. Workflow/events deps added as optional params to dep interface, preserving testability with null defaults. |
-| II. HTTP-Level Integration Testing | PASS | All existing tests use `app.request()` with FakeAiClient. The refactor wires modules without changing HTTP behavior — existing test assertions remain valid. |
+| I. Factory-Based Testability | PASS | `createMissionChatService()` factory accepts injectable deps. `createTopicExplorer()` factory pattern. App-level injection via Hono context. |
+| II. HTTP-Level Integration Testing | PASS | All existing tests use `app.request()` with FakeAiClient. Routes delegate to injected services without changing HTTP behavior. |
 | III. Hypermedia-Driven Frontend | PASS | No view changes. Routes continue returning htmx fragments identical to before. |
-| IV. Explicit Dependency Injection | PASS | Onboarding module already accepts `OnboardingDeps`. Extending it adds optional `workflowState` and `events` fields — no hidden singletons. |
+| IV. Explicit Dependency Injection | PASS | `MissionChatDeps` and `TopicExplorerDeps` are explicit parameter objects. `c.get("missionChatService")` replaces inline code — dependencies visible at injection site. |
 | V. Migration Snapshot Integrity | PASS | No schema changes. |
 
 ## Project Structure
@@ -51,26 +57,33 @@ specs/011-eliminate-duplicate-modules/
 ├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output
+│   ├── mission-chat-service.md
+│   └── topic-explorer.md
 └── tasks.md             # Phase 2 output (speckit-tasks)
 ```
 
-### Source Code (repository root)
+### Source Code (repository root) — post-migration
 
 ```text
 src/
+  services/
+    mission-chat.service.ts    # Canonical service for all mission chat + onboarding
   onboarding/
-    index.ts             # Extended with workflow/event hooks, merged mission-conversation content injection
+    index.ts                   # DELETED — dead code, zero production imports
+    index.test.ts              # DELETED — coverage exists at HTTP level
   browse/
-    explorer.ts          # Unchanged (already has correct interface)
+    explorer.ts                # Unchanged — already wired to browse routes
   ai/
-    mission-conversation.ts      # DELETED — merged into onboarding/index.ts
-    mission-conversation.test.ts # DELETED — tests migrated to onboarding test
+    mission-conversation.ts    # Already deleted — merged into mission-chat.service.ts
   routes/
-    missions.ts          # Inline helpers removed, wired to createOnboarding()
-    browse.ts            # Inline constants/helpers removed, wired to TopicExplorer
+    missions.ts                # Clean — delegates to missionChatService
+    onboarding.ts              # Clean — delegates to missionChatService
+    browse.ts                  # Clean — delegates to TopicExplorer
+    chat.ts                    # Clean — delegates to missionChatService
+    lessons.ts                 # Clean — delegates to missionChatService
 ```
 
-**Structure Decision**: The surviving onboarding module is placed in `src/onboarding/` (domain concept). `src/ai/mission-conversation.ts` is deleted and its content-injection logic and tests are merged into the onboarding module. `src/browse/explorer.ts` is used as-is by routes.
+**Structure Decision**: `src/services/mission-chat.service.ts` is the canonical implementation. It subsumes the deleted `onboarding/index.ts`, `ai/mission-conversation.ts`, and the former inline code in routes. It is placed in `src/services/` — a new directory — to avoid circular dependencies between `src/onboarding/` and `src/ai/` and to make clear that it serves multiple route layers.
 
 ## Complexity Tracking
 

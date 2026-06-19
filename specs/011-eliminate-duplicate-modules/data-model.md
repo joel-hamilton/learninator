@@ -9,45 +9,48 @@ No schema changes. This refactor operates entirely within the existing data mode
 - **GuidedQuestion**: id, missionId, question, options, answer, answerText, status, createdAt
 - **MissionContent**: id, missionId, contentType, markdownContent, createdAt, updatedAt
 
-## Module Interfaces (refactored)
+## Surviving Service Interface
 
-### OnboardingDeps (extended)
+### MissionChatService
 
-```typescript
-export interface OnboardingDeps {
-  ai: AiClient;
-  toolExecutor: ToolExecutor;
-  store: MissionStore;
-  logger: Logger;
-  // NEW: optional workflow state for site-wide progress indicator
-  workflowState?: WorkflowStateManager;
-  // NEW: optional event bus for SSE tool-call visibility
-  events?: EventBus;
-}
-```
+The canonical implementation at `src/services/mission-chat.service.ts`. Created via `createMissionChatService(deps)`. Returned by `createMissionChatService()`: `{ run, generateTitle }`.
 
-### OnboardingModule (unchanged API)
+**Dependencies** (`MissionChatDeps`):
+- `ai: AiClient` — Required
+- `toolExecutor: ToolExecutor` — Required
+- `store: MissionStore & ChatStore & ContentStore` — Required
+- `logger: Pick<Logger, "debug" | "info" | "error">` — Required
+- `events: EventBus` — Required (SSE tool-call visibility)
+- `workflowState: WorkflowStateManager` — Required (site-wide progress indicator)
 
-```typescript
-export interface OnboardingModule {
-  start(missionId: number, userMessage: string, mode: "guided" | "chat"): Promise<OnboardingResult>;
-  continueGuided(missionId: number): Promise<OnboardingResult>;
-  answerQuestion(missionId: number, questionId: number, answer: string, otherText?: string): Promise<OnboardingResult>;
-  skipQuestions(missionId: number): Promise<OnboardingResult>;
-  switchMode(missionId: number, newMode: "guided" | "chat"): Promise<void>;
-}
-```
+**Methods**:
 
-### TopicExplorer (unchanged)
+- `run(input: MissionChatInput) → MissionChatResult` — Runs the conversation loop with appropriate system prompt and tool set for the given context (onboarding/active/lesson).
+- `generateTitle(missionId: number) → string | null` — Generates and persists a mission title from conversation history.
 
-```typescript
-export interface TopicExplorer {
-  explore(path: string[], iteration: number): Promise<TopicOptions>;
-  select(path: string[], selection: string, iteration: number, isCustom?: boolean): Promise<TopicResult>;
-  refresh(path: string[], iteration: number): Promise<TopicOptions>;
-}
-```
+**Input** (`MissionChatInput`):
+- `missionId`, `userId`, `message`, `missionTitle`, `missionStatus` — Required
+- `onboardingMode?: string` — Set for onboarding missions
+- `context?: string` — Additional context prepended to user message
+- `lesson?: { number: string; title: string }` — Lesson context for lesson-specific chat
+- `tools?: AiTool[]` — Defaults to TEACHER_TOOLS
+- `pauseOnTools?: Set<string>` — Tool names that pause the loop
+- `workflowType?: "chat" | "lesson_generation" | "mission_activation"` — Defaults to "chat"
+- `workflowLabel?: string` — Defaults to "Chat: {missionTitle}"
 
-### Deleted
+### TopicExplorer
 
-- `MissionConversationDeps`, `MissionConversationInput`, `MissionConversationResult`, `MissionConversationModule` — all in `src/ai/mission-conversation.ts`
+Located at `src/browse/explorer.ts`. Created via `createTopicExplorer(deps)`. Unchanged by this refactor — already used by browse routes.
+
+**Dependencies** (`TopicExplorerDeps`):
+- `ai: AiClient` — Required
+- `logger: Logger` — Required
+
+**Methods**: `explore()`, `select()`, `refresh()` — see [contracts/topic-explorer.md](./contracts/topic-explorer.md).
+
+## Deleted Modules
+
+- `src/onboarding/index.ts` — Dead code; zero production imports. Functionality subsumed by `mission-chat.service.ts`.
+- `src/onboarding/index.test.ts` — Deleted with the module. Coverage exists at HTTP level (`missions.test.ts`, `chat.test.ts`).
+- `src/ai/mission-conversation.ts` — Already deleted before this plan. Replaced by `mission-chat.service.ts`.
+- `src/ai/mission-conversation.test.ts` — Already deleted with its module.
