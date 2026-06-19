@@ -62,6 +62,7 @@ export function createApp(opts?: {
     toolExecutor,
     db: resolvedDb,
     logger: createLogger("generator"),
+    events: eventBus,
   });
   app.use("*", async (c, next) => {
     c.set("ai", resolvedAi);

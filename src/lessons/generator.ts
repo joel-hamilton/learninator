@@ -2,7 +2,7 @@ import { conversationLoop } from "../ai/conversation.js";
 import type { ConversationLoopParams } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS, getRegenerateSystemPrompt, getBridgingSystemPrompt } from "../ai/teacher.js";
 import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
-import { emit } from "../ai/events.js";
+import type { EventBus } from "../ai/events.js";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/types.js";
@@ -21,6 +21,7 @@ export interface Deps {
   toolExecutor: ToolExecutor;
   db: any;
   logger: Logger;
+  events?: EventBus;
 }
 
 // ── Internal types ──
@@ -445,10 +446,10 @@ export class LessonGenerator {
               TOOL_DISPLAY_NAMES[block.name] || block.name,
             );
           }
-          emit(missionId, { type: "tool_start", names: pendingToolNames });
+          this.deps.events?.emit(missionId, { type: "tool_start", names: pendingToolNames });
         },
         onAfterToolExecution: async (_results) => {
-          emit(missionId, { type: "tool_end", names: pendingToolNames });
+          this.deps.events?.emit(missionId, { type: "tool_end", names: pendingToolNames });
         },
         onTruncated: async () => {
           job.messages.push("Response was cut short…");
