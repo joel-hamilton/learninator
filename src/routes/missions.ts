@@ -13,6 +13,7 @@ import type { AppVariables } from "../types.js";
 import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";import { formatMarkdown } from "../shared/markdown.js";
 import { generateSlug } from "../shared/slug.js";
 import { formatAIError } from "../shared/errors.js";
+import { handleActivation } from "../shared/activate-mission.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, onboardingLayout, newMissionPage } from "../views/onboarding.js";
@@ -94,11 +95,8 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
       ...pauseOpts,
     });
 
-    if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
-      return c.body(null);
-    }
+    const activated = await handleActivation(result, missionId, missionChatService, c);
+    if (activated) return activated;
   } catch {
     // Mission and user message are saved; redirect to onboarding even on AI error.
   }
@@ -337,11 +335,8 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
       onboardingMode: mission.status === "onboarding" ? mode : undefined,
     });
 
-    if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
-      c.header("HX-Redirect", `/missions/${missionId}`);
-      return c.body(null);
-    }
+    const activated = await handleActivation(result, missionId, missionChatService, c);
+    if (activated) return activated;
 
     return c.html(chatMessageBubble("assistant", formatMarkdown(result.text || "Let us continue.")));
   } catch (err: unknown) {
