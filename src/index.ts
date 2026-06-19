@@ -60,7 +60,8 @@ export function createApp(opts?: {
   const lessonGenerator = createLessonGenerator({
     ai: resolvedAi,
     toolExecutor,
-    db: resolvedDb,
+    store,
+    events: eventBus,
     logger: createLogger("generator"),
   });
   app.use("*", async (c, next) => {

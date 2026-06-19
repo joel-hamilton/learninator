@@ -5,7 +5,9 @@ import { eq } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
-import { DrizzleMissionStore } from "../db/store.js";
+import { DrizzleMissionStore, InMemoryMissionStore } from "../db/store.js";
+import { createEventBus } from "../ai/events.js";
+import type { EventBus } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
 import type { AiClient, AiMessage } from "../ai/types.js";
 import { createLogger } from "../logger.js";
@@ -13,6 +15,7 @@ import { createLogger } from "../logger.js";
 // ── Helpers ──
 
 const logger = createLogger("test");
+const testEvents = createEventBus();
 
 /** An AI client that always throws an error. */
 class ThrowingAiClient implements AiClient {
@@ -187,7 +190,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -230,7 +234,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -268,7 +273,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -309,7 +315,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -339,7 +346,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: new FakeAiClient([]),
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -369,7 +377,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -401,7 +410,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -439,7 +449,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -486,7 +497,8 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        db,
+        store: new DrizzleMissionStore(db),
+        events: testEvents,
         logger,
       });
 
@@ -503,5 +515,182 @@ describe("LessonGenerator", () => {
 
       expect(key1).toBe(key2);
     });
+  });
+});
+
+// ── Tests with InMemoryMissionStore (no SQLite, no migrations) ──
+
+describe("LessonGenerator with InMemoryMissionStore", () => {
+  let store: InMemoryMissionStore;
+  let bus: EventBus;
+
+  beforeEach(async () => {
+    store = new InMemoryMissionStore();
+    bus = createEventBus();
+    await store.createMission({ userId: 1, title: "Test", slug: "test" });
+    await store.createLesson({
+      missionId: 1,
+      number: 1,
+      title: "First Lesson",
+      slug: "first-lesson",
+      htmlContent: "<p>First</p>",
+      status: "in_progress",
+    });
+  });
+
+  function makeGenerator(client: AiClient) {
+    return new LessonGenerator({
+      ai: client,
+      toolExecutor: createToolExecutor(store),
+      store,
+      events: bus,
+      logger,
+    });
+  }
+
+  /** Wait for the microtask queue to drain so the job IIFE can complete. */
+  async function drainMicrotasks() {
+    await new Promise((r) => setTimeout(r, 10));
+  }
+
+  /** Poll until the job is done, then consume it and verify not_found. */
+  async function consumeJob(generator: LessonGenerator, key: string) {
+    await drainMicrotasks();
+    const first = generator.getJobStatus(key);
+    expect(first.status).toBe("done");
+    expect(generator.getJobStatus(key).status).toBe("not_found");
+  }
+
+  /** Poll until the job is in error, then consume it and verify not_found. */
+  async function consumeErrorJob(generator: LessonGenerator, key: string) {
+    await drainMicrotasks();
+    const first = generator.getJobStatus(key);
+    if (first.status === "not_found") return;
+    expect(first.status).toBe("error");
+    expect(generator.getJobStatus(key).status).toBe("not_found");
+  }
+
+  it("generates a next lesson and completes with InMemoryMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_lesson", {
+        title: "Second Lesson",
+        slug: "second-lesson",
+        html_content: "<p>Second</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    const generator = makeGenerator(client);
+    const key = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("next-1-1-m");
+    // Should be running immediately after creation
+    expect(generator.getJobStatus(key).status).toBe("running");
+    await consumeJob(generator, key);
+  });
+
+  it("deduplicates with InMemoryMissionStore", () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_lesson", {
+        title: "Second", slug: "second", html_content: "<p>Second</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    const generator = makeGenerator(client);
+    const key1 = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+    const key2 = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key1).toBe(key2);
+  });
+
+  it("returns error status when AI fails with InMemoryMissionStore", async () => {
+    const generator = makeGenerator(new ThrowingAiClient());
+    const key = generator.generateNext(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    await consumeErrorJob(generator, key);
+  });
+
+  it("generates a sub-lesson with InMemoryMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_sub_lesson", {
+        parent_lesson_number: 1,
+        title: "Deeper Dive",
+        slug: "deeper-dive",
+        html_content: "<p>Deeper</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    const generator = makeGenerator(client);
+    const key = generator.generateSubLesson(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("sub-1-1-m");
+    await consumeJob(generator, key);
+  });
+
+  it("generates a regenerate with InMemoryMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("regenerate_lesson", {
+        number: 1,
+        title: "First Lesson (easier)",
+        slug: "first-lesson-easier",
+        html_content: "<p>Easier</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    const generator = makeGenerator(client);
+    const key = generator.generateRegenerate(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+      "easier",
+    );
+
+    expect(key).toBe("regenerate-1-1-m");
+    await consumeJob(generator, key);
+  });
+
+  it("generates a bridging sub-lesson with InMemoryMissionStore", async () => {
+    const client = new FakeAiClient([
+      FakeAiClient.toolUseResponse("create_sub_lesson", {
+        parent_lesson_number: 1,
+        title: "Bridging",
+        slug: "bridging",
+        html_content: "<p>Bridge</p>",
+      }),
+      FakeAiClient.textResponse("Done"),
+    ]);
+
+    const generator = makeGenerator(client);
+    const key = generator.generateBridging(
+      1,
+      { number: 1, subNumber: null, title: "First Lesson" },
+      { title: "Test", status: "active" },
+    );
+
+    expect(key).toBe("bridge-1-1-m");
+    await consumeJob(generator, key);
   });
 });
