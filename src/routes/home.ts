@@ -3,42 +3,45 @@ import { streamSSE } from "hono/streaming";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
-import type { MissionStore } from "../db/store.js";
+import type { User } from "../types.js";
 import { layout } from "../views/home.js";
 import { svgIcon } from "../views/shared.js";
+import type { MissionStore, MissionRow } from "../db/store.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const homeRoutes = new Hono<{ Variables: AppVariables }>();
 
-type MissionRow = Awaited<ReturnType<MissionStore["listMissions"]>>[number];
+// ── Shared card render helpers ──────────────────────────────────────────
 
-const escapeHtml = (s: string) => s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const statusBadge = (status: string): string => {
+function getStatusBadge(status: string): string {
   if (status === "onboarding") return '<span class="badge badge-in-progress">Setting up</span>';
   if (status === "active") return '<span class="badge badge-active">Active</span>';
   return '<span class="badge badge-default">Archived</span>';
-};
+}
 
-const renderActiveCard = (m: MissionRow) => `
-  <div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
+function renderActiveCard(m: MissionRow): string {
+  const title = m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const updated = new Date(m.updatedAt).toLocaleDateString();
+  return `<div class="mission-card" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
     <div class="info">
-      <h3>${escapeHtml(m.title)}</h3>
-      <div class="meta">${statusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
+      <h3>${title}</h3>
+      <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${updated}</div>
     </div>
     <div class="actions" onclick="event.stopPropagation()">
       <form hx-post="/missions/${m.id}/archive" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
         <button type="submit" class="btn btn-ghost btn-sm" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
       </form>
     </div>
-  </div>
-`;
+  </div>`;
+}
 
-const renderArchivedCard = (m: MissionRow) => `
-  <div class="mission-card mission-card--archived" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
+function renderArchivedCard(m: MissionRow): string {
+  const title = m.title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const updated = new Date(m.updatedAt).toLocaleDateString();
+  return `<div class="mission-card mission-card--archived" onclick="window.location.href='/missions/${m.id}'" style="cursor:pointer" role="link" tabindex="0" onkeydown="if(event.key==='Enter')window.location.href='/missions/${m.id}'">
     <div class="info">
-      <h3>${escapeHtml(m.title)}</h3>
-      <div class="meta">${statusBadge(m.status)} &middot; Updated ${new Date(m.updatedAt).toLocaleDateString()}</div>
+      <h3>${title}</h3>
+      <div class="meta">${getStatusBadge(m.status)} &middot; Updated ${updated}</div>
     </div>
     <div class="actions" onclick="event.stopPropagation()">
       <form hx-post="/missions/${m.id}/restore" hx-target="closest .mission-card" hx-swap="outerHTML" style="display:inline">
@@ -48,57 +51,46 @@ const renderArchivedCard = (m: MissionRow) => `
         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
       </form>
     </div>
-  </div>
-`;
+  </div>`;
+}
 
-/**
- * Returns the inner HTML for #active-section and #archived-section as separate strings.
- * The containers themselves (with stable IDs) are rendered by the caller.
- */
-export async function renderMissionSections(userId: number, store: MissionStore): Promise<{
-  activeSectionHtml: string;
-  archivedSectionHtml: string;
-  archivedCount: number;
-}> {
-  const missionRows = await store.listMissions(userId);
-  const active = missionRows.filter((m) => m.status !== "archived");
-  const archived = missionRows.filter((m) => m.status === "archived");
+// ── Section rendering ───────────────────────────────────────────────────
+
+export function renderMissionSections(missions: MissionRow[]): { activeSectionHtml: string; archivedSectionHtml: string } {
+  const active = missions.filter(m => m.status !== "archived");
+  const archived = missions.filter(m => m.status === "archived");
 
   const activeCards = active.map(renderActiveCard).join("");
   const archivedCards = archived.map(renderArchivedCard).join("");
 
-  const activeSectionHtml = `
+  const activeSectionHtml = `<div id="active-section">
     <div class="section-label">Missions</div>
     <div class="mission-list stagger">
       ${activeCards || '<p style="color:var(--text-muted);padding:1rem 0;">No active missions. Start one above!</p>'}
     </div>
-  `;
+  </div>`;
 
-  const archivedSectionHtml = archived.length > 0 ? `
-    <details class="archived-details">
-      <summary class="section-label archived-summary">
-        <span>Archived (${archived.length})</span>
-        ${svgIcon("chevronDown", "svg-icon archived-chevron")}
-      </summary>
-      <div class="mission-list stagger">${archivedCards}</div>
-    </details>
-  ` : "";
+  const archivedSectionHtml = archived.length > 0
+    ? `<div id="archived-section">
+        <details class="archived-section">
+          <summary>${svgIcon("chevronDown", "chevron")}<span class="section-label" style="margin:0;cursor:pointer">Archived (${archived.length})</span></summary>
+          <div class="mission-list stagger">${archivedCards}</div>
+        </details>
+      </div>`
+    : `<div id="archived-section"></div>`;
 
-  return { activeSectionHtml, archivedSectionHtml, archivedCount: archived.length };
+  return { activeSectionHtml, archivedSectionHtml };
 }
 
-/**
- * Returns OOB swap HTML used by archive/restore/delete endpoints to update both sections
- * after a state transition. Both containers are always emitted, even when empty, so the
- * client's stable `#active-section` and `#archived-section` divs are updated atomically.
- */
-export async function renderOobSections(userId: number, store: MissionStore): Promise<string> {
-  const { activeSectionHtml, archivedSectionHtml } = await renderMissionSections(userId, store);
-  return `
-<div id="active-section" hx-swap-oob="innerHTML:#active-section">${activeSectionHtml}</div>
-<div id="archived-section" hx-swap-oob="innerHTML:#archived-section">${archivedSectionHtml}</div>
-`;
+export async function renderOobSections(store: MissionStore, userId: number): Promise<string> {
+  const missions = await store.listMissions(userId);
+  const { activeSectionHtml, archivedSectionHtml } = renderMissionSections(missions);
+
+  return activeSectionHtml.replace('<div id="active-section"', '<div id="active-section" hx-swap-oob="innerHTML:#active-section"')
+    + archivedSectionHtml.replace('<div id="archived-section"', '<div id="archived-section" hx-swap-oob="innerHTML:#archived-section"');
 }
+
+// ── Home page ──
 
 homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -131,7 +123,7 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
     `));
   }
 
-  const { activeSectionHtml, archivedSectionHtml } = await renderMissionSections(user.id, store);
+  const { activeSectionHtml, archivedSectionHtml } = renderMissionSections(missionRows);
 
   return c.html(layout(user, `
     <div class="welcome">
@@ -142,8 +134,8 @@ homeRoutes.get("/", auth.requireAuth, async (c: Ctx) => {
       <a href="/missions/new">${svgIcon("plus")} Start a new mission</a>
       <a href="/browse" class="btn btn-secondary btn-sm">🧭 Browse topics</a>
     </div>
-    <div id="active-section">${activeSectionHtml}</div>
-    <div id="archived-section">${archivedSectionHtml}</div>
+    ${activeSectionHtml}
+    ${archivedSectionHtml}
   `));
 });
 

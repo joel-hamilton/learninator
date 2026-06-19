@@ -355,4 +355,291 @@ describe("missions", () => {
       expect(skippedQ.answer).toBe("(skipped)");
     });
   });
+
+  describe("archive / restore / delete", () => {
+    it("archive returns OOB swaps that populate #archived-section", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Test Mission", slug: "test-mission",
+        status: "active", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Both sections are in the response with OOB attributes
+      expect(html).toContain('hx-swap-oob="innerHTML:#active-section"');
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      // Archived section contains the archived card
+      expect(html).toContain("Test Mission");
+      expect(html).toContain("mission-card--archived");
+      // Archived section has details wrapper with count
+      expect(html).toContain("<details");
+      expect(html).toContain("Archived (1)");
+      // No open attribute on details (collapsed by default)
+      expect(html).not.toContain("<details open");
+    });
+
+    it("archive when no archived missions exist creates section with first card", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Only Mission", slug: "only-mission",
+        status: "active", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Archived section exists with one card
+      expect(html).toContain("Archived (1)");
+      expect(html).toContain("Only Mission");
+      expect(html).toContain("mission-card--archived");
+    });
+
+    it("restore returns OOB swaps for both sections", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Archived Mission", slug: "archived-mission",
+        status: "archived", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/restore`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Both sections are in the response
+      expect(html).toContain('hx-swap-oob="innerHTML:#active-section"');
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      // Restored card is now in active section (no archived class)
+      expect(html).toContain("Archived Mission");
+      // Active section has the card without archived class
+      const activeSectionStart = html.indexOf('id="active-section"');
+      const archivedSectionStart = html.indexOf('id="archived-section"');
+      // The restored card should be in the active section
+      const cardPos = html.indexOf("Archived Mission");
+      expect(cardPos).toBeGreaterThan(activeSectionStart);
+      expect(cardPos).toBeLessThan(archivedSectionStart);
+    });
+
+    it("restore of last archived returns empty #archived-section", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Last Archived", slug: "last-archived",
+        status: "archived", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/restore`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Archived section is empty (no <details> inside)
+      expect(html).toContain('id="archived-section"');
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("Archived (");
+    });
+
+    it("delete returns OOB swap for updated #archived-section", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      // Create two archived missions — delete one
+      await db.insert(schema.missions).values({
+        userId: 1, title: "Keep Me", slug: "keep-me",
+        status: "archived", onboardingMode: "chat",
+      });
+      const [toDelete] = await db.insert(schema.missions).values({
+        userId: 1, title: "Delete Me", slug: "delete-me",
+        status: "archived", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${toDelete.id}/delete`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Archived section exists with remaining card
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      expect(html).toContain("Keep Me");
+      expect(html).not.toContain("Delete Me");
+      expect(html).toContain("Archived (1)");
+    });
+
+    it("delete of last archived returns empty #archived-section", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Solo Archived", slug: "solo-archived",
+        status: "archived", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/delete`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Archived section is empty
+      expect(html).toContain('id="archived-section"');
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("Archived (");
+    });
+
+    it("archive 404 returns text not HTML", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const res = await authedReq(app, cookie, "POST", "/missions/99999/archive");
+      expect(res.status).toBe(404);
+      const contentType = res.headers.get("Content-Type") || "";
+      expect(contentType).toContain("text/plain");
+    });
+
+    it("archive 400 (already archived) returns text not HTML", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Already Archived", slug: "already-archived",
+        status: "archived", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      expect(res.status).toBe(400);
+      const contentType = res.headers.get("Content-Type") || "";
+      expect(contentType).toContain("text/plain");
+    });
+
+    it("delete 400 (not archived) returns text not HTML", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db.insert(schema.missions).values({
+        userId: 1, title: "Active Mission", slug: "active-mission",
+        status: "active", onboardingMode: "chat",
+      }).returning();
+
+      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/delete`);
+      expect(res.status).toBe(400);
+      const contentType = res.headers.get("Content-Type") || "";
+      expect(contentType).toContain("text/plain");
+    });
+  });
+
+  describe("home page sections", () => {
+    it("renders #active-section and #archived-section containers", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      // With at least one active mission
+      await db.insert(schema.missions).values({
+        userId: 1, title: "Active", slug: "active",
+        status: "active", onboardingMode: "chat",
+      });
+
+      const res = await authedReq(app, cookie, "GET", "/");
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      expect(html).toContain('id="active-section"');
+      expect(html).toContain('id="archived-section"');
+    });
+
+    it("renders <details> without open attribute when archived missions exist", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      await db.insert(schema.missions).values({
+        userId: 1, title: "Archived One", slug: "archived-one",
+        status: "archived", onboardingMode: "chat",
+      });
+
+      const res = await authedReq(app, cookie, "GET", "/");
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // <details> present without open attribute
+      expect(html).toContain("<details");
+      expect(html).not.toContain("<details open");
+      expect(html).toContain("Archived (1)");
+      expect(html).toContain("Archived One");
+    });
+
+    it("renders empty #archived-section when no archived missions exist", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      await db.insert(schema.missions).values({
+        userId: 1, title: "Active Only", slug: "active-only",
+        status: "active", onboardingMode: "chat",
+      });
+
+      const res = await authedReq(app, cookie, "GET", "/");
+      expect(res.status).toBe(200);
+      const html = await res.text();
+
+      // Archived section exists but is empty (no <details> inside)
+      expect(html).toContain('id="archived-section"');
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("Archived (");
+    });
+
+    it("archived section count stays correct after multiple archives", async () => {
+      const fakeAi = new FakeAiClient([]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [m1] = await db.insert(schema.missions).values({
+        userId: 1, title: "M1", slug: "m1",
+        status: "active", onboardingMode: "chat",
+      }).returning();
+      const [m2] = await db.insert(schema.missions).values({
+        userId: 1, title: "M2", slug: "m2",
+        status: "active", onboardingMode: "chat",
+      }).returning();
+
+      // Archive first
+      const r1 = await authedReq(app, cookie, "POST", `/missions/${m1.id}/archive`);
+      expect(await r1.text()).toContain("Archived (1)");
+
+      // Archive second
+      const r2 = await authedReq(app, cookie, "POST", `/missions/${m2.id}/archive`);
+      const html2 = await r2.text();
+      expect(html2).toContain("Archived (2)");
+      expect(html2).toContain("M1");
+      expect(html2).toContain("M2");
+    });
+  });
 });
