@@ -1,6 +1,6 @@
 import type { AiClient, AiTool, AiToolUseBlock, ToolExecutor } from "../ai/types.js";
 import type { Logger } from "../logger.js";
-import type { EventBus } from "../ai/events.js";
+import type { ToolEventBus, WorkflowEventBus } from "../ai/events.js";
 import type { WorkflowStateManager } from "../ai/workflow-state.js";
 import type { MissionStore, ChatStore, ContentStore } from "../db/store.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
@@ -18,7 +18,7 @@ export interface MissionChatDeps {
   chatStore: ChatStore;
   contentStore: ContentStore;
   logger: Pick<Logger, "debug" | "info" | "error">;
-  events: EventBus;
+  events: ToolEventBus & WorkflowEventBus;
   workflowState: WorkflowStateManager;
 }
 

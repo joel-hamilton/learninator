@@ -10,7 +10,7 @@ import type {
   AiContentBlock,
 } from "./types.js";
 import type { Logger } from "../logger.js";
-import type { EventBus } from "./events.js";
+import type { ToolEventBus } from "./events.js";
 import type { ChatStore } from "../db/store.js";
 import { saveMessage } from "./persistence.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
@@ -41,7 +41,7 @@ export interface ConversationLoopParams {
   /** Maximum number of tool-use turns before forcing a stop. Defaults to 20. */
   maxTurns?: number;
   /** Event bus for emitting tool progress events. If omitted, no events are emitted. */
-  events?: EventBus;
+  events?: ToolEventBus;
 }
 
 export interface ConversationLoopResult {

@@ -17,14 +17,17 @@ export interface WorkflowEvent {
 type ToolEventCallback = (event: ToolEvent) => void | Promise<void>;
 type WorkflowEventCallback = (event: WorkflowEvent) => void | Promise<void>;
 
-export interface EventBus {
+export interface ToolEventBus {
   subscribe(missionId: number, cb: ToolEventCallback): () => void;
   emit(missionId: number, event: ToolEvent): void;
+}
+
+export interface WorkflowEventBus {
   subscribeUser(userId: number, cb: WorkflowEventCallback): () => void;
   emitUser(userId: number, event: WorkflowEvent): void;
 }
 
-export function createEventBus(): EventBus {
+export function createEventBus(): ToolEventBus & WorkflowEventBus {
   const subscribers = new Map<number, Set<ToolEventCallback>>();
   const userSubscribers = new Map<number, Set<WorkflowEventCallback>>();
 

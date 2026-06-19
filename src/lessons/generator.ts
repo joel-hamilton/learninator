@@ -8,7 +8,7 @@ import {
 } from "../ai/index.js";
 import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/index.js";
 import type { MissionStore, LessonStore } from "../db/store.js";
-import type { EventBus } from "../ai/events.js";
+import type { ToolEventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 import { formatLessonNumber } from "../shared/lesson-numbers.js";
 import type { InternalJob, JobStore } from "./job-store.js";
@@ -28,7 +28,7 @@ export interface GeneratorDeps {
   store: MissionStore & LessonStore;
   missionStore: MissionStore;
   lessonStore: LessonStore;
-  events?: EventBus;
+  events?: ToolEventBus;
   logger: Logger;
   jobStore?: JobStore;
 }

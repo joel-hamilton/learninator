@@ -47,7 +47,7 @@ export { TOOL_DISPLAY_NAMES, createToolExecutor } from "./tools.js"
 
 // ── Events ──────────────────────────────────────────────────────────
 export { createEventBus } from "./events.js"
-export type { EventBus, ToolEvent, WorkflowEvent } from "./events.js"
+export type { ToolEventBus, WorkflowEventBus, ToolEvent, WorkflowEvent } from "./events.js"
 
 // ── Workflow state ──────────────────────────────────────────────────
 export { WorkflowStateManager, toolDisplayLabel } from "./workflow-state.js"

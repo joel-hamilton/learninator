@@ -1,7 +1,7 @@
 import type { InferSelectModel } from "drizzle-orm"
 import type { users } from "./db/schema.js"
 import type { Logger } from "./logger.js"
-import type { AiClient, EventBus, ToolExecutor, WorkflowStateManager } from "./ai/index.js"
+import type { AiClient, ToolEventBus, WorkflowEventBus, ToolExecutor, WorkflowStateManager } from "./ai/index.js"
 import type { MissionStore, LessonStore, ChatStore, ContentStore, RefDocStore, LearningRecordStore, UserStore, SessionStore } from "./db/store.js"
 import type { RateLimiter } from "./security/rate-limiter.js"
 import type { LessonGenerator } from "./lessons/generator.js"
@@ -31,7 +31,7 @@ export type AppVariables = {
   ai: AiClient
   toolExecutor: ToolExecutor
   store: MissionStore & LessonStore & ChatStore & ContentStore & RefDocStore & LearningRecordStore & UserStore & SessionStore
-  events: EventBus
+  events: ToolEventBus & WorkflowEventBus
   workflowState: WorkflowStateManager
   profileStore: ProfileStore | null
   rateLimiter: RateLimiter | null

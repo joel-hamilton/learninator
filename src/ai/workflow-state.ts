@@ -1,4 +1,4 @@
-import type { EventBus, WorkflowEvent } from "./events.js";
+import type { WorkflowEventBus, WorkflowEvent } from "./events.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
 export interface WorkflowStep {
@@ -38,9 +38,9 @@ export function toolDisplayLabel(name: string, _input?: Record<string, unknown>)
 export class WorkflowStateManager {
   private workflows = new Map<string, WorkflowRun>();
   private byUser = new Map<number, Set<string>>();
-  private events: EventBus;
+  private events: WorkflowEventBus;
 
-  constructor(events: EventBus) {
+  constructor(events: WorkflowEventBus) {
     this.events = events;
   }
 

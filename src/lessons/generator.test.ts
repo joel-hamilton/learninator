@@ -16,7 +16,7 @@ import {
   DrizzleStore,
 } from "../db/adapters/index.js";
 import { createEventBus } from "../ai/events.js";
-import type { EventBus, ToolEvent, WorkflowEvent } from "../ai/events.js";
+import type { ToolEventBus, ToolEvent } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
 import type { AiClient, AiMessage } from "../ai/index.js";
 import { createLogger } from "../logger.js";
@@ -660,10 +660,9 @@ describe("LessonGenerator", () => {
   });
 });
 
-/** Simple spy implementing EventBus for tests. */
-class FakeEventBus implements EventBus {
+/** Simple spy implementing ToolEventBus for tests. */
+class FakeEventBus implements ToolEventBus {
   emits: { missionId: number; event: ToolEvent }[] = [];
-  userEmits: { userId: number; event: WorkflowEvent }[] = [];
 
   subscribe(_missionId: number, _cb: (event: ToolEvent) => void): () => void {
     return () => {};
@@ -671,13 +670,5 @@ class FakeEventBus implements EventBus {
 
   emit(missionId: number, event: ToolEvent): void {
     this.emits.push({ missionId, event });
-  }
-
-  subscribeUser(_userId: number, _cb: (event: WorkflowEvent) => void): () => void {
-    return () => {};
-  }
-
-  emitUser(userId: number, event: WorkflowEvent): void {
-    this.userEmits.push({ userId, event });
   }
 }

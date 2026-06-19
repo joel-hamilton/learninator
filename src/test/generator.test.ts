@@ -16,7 +16,7 @@ import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
 import type { AiClient, AiMessage, AiMessageParam, AiTool, ToolCallOptions, ChatOptions } from "../ai/types.js";
 import type { ToolStore } from "../ai/types.js";
-import type { EventBus, ToolEvent } from "../ai/events.js";
+import type { ToolEventBus, ToolEvent } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 
 const noopLogger: Logger = {
@@ -50,7 +50,7 @@ function createCombinedStore(): ToolStore {
   });
 }
 
-function spyEventBus(): { bus: EventBus; events: Array<{ missionId: number; event: ToolEvent }> } {
+function spyEventBus(): { bus: ToolEventBus; events: Array<{ missionId: number; event: ToolEvent }> } {
   const events: Array<{ missionId: number; event: ToolEvent }> = [];
   return {
     events,
@@ -59,8 +59,6 @@ function spyEventBus(): { bus: EventBus; events: Array<{ missionId: number; even
         events.push({ missionId, event });
       },
       subscribe: () => () => {},
-      subscribeUser: () => () => {},
-      emitUser: () => {},
     },
   };
 }
@@ -101,10 +99,10 @@ async function pollJobDone(
 }
 
 function makeGenerator(store: ToolStore, ai: AiClient, opts?: {
-  events?: EventBus;
+  events?: ToolEventBus;
 }) {
   const toolExecutor = createToolExecutor(store);
-  const events = opts?.events ?? spyEventBus().bus;
+  const events: ToolEventBus = opts?.events ?? spyEventBus().bus;
   return new LessonGenerator({
     ai,
     toolExecutor,
