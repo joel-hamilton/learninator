@@ -12,7 +12,6 @@ import { formatMarkdown } from "../shared/markdown.js";
 import { chatMessageBubble } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { validateChatMessage, rateLimitedFragment } from "../security/index.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const chatRoutes = new Hono<{ Variables: AppVariables }>();
@@ -36,7 +35,8 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     return c.html(rateLimitedFragment());
   }
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const missionChatService = c.get("missionChatService");

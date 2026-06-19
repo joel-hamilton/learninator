@@ -19,7 +19,6 @@ import {
 } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
 import { buildJobKey } from "../lessons/generator.js";
 import { lessonGenerationRoutes } from "./lesson-generation.js";
@@ -48,7 +47,8 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const lesson = await store.getLesson(missionId, number, subNumber);
@@ -94,7 +94,8 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const fbErr = validateFeedback(feedbackText);
   if (fbErr) return c.html(fbErr);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   await store.updateLessonFeedback(missionId, number, subNumber, rating, feedbackText || undefined);
@@ -110,7 +111,8 @@ lessonRoutes.post("/:number/incomplete", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   await store.updateLessonStatus(missionId, number, subNumber, "in_progress", null);
@@ -126,7 +128,8 @@ lessonRoutes.post("/:number/complete", auth.requireAuth, async (c: Ctx) => {
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const lesson = await store.getLesson(missionId, number, subNumber);
@@ -148,7 +151,8 @@ lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => 
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
   const mode = (c.req.query("mode") || "next") as "next" | "more";
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const lesson = await store.getLesson(missionId, number, subNumber);
@@ -177,7 +181,8 @@ lessonRoutes.post("/:number/chat", auth.requireAuth, async (c: Ctx) => {
   if (!message) return c.text("");
   if (message.length > 10000) return c.text("Message too long", 400);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const missionChatService = c.get("missionChatService");

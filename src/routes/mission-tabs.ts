@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";
 import { emptyReferencesMessage, emptyRecordsMessage, referenceDocCard, learningRecordCard } from "../views/fragments.js";
@@ -16,7 +15,8 @@ missionTabRoutes.get("/:missionId/reference", auth.requireAuth, async (c: Ctx) =
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const refs = await store.listReferenceDocs(id);
@@ -42,7 +42,8 @@ missionTabRoutes.get("/:missionId/reference/:refId", auth.requireAuth, async (c:
   const missionId = parseInt(c.req.param("missionId")!);
   const refId = parseInt(c.req.param("refId")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const ref = await store.getReferenceDoc(refId, missionId);
@@ -75,7 +76,8 @@ missionTabRoutes.get("/:missionId/records", auth.requireAuth, async (c: Ctx) => 
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const records = await store.listLearningRecords(id);
@@ -106,7 +108,8 @@ missionTabRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) =
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const resources = await store.getMissionContent(id, "resources");

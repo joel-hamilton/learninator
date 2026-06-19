@@ -5,7 +5,6 @@ import type { AppVariables } from "../types.js";
 import { TEACHER_TOOLS } from "../ai/teacher.js";
 import { AIError } from "../ai/errors.js";
 import { handleActivation } from "../shared/activate-mission.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { validateGuidedAnswer } from "../security/index.js";
 import { guidedQuestionSection, guidedThinkingSection } from "../views/onboarding.js";
 
@@ -18,7 +17,8 @@ onboardingRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ct
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   const missionChatService = c.get("missionChatService");
@@ -67,7 +67,8 @@ onboardingRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: C
   const answerErr = validateGuidedAnswer(selectedAnswer, otherText);
   if (answerErr) return c.html(answerErr);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   const finalAnswer = otherText || selectedAnswer;
@@ -114,7 +115,8 @@ onboardingRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   await store.skipPendingQuestions(missionId);
@@ -153,7 +155,8 @@ onboardingRoutes.post("/:missionId/mode", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const newMode = String(body.mode || "guided") as "guided" | "chat";
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission || mission.status !== "onboarding") return c.text("Not found", 404);
 
   if (mission.onboardingMode === "guided" && newMode === "chat") {

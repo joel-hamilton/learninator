@@ -17,7 +17,6 @@ import {
   bridgingDoneBar,
   bridgingErrorBar,
 } from "../views/fragments.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { validateNotes, rateLimitedFragment } from "../security/index.js";
 import { buildJobKey } from "../lessons/generator.js";
 
@@ -87,7 +86,8 @@ lessonGenerationRoutes.post("/:number/generate-next", auth.requireAuth, async (c
     return c.html(rateLimitedFragment());
   }
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const lesson = await store.getLesson(missionId, number, subNumber);
@@ -118,7 +118,8 @@ lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, as
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const lesson = await store.getLesson(missionId, number, subNumber);
@@ -159,7 +160,8 @@ lessonGenerationRoutes.post("/:number/regenerate", auth.requireAuth, async (c: C
     return c.html(rateLimitedFragment());
   }
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
@@ -190,7 +192,8 @@ lessonGenerationRoutes.post("/:number/generate-bridging", auth.requireAuth, asyn
     return c.html(rateLimitedFragment());
   }
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);

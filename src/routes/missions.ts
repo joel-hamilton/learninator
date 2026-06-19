@@ -13,7 +13,6 @@ import type { AppVariables } from "../types.js";
 import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";import { formatMarkdown } from "../shared/markdown.js";
 import { generateSlug } from "../shared/slug.js";
 import { handleActivation } from "../shared/activate-mission.js";
-import { requireMissionAccess } from "../shared/require-mission-access.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, generationProgressPanel, emptyLessonsMessage, lessonCard } from "../views/fragments.js";
@@ -41,7 +40,8 @@ missionRoutes.put("/:missionId/title", auth.requireAuth, async (c: Ctx) => {
   const titleErr = validateTitle(newTitle);
   if (titleErr) return c.html(titleErr);
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   await store.updateMissionTitle(missionId, newTitle);
@@ -132,7 +132,8 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   if (mission.status === "onboarding") {
@@ -204,7 +205,8 @@ missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
   if (mission.status === "archived") return c.text("Already archived", 400);
 
@@ -227,7 +229,8 @@ missionRoutes.post("/:missionId/restore", auth.requireAuth, async (c: Ctx) => {
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
   if (mission.status !== "archived") return c.text("Not archived", 400);
 
@@ -248,7 +251,8 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
   if (mission.status !== "archived") return c.text("Must be archived first", 400);
 
@@ -269,7 +273,8 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   const store = c.get("store");
   const id = parseInt(c.req.param("missionId")!);
 
-  const mission = await requireMissionAccess(store, id, user.id);
+  if (Number.isNaN(id) || id < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(id, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const chatRows = await store.getChatMessages(id);
@@ -318,7 +323,8 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     return c.html(rateLimitedFragment());
   }
 
-  const mission = await requireMissionAccess(store, missionId, user.id);
+  if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
+  const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
   const mode = (mission as Record<string, unknown>).onboardingMode as string || "guided";

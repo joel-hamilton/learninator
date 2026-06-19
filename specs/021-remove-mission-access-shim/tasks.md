@@ -25,8 +25,8 @@
 
 **Purpose**: Confirm baseline before starting the refactoring
 
-- [ ] T001 Run `npm test` to confirm all tests pass before any changes
-- [ ] T002 [P] Confirm the full list of call sites via `grep -rn "requireMissionAccess\|require-mission-access" src/ --include='*.ts'` to validate research findings (26 sites across 6 files)
+- [X] T001 Run `npm test` to confirm all tests pass before any changes
+- [X] T002 [P] Confirm the full list of call sites via `grep -rn "requireMissionAccess\|require-mission-access" src/ --include='*.ts'` to validate research findings (26 sites across 6 files)
 
 ---
 
@@ -46,12 +46,12 @@ All 6 route files can be modified in parallel since they are independent files. 
    const mission = await store.getMission(missionId, user.id);
    ```
 
-- [ ] T003 [P] [US1] Inline NaN guard and store.getMission at 7 call sites in `src/routes/missions.ts`
-- [ ] T004 [P] [US1] Inline NaN guard and store.getMission at 6 call sites in `src/routes/lessons.ts`
-- [ ] T005 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/onboarding.ts`
-- [ ] T006 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/mission-tabs.ts`
-- [ ] T007 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/lesson-generation.ts`
-- [ ] T008 [P] [US1] Inline NaN guard and store.getMission at 1 call site in `src/routes/chat.ts`
+- [X] T003 [P] [US1] Inline NaN guard and store.getMission at 7 call sites in `src/routes/missions.ts`
+- [X] T004 [P] [US1] Inline NaN guard and store.getMission at 6 call sites in `src/routes/lessons.ts`
+- [X] T005 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/onboarding.ts`
+- [X] T006 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/mission-tabs.ts`
+- [X] T007 [P] [US1] Inline NaN guard and store.getMission at 4 call sites in `src/routes/lesson-generation.ts`
+- [X] T008 [P] [US1] Inline NaN guard and store.getMission at 1 call site in `src/routes/chat.ts`
 
 **Checkpoint**: At this point US1 and US2 are complete -- all 26 call sites use inline guards and direct store calls. The module still exists but is no longer imported by any route.
 
@@ -65,9 +65,9 @@ All 6 route files can be modified in parallel since they are independent files. 
 
 ### Implementation for User Story 3
 
-- [ ] T009 [US3] Delete `src/shared/require-mission-access.ts` module file (16 lines)
-- [ ] T010 [P] [US3] Delete `src/shared/require-mission-access.test.ts` test file (67 lines)
-- [ ] T011 [US3] Verify zero remaining imports via `grep -rn "requireMissionAccess\|require-mission-access" src/ --include='*.ts'` -- confirm no output
+- [X] T009 [US3] Delete `src/shared/require-mission-access.ts` module file (16 lines)
+- [X] T010 [P] [US3] Delete `src/shared/require-mission-access.test.ts` test file (67 lines)
+- [X] T011 [US3] Verify zero remaining imports via `grep -rn "requireMissionAccess\|require-mission-access" src/ --include='*.ts'` -- confirm no output
 
 **Checkpoint**: The pass-through module is fully removed from the codebase.
 
@@ -77,11 +77,11 @@ All 6 route files can be modified in parallel since they are independent files. 
 
 **Purpose**: Verify the refactoring introduced no behavioral changes and the codebase is clean.
 
-- [ ] T012 Run `npx tsc --noEmit` to confirm clean TypeScript compilation
-- [ ] T013 Run `npm test` to confirm all existing tests pass without modification
-- [ ] T014 [P] Verify net line reduction via `git diff --stat` (expected ~75 lines net removal)
-- [ ] T015 [P] Confirm `test ! -f src/shared/require-mission-access.ts && test ! -f src/shared/require-mission-access.test.ts`
-- [ ] T016 [P] Confirm NaN guard behavior: send requests with non-numeric and negative mission IDs, verify 404 response
+- [X] T012 Run `npx tsc --noEmit` to confirm clean TypeScript compilation
+- [X] T013 Run `npm test` to confirm all existing tests pass without modification
+- [X] T014 [P] Verify net line reduction via `git diff --stat` (expected ~75 lines net removal)
+- [X] T015 [P] Confirm `test ! -f src/shared/require-mission-access.ts && test ! -f src/shared/require-mission-access.test.ts`
+- [X] T016 [P] Confirm NaN guard behavior: send requests with non-numeric and negative mission IDs, verify 404 response
 
 ---
 
