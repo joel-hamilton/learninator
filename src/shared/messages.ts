@@ -1,7 +1,6 @@
 import { eq, asc } from "drizzle-orm";
-import type { AiMessageParam } from "../ai/types.js";
+import type { AiMessageParam } from "../ai/index.js";
 import type { ChatStore } from "../db/store.js";
-
 export async function saveMessage(store: ChatStore, missionId: number, role: "user" | "assistant", content: unknown) {
   await store.saveChatMessage({
     missionId,

@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import type { AppVariables } from "../types.js";
+import {
+  AIError,
+  conversationLoop,
+  createStandardHooks,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+} from "../ai/index.js";import type { AppVariables } from "../types.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { chatMessageBubble } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";

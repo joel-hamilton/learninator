@@ -2,6 +2,13 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
+import {
+  AIError,
+  conversationLoop,
+  createStandardHooks,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+} from "../ai/index.js";
 import { lessonPage } from "../views/lesson.js";
 import {
   lessonActionBar,
@@ -14,7 +21,8 @@ import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { formatAIError } from "../shared/errors.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";
-import { validateFeedback } from "../security/index.js";
+import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
+import { buildJobKey } from "../lessons/generator.js";
 import { lessonGenerationRoutes } from "./lesson-generation.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;

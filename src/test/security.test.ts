@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { FakeAiClient } from "../ai/fake.js";
+import { FakeAiClient } from "../ai/index.js";
 import { SlidingWindowRateLimiter } from "../security/rate-limiter.js";
 import { createApp } from "../index.js";
 import * as schema from "../db/schema.js";

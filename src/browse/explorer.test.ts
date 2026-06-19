@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { FakeAiClient } from "../ai/fake.js";
+import { FakeAiClient } from "../ai/index.js";
 import { TopicExplorer } from "./explorer.js";
 import type { Logger } from "../logger.js";
 

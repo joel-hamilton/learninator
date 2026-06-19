@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { FakeAiClient } from "../ai/fake.js";
+import { FakeAiClient } from "../ai/index.js";
 import { createTestDb, createTestApp, seedUser, login } from "./helpers.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import type * as schema from "../db/schema.js";

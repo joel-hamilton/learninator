@@ -1,8 +1,12 @@
-import { conversationLoop } from "../ai/conversation.js";
-import type { ConversationLoopParams } from "../ai/conversation.js";
-import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS, getRegenerateSystemPrompt, getBridgingSystemPrompt } from "../ai/teacher.js";
-import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
-import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/types.js";
+import {
+  conversationLoop,
+  getBridgingSystemPrompt,
+  getRegenerateSystemPrompt,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+  TOOL_DISPLAY_NAMES,
+} from "../ai/index.js";
+import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/index.js";
 import type { MissionStore, LessonStore } from "../db/store.js";
 import type { EventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";

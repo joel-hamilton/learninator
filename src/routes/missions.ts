@@ -1,9 +1,16 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
+import {
+  AIError,
+  conversationLoop,
+  createStandardHooks,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+} from "../ai/index.js";
+import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/index.js";
 import type { AppVariables } from "../types.js";
-import { contentToText } from "../shared/messages.js";
-import { formatMarkdown } from "../shared/markdown.js";
+import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";import { formatMarkdown } from "../shared/markdown.js";
 import { generateSlug } from "../shared/slug.js";
 import { formatAIError } from "../shared/errors.js";
 import { requireMissionAccess } from "../shared/require-mission-access.js";

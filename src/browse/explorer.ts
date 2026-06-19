@@ -1,4 +1,4 @@
-import type { AiClient } from "../ai/types.js";
+import type { AiClient } from "../ai/index.js";
 import type { Logger } from "../logger.js";
 
 // ── Public types ──
