@@ -4,8 +4,10 @@ import type { Logger } from "../logger.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { AIError } from "../ai/index.js";
-import { saveMessage, loadMessages } from "../shared/messages.js";
+import { saveMessage, loadMessages, contentToText } from "../shared/messages.js";
 import type { MissionStore } from "../db/store.js";
+import type { EventBus } from "../ai/events.js";
+import type { WorkflowStateManager } from "../ai/workflow-state.js";
 
 // ── Public types ──
 
@@ -20,9 +22,20 @@ export interface OnboardingDeps {
   toolExecutor: ToolExecutor;
   store: MissionStore;
   logger: Logger;
+  workflowState?: WorkflowStateManager;
+  events?: EventBus;
+  userId?: number;
+}
+
+export interface RunConversationResult {
+  didActivate: boolean;
+  pausedToolUse?: AiToolUseBlock;
+  text: string;
 }
 
 export interface OnboardingModule {
+  /** Build the system prompt for the given onboarding mode. */
+  getOnboardingPrompt(mode: string): string;
   /** Start a new onboarding conversation. Always redirects to the mission page. */
   start(missionId: number, userMessage: string, mode: "guided" | "chat"): Promise<OnboardingResult>;
   /** Continue a guided onboarding turn (triggered when there's no pending question). */
@@ -33,12 +46,16 @@ export interface OnboardingModule {
   skipQuestions(missionId: number): Promise<OnboardingResult>;
   /** Switch onboarding mode. */
   switchMode(missionId: number, newMode: "guided" | "chat"): Promise<void>;
+  /** Run the conversation loop with custom system prompt and messages. */
+  runConversationLoop(missionId: number, systemPrompt: string, messages: AiMessageParam[], tools: AiTool[], opts?: { pauseOnTools?: Set<string>; workflowType?: "chat" | "lesson_generation" | "mission_activation"; workflowLabel?: string; userId?: number }): Promise<RunConversationResult>;
+  /** Generate a mission title from conversation messages. */
+  generateMissionTitle(missionId: number): Promise<string | null>;
 }
 
 // ── Factory ──
 
 export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
-  const { ai, toolExecutor, store, logger } = deps;
+  const { ai, toolExecutor, store, logger, workflowState, events, userId } = deps;
 
   // ── Prompt builder ──
 
@@ -52,24 +69,12 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
 
   // ── Title generation ──
 
-  /** Extract text content from an AiMessageParam's content field (already parsed). */
-  function extractText(content: string | any[]): string {
-    if (typeof content === "string") return content;
-    if (Array.isArray(content)) {
-      return content
-        .filter((b: any) => b.type === "text")
-        .map((b: any) => b.text)
-        .join("\n");
-    }
-    return "";
-  }
-
   async function generateMissionTitle(missionId: number): Promise<string | null> {
     const messages = await loadMessages(store, missionId);
     if (messages.length === 0) return null;
 
     const conversationText = messages.map((m) => {
-      const text = extractText(m.content);
+      const text = typeof m.content === "string" ? contentToText(m.content) : (m.content as any[]).filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
       return `${m.role}: ${text}`;
     }).join("\n\n");
 
@@ -94,44 +99,60 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
 
   // ── Conversation loop wrapper ──
 
-  interface RunConversationResult {
-    didActivate: boolean;
-    pausedToolUse?: AiToolUseBlock;
-    text: string;
-  }
-
   async function runConversationLoop(
     missionId: number,
     systemPrompt: string,
     initialMessages: AiMessageParam[],
     tools: AiTool[],
-    opts?: { pauseOnTools?: Set<string> },
+    opts?: { pauseOnTools?: Set<string>; workflowType?: "chat" | "lesson_generation" | "mission_activation"; workflowLabel?: string; userId?: number },
   ): Promise<RunConversationResult> {
     let didActivate = false;
 
-    const standardHooks = createStandardHooks({ missionId, store, logger });
+    // Start workflow tracking if workflowState is available
+    let workflowId: string | null = null;
+    if (workflowState) {
+      const wfType = opts?.workflowType ?? "chat";
+      const wfLabel = opts?.workflowLabel ?? "Chat";
+      const wfUserId = opts?.userId ?? userId ?? 0;
+      workflowId = workflowState.startWorkflow(wfUserId, wfType, wfLabel, missionId, `/missions/${missionId}/chat`);
+    }
 
-    const result = await conversationLoop({
-      client: ai,
-      toolExecutor,
-      missionId,
-      systemPrompt,
-      initialMessages,
-      tools,
-      logger,
-      pauseOnTools: opts?.pauseOnTools,
-      hooks: {
-        ...standardHooks,
-        onBeforeToolExecution: async (toolUseBlocks) => {
-          await standardHooks.onBeforeToolExecution!(toolUseBlocks);
-          if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
-            didActivate = true;
-          }
+    const standardHooks = createStandardHooks({ missionId, store, emit: events?.emit.bind(events), logger });
+
+    try {
+      const result = await conversationLoop({
+        client: ai,
+        toolExecutor,
+        missionId,
+        systemPrompt,
+        initialMessages,
+        tools,
+        logger,
+        pauseOnTools: opts?.pauseOnTools,
+        hooks: {
+          ...standardHooks,
+          onBeforeToolExecution: async (toolUseBlocks) => {
+            await standardHooks.onBeforeToolExecution!(toolUseBlocks);
+            if (toolUseBlocks.some((b) => b.name === "mark_mission_active")) {
+              didActivate = true;
+            }
+            // Emit workflow steps for site-wide indicator
+            if (workflowState && workflowId) {
+              for (const block of toolUseBlocks) {
+                workflowState.stepUpdate(workflowId, block.name);
+              }
+            }
+          },
         },
-      },
-    });
+      });
 
-    return { didActivate, pausedToolUse: result.pausedToolUse, text: result.text };
+      if (workflowState && workflowId) workflowState.completeWorkflow(workflowId);
+      return { didActivate, pausedToolUse: result.pausedToolUse, text: result.text };
+    } catch (err: unknown) {
+      const msg = err instanceof AIError ? err.message : "Something went wrong.";
+      if (workflowState && workflowId) workflowState.failWorkflow(workflowId, msg);
+      throw err;
+    }
   }
 
   // ── Find the latest pending guided question ──
@@ -143,6 +164,9 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
   // ── Public API ──
 
   return {
+    getOnboardingPrompt,
+    runConversationLoop,
+    generateMissionTitle,
     async start(missionId, userMessage, mode) {
       const systemPrompt = getOnboardingPrompt(mode);
 
@@ -152,9 +176,10 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
 
       await saveMessage(store, missionId, "user", userMessage);
 
+      const label = userMessage.length > 40 ? userMessage.slice(0, 40) + "…" : userMessage;
       const opts = mode === "guided"
-        ? { pauseOnTools: new Set(["ask_guided_question"]) }
-        : undefined;
+        ? { pauseOnTools: new Set(["ask_guided_question"]), workflowType: "mission_activation" as const, workflowLabel: `Setting up: ${label}` }
+        : { workflowType: "mission_activation" as const, workflowLabel: `Setting up: ${label}` };
 
       try {
         const result = await runConversationLoop(missionId, systemPrompt, initialMessages, TEACHER_TOOLS, opts);
@@ -177,7 +202,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
       try {
         const result = await runConversationLoop(
           missionId, systemPrompt, messages, TEACHER_TOOLS,
-          { pauseOnTools: new Set(["ask_guided_question"]) },
+          { pauseOnTools: new Set(["ask_guided_question"]), workflowType: "mission_activation" as const, workflowLabel: "Setting up mission" },
         );
 
         if (result.didActivate) {
@@ -224,7 +249,7 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
       try {
         const result = await runConversationLoop(
           missionId, systemPrompt, messages, TEACHER_TOOLS,
-          { pauseOnTools: new Set(["ask_guided_question"]) },
+          { pauseOnTools: new Set(["ask_guided_question"]), workflowType: "mission_activation" as const, workflowLabel: "Setting up mission" },
         );
 
         if (result.didActivate) {
@@ -270,7 +295,10 @@ export function createOnboarding(deps: OnboardingDeps): OnboardingModule {
       const allMessages = await loadMessages(store, missionId);
 
       try {
-        const result = await runConversationLoop(missionId, systemPrompt, allMessages, skipTools);
+        const result = await runConversationLoop(missionId, systemPrompt, allMessages, skipTools, {
+          workflowType: "mission_activation" as const,
+          workflowLabel: "Setting up mission",
+        });
 
         if (result.didActivate) {
           await generateMissionTitle(missionId);
