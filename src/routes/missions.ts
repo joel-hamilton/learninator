@@ -1,11 +1,15 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
-import { AIError } from "../ai/index.js";
-import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
+import {
+  AIError,
+  conversationLoop,
+  createStandardHooks,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+} from "../ai/index.js";
+import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/index.js";
 import type { AppVariables } from "../types.js";
-import type { AiMessageParam, AiTool, AiToolUseBlock } from "../ai/types.js";
 import { saveMessage, contentToText, loadMessages } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { missionLayout } from "../views/mission.js";

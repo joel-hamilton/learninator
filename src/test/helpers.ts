@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import * as schema from "../db/schema.js";
 import { createApp } from "../index.js";
-import type { AiClient } from "../ai/types.js";
+import type { AiClient } from "../ai/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
 export function createTestDb(): BetterSQLite3Database<typeof schema> {

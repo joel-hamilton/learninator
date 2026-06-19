@@ -1,9 +1,12 @@
-import type { AiClient, AiMessageParam, AiTool, AiToolUseBlock } from "../ai/types.js";
-import type { ToolExecutor } from "../ai/types.js";
+import {
+  AIError,
+  conversationLoop,
+  createStandardHooks,
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+} from "../ai/index.js";
+import type { AiClient, AiMessageParam, AiTool, AiToolUseBlock, ToolExecutor } from "../ai/index.js";
 import type { Logger } from "../logger.js";
-import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
-import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
-import { AIError } from "../ai/index.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
 import type { MissionStore } from "../db/store.js";
 

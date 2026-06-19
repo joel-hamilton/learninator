@@ -1,5 +1,5 @@
 import { eq, asc } from "drizzle-orm";
-import type { AiMessageParam } from "../ai/types.js";
+import type { AiMessageParam } from "../ai/index.js";
 import type { MissionStore } from "../db/store.js";
 
 export async function saveMessage(store: MissionStore, missionId: number, role: "user" | "assistant", content: unknown) {

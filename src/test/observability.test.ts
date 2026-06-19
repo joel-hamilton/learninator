@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createApp } from "../index.js";
-import { FakeAiClient } from "../ai/fake.js";
+import { FakeAiClient } from "../ai/index.js";
 import { createTestDb, seedUser, login, authedReq } from "./helpers.js";
 
 function setDebug(on: boolean) {

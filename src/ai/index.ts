@@ -1,20 +1,63 @@
-// Re-export types
+// ── Types ───────────────────────────────────────────────────────────
 export type {
   AiClient,
+  AiContentBlock,
   AiMessage,
+  AiMessageContent,
   AiMessageParam,
-  AiToolUseBlock,
+  AiTextBlock,
   AiTool,
   AiToolResultBlockParam,
+  AiToolUseBlock,
+  ChatOptions,
   ModelTier,
   ToolCallOptions,
-  ChatOptions,
-  ToolHandler,
   ToolExecutor,
+  ToolHandler,
   ToolHandlerContext,
 } from "./types.js"
 
-// Re-export implementations
+// ── Implementations ─────────────────────────────────────────────────
 export { AnthropicAiClient } from "./anthropic.js"
 export { FakeAiClient } from "./fake.js"
 export { AIError } from "./errors.js"
+
+// ── Conversation ────────────────────────────────────────────────────
+export {
+  conversationLoop,
+  createStandardHooks,
+} from "./conversation.js"
+export type {
+  ConversationHooks,
+  ConversationLoopParams,
+  ConversationLoopResult,
+  StandardHooksDeps,
+} from "./conversation.js"
+
+// ── Teacher ─────────────────────────────────────────────────────────
+export {
+  TEACHER_SYSTEM_PROMPT,
+  TEACHER_TOOLS,
+  getRegenerateSystemPrompt,
+  getBridgingSystemPrompt,
+} from "./teacher.js"
+
+// ── Tools ───────────────────────────────────────────────────────────
+export { TOOL_DISPLAY_NAMES, createToolExecutor } from "./tools.js"
+
+// ── Events ──────────────────────────────────────────────────────────
+export { createEventBus, emit, emitUser, subscribe, subscribeUser } from "./events.js"
+export type { EventBus, ToolEvent, WorkflowEvent } from "./events.js"
+
+// ── Workflow state ──────────────────────────────────────────────────
+export { WorkflowStateManager, toolDisplayLabel } from "./workflow-state.js"
+export type { WorkflowRun, WorkflowStep } from "./workflow-state.js"
+
+// ── Mission conversation ────────────────────────────────────────────
+export { createMissionConversation } from "./mission-conversation.js"
+export type {
+  MissionConversationDeps,
+  MissionConversationInput,
+  MissionConversationModule,
+  MissionConversationResult,
+} from "./mission-conversation.js"
