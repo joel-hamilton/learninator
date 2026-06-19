@@ -1,6 +1,6 @@
-/** SSE reconnection helper for site-wide workflow indicator.
- * Returns a <script> tag that manages an EventSource with exponential backoff
- * reconnection and a disconnect/reconnect UI in the workflow indicator.
+/** Workflow progress indicator — polling-based to avoid persistent connection accumulation.
+ * Polls /workflows/state every 5 seconds for updates. Avoids the bfcache,
+ * reconnection race, and connection-pool exhaustion issues that plague SSE.
  */
 export function ssePollerScript(): string {
   return `<script>
@@ -8,122 +8,76 @@ export function ssePollerScript(): string {
   var indicator = document.getElementById("workflow-indicator");
   if (!indicator) return;
 
-  var es = null;
-  var retryMs = 1000;
-  var maxRetry = 30000;
-  var reconnectTimer = null;
+  var interval = null;
+  var consecutiveErrors = 0;
 
-  function connect() {
-    if (es) {
-      es.close();
-      es = null;
+  function startPolling() {
+    if (interval) return;
+    fetchState(); // immediate first fetch
+    interval = setInterval(fetchState, 5000);
+  }
+
+  function stopPolling() {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
     }
-    es = new EventSource("/workflows/events");
-
-    es.addEventListener("workflow_start", function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        addWorkflow(d);
-      } catch(ex) {}
-    });
-
-    es.addEventListener("workflow_step", function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        updateStep(d);
-      } catch(ex) {}
-    });
-
-    es.addEventListener("workflow_complete", function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        markComplete(d.workflowId);
-      } catch(ex) {}
-    });
-
-    es.addEventListener("workflow_error", function(e) {
-      try {
-        var d = JSON.parse(e.data);
-        markError(d);
-      } catch(ex) {}
-    });
-
-    es.addEventListener("open", function() {
-      retryMs = 1000;
-      clearDisconnected();
-      // Catch up on any state we missed while disconnected
-      fetch("/workflows/state")
-        .then(function(r) { return r.json(); })
-        .then(function(data) { renderAll(data.workflows || []); })
-        .catch(function() {});
-    });
-
-    es.addEventListener("error", function() {
-      showDisconnected();
-      es.close();
-      es = null;
-      scheduleReconnect();
-    });
   }
 
-  function scheduleReconnect() {
-    if (reconnectTimer) return;
-    reconnectTimer = setTimeout(function() {
-      reconnectTimer = null;
-      connect();
-      retryMs = Math.min(retryMs * 2, maxRetry);
-    }, retryMs);
+  function fetchState() {
+    fetch("/workflows/state")
+      .then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        consecutiveErrors = 0;
+        clearDisconnected();
+        renderAll(data.workflows || []);
+      })
+      .catch(function() {
+        consecutiveErrors++;
+        if (consecutiveErrors >= 3) showDisconnected();
+      });
   }
+
+  // Stop polling when page is hidden (bfcache / tab switch), restart when shown
+  document.addEventListener("visibilitychange", function() {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      consecutiveErrors = 0;
+      startPolling();
+    }
+  });
+
+  // Stop polling when page is unloaded
+  window.addEventListener("pagehide", function() {
+    stopPolling();
+  });
 
   function showDisconnected() {
     indicator.classList.add("disconnected");
-    var summary = indicator.querySelector(".wf-summary");
-    if (summary) summary.textContent = "Connection lost. Reconnecting...";
   }
 
   function clearDisconnected() {
     indicator.classList.remove("disconnected");
   }
 
-  // DOM helpers — updated by inline script in shared.ts
   window._wfState = { workflows: [] };
 
   function addWorkflow(d) {
-    var found = window._wfState.workflows.find(function(w) { return w.id === d.workflowId; });
-    if (!found) {
-      window._wfState.workflows.push({
-        id: d.workflowId,
-        type: d.type || "chat",
-        label: d.label,
-        status: "running",
-        linkUrl: d.linkUrl || "",
-      });
-    }
-    render();
+    // Not called via SSE events anymore; state is fully replaced by renderAll
   }
 
-  function updateStep(d) {
-    render();
-  }
+  function updateStep(d) {}
 
   function markComplete(id) {
-    var w = window._wfState.workflows.find(function(wf) { return wf.id === id; });
-    if (w) w.status = "completed";
-    render();
-    // Auto-dismiss after brief show
-    var stillRunning = window._wfState.workflows.some(function(wf) { return wf.status === "running"; });
-    if (!stillRunning) {
-      setTimeout(function() {
-        window._wfState.workflows = window._wfState.workflows.filter(function(wf) { return wf.status !== "completed"; });
-        render();
-      }, 2000);
-    }
+    // Handled by renderAll now; auto-dismiss is in render()
   }
 
   function markError(d) {
-    var w = window._wfState.workflows.find(function(wf) { return wf.id === d.workflowId; });
-    if (w) { w.status = "failed"; w.error = d.error || ""; }
-    render();
+    // Handled by renderAll now
   }
 
   function renderAll(workflows) {
@@ -169,11 +123,7 @@ export function ssePollerScript(): string {
   }
 
   // Kick off
-  fetch("/workflows/state")
-    .then(function(r) { return r.json(); })
-    .then(function(data) { renderAll(data.workflows || []); })
-    .catch(function() {})
-    .finally(function() { connect(); });
+  startPolling();
 })();
 </script>`;
 }

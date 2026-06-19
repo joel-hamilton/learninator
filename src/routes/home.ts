@@ -164,12 +164,24 @@ homeRoutes.get("/workflows/events", auth.requireAuth, async (c: Ctx) => {
       }
     });
 
-    await new Promise<void>((resolve) => {
+    // Keep-alive ping every 15s to prevent idle connection drops
+    const keepAlive = setInterval(async () => {
+      try {
+        await stream.writeSSE({ data: "", event: "ping" });
+      } catch {
+        clearInterval(keepAlive);
+      }
+    }, 15_000);
+
+    const done = new Promise<void>((resolve) => {
       c.req.raw.signal.addEventListener("abort", () => {
         log.debug("Workflow SSE client disconnected for user %d", user.id);
+        clearInterval(keepAlive);
         unsub();
         resolve();
       });
     });
+
+    await done;
   });
 });
