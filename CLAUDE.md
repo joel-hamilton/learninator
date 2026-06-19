@@ -159,9 +159,9 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/013-split-monolithic-store/plan.md
-Feature: Complete Mission Editing Coverage — fill all test-coverage and behavior
-gaps found in the 007-chat-based-mission-editing analysis: inject mission content
-into chat context, enforce cross-user scoping, verify sidebar tab routes, and
-test all five edge cases.
+Current plan: specs/011-eliminate-duplicate-modules/plan.md
+Feature: Eliminate Duplicate Modules — resolve the dead/duplicate extraction problem
+where src/onboarding/index.ts and src/browse/explorer.ts were extracted as clean modules
+but route files retained inline copies. Implementation created MissionChatService as the
+canonical service, wired routes to TopicExplorer, deleted mission-conversation.ts.
 <!-- SPECKIT END -->

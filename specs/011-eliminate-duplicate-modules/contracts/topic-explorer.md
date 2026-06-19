@@ -41,3 +41,15 @@ Gets different options at the current level without changing path/iteration.
 - path.length > 0: re-generates at same level with different alternatives
 - On AI error: THROWS (caller must handle)
 - Returns `{ options: string[], isLastQuestion: boolean }`
+
+## Route Integration
+
+The browse routes in `src/routes/browse.ts` create TopicExplorer via a thin helper:
+
+```typescript
+function getExplorer(c: Ctx): TopicExplorer {
+  return createTopicExplorer({ ai: c.get("ai"), logger: c.get("logger") });
+}
+```
+
+This could be moved to context injection if TopicExplorer gains additional consumers.
