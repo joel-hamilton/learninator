@@ -4,7 +4,6 @@ import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
 import { TEACHER_TOOLS } from "../ai/teacher.js";
 import { AIError } from "../ai/errors.js";
-import { handleActivation } from "../shared/activate-mission.js";
 import { validateGuidedAnswer } from "../security/index.js";
 import { guidedQuestionSection, guidedThinkingSection } from "../views/onboarding.js";
 
@@ -36,8 +35,11 @@ onboardingRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ct
       workflowLabel: `Setting up mission`,
     });
 
-    const activated = await handleActivation(result, missionId, missionChatService, c);
-    if (activated) return activated;
+    if (result.didActivate) {
+      await missionChatService.generateTitle(missionId);
+      c.header("HX-Redirect", `/missions/${missionId}`);
+      return c.body(null);
+    }
 
     if (result.pausedToolUse) {
       const pq = await store.getPendingQuestion(missionId);
@@ -91,8 +93,11 @@ onboardingRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: C
       workflowLabel: `Setting up mission`,
     });
 
-    const activated = await handleActivation(result, missionId, missionChatService, c);
-    if (activated) return activated;
+    if (result.didActivate) {
+      await missionChatService.generateTitle(missionId);
+      c.header("HX-Redirect", `/missions/${missionId}`);
+      return c.body(null);
+    }
 
     if (result.pausedToolUse) {
       const pq = await store.getPendingQuestion(missionId);
@@ -137,8 +142,11 @@ onboardingRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx
       workflowLabel: `Setting up mission`,
     });
 
-    const activated = await handleActivation(result, missionId, missionChatService, c);
-    if (activated) return activated;
+    if (result.didActivate) {
+      await missionChatService.generateTitle(missionId);
+      c.header("HX-Redirect", `/missions/${missionId}`);
+      return c.body(null);
+    }
   } catch {
     // Continue to redirect even on error — mission exists
   }
