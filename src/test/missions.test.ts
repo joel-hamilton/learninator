@@ -227,7 +227,7 @@ describe("missions", () => {
       expect(html).toContain('id="active-section"');
       expect(html).toContain('id="archived-section"');
       // <details> present, no `open` attribute → collapsed by default
-      expect(html).toMatch(/<details[^>]*class="archived-details"(?![^>]*\bopen\b)/);
+      expect(html).toMatch(/<details[^>]*class="archived-section"(?![^>]*\bopen\b)/);
       expect(html).toContain("Archived (1)");
     });
 
@@ -236,7 +236,7 @@ describe("missions", () => {
       const res = await authedReq(app, cookie, "GET", "/");
       const html = await res.text();
       expect(html).toContain('id="archived-section"');
-      expect(html).not.toContain("archived-details");
+      expect(html).not.toContain("<details");
     });
 
     it("archive endpoint returns OOB swaps that populate both sections", async () => {
@@ -261,7 +261,7 @@ describe("missions", () => {
       expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
       expect(html).toContain("To Restore");
       // Last restore: archived section becomes empty (no <details>)
-      expect(html).not.toContain("archived-details");
+      expect(html).not.toContain("<details");
     });
 
     it("delete endpoint returns OOB swaps reflecting removal", async () => {
@@ -284,7 +284,7 @@ describe("missions", () => {
 
       const restoreRes = await authedReq(app, cookie, "POST", `/missions/${m}/restore`);
       const restoreHtml = await restoreRes.text();
-      expect(restoreHtml).not.toContain("archived-details");
+      expect(restoreHtml).not.toContain("<details");
     });
 
     it("error responses (404) remain plain text, not HTML swaps", async () => {

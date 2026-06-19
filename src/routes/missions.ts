@@ -585,8 +585,6 @@ missionRoutes.get("/:missionId/resources", auth.requireAuth, async (c: Ctx) => {
   `, "resources", `/missions/${id}`, "Mission"));
 });
 
-import { renderOobSections } from "./home.js";
-
 // ── Archive ──
 missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
