@@ -1,113 +1,114 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Deepen AIError — inline the format pass-through
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `021-deepen-ai-error` | **Date**: 2026-06-19 | **Spec**: specs/021-deepen-ai-error/spec.md
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Input**: Feature specification from `specs/021-deepen-ai-error/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Note**: This template is filled in by the `/speckit-plan` command.
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Move the user-facing error message formatting logic from the standalone `formatAIError()` function in `src/shared/errors.ts` onto `AIError.prototype.toUserMessage()` in `src/ai/errors.ts`, then remove the dead code. This is a pure mechanical refactoring — all six production call sites change from `formatAIError(err)` to the pattern `err instanceof AIError ? err.toUserMessage() : "Something went wrong. Please try again."`. No behavioral change, no new entities, no schema changes.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: TypeScript 5.x, Node.js 22, ES Modules (`"type": "module"`)
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Primary Dependencies**: None new — code moves within the existing project. The `AIError` class already depends on the `createLogger` from `src/logger.js`.
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Storage**: N/A — no database changes.
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Testing**: Vitest. Existing test file at `src/shared/errors.test.ts` (7 test cases for `formatAIError`) will be migrated to `src/ai/errors.test.ts`, retargeting against `AIError.prototype.toUserMessage`.
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Target Platform**: Linux server (Docker Compose), macOS development.
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: Web application (Hono + htmx + SQLite).
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Performance Goals**: Not applicable — this is a trivial string concatenation at error-reporting call sites on infrequent error paths.
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Constraints**: Zero behavioral change in error messages. Every rendered message must be byte-identical before and after the refactoring.
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
-
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Scale/Scope**: 1 file deleted (`src/shared/errors.ts`), ~15 lines added to `src/ai/errors.ts`, 6 call sites patched across 5 route files, 1 test file relocated and retargeted.
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+| Principle | Status | Rationale |
+|-----------|--------|-----------|
+| I. Factory-Based Testability | PASS | `AIError` is an error class instantiated via `new`, not through the factory. No impact on `createApp()` or dependency injection. |
+| II. HTTP-Level Integration Testing | PASS | Existing route tests that assert on error messages continue to pass unchanged — no test logic is modified, only import/file references change. |
+| III. Hypermedia-Driven Frontend | PASS | No frontend or view code is touched. Error messages continue to render as before. |
+| IV. Explicit Dependency Injection | PASS | `AIError` does not access `c.get("db")` or any Hono context. No DI impact. |
+| V. Migration Snapshot Integrity | PASS | No schema changes. No `schema.ts` edit, no migration, no snapshot. |
+
+**Result**: All gates pass. No violations to track in Complexity Tracking.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specs/021-deepen-ai-error/
 ├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+├── research.md          # Phase 0 output — no unknowns found
+├── data-model.md        # Phase 1 output — AIError class, method contract
+├── quickstart.md        # Phase 1 output — validation guide
+└── tasks.md             # Phase 2 output (/speckit-tasks command)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+
+The feature touches existing files only — no new directories or files (the test file is relocated within the same project tree):
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── ai/
+│   ├── errors.ts        # MODIFY — add toUserMessage()
+│   └── errors.test.ts   # CREATE — migrated from src/shared/errors.test.ts
+├── routes/
+│   ├── browse.ts        # MODIFY — 1 call site
+│   ├── chat.ts          # MODIFY — 1 call site
+│   ├── lessons.ts       # MODIFY — 1 call site
+│   ├── missions.ts      # MODIFY — 1 call site
+│   └── onboarding.ts    # MODIFY — 2 call sites
+└── shared/
+    └── errors.ts        # DELETE
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Single project (unchanged). All changes are within existing `src/` tree.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+No constitution violations to resolve. Table omitted.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+## Phase 0 — Research
+
+### Unknowns Assessment
+
+All technical details are fully specified. Zero `NEEDS CLARIFICATION` items.
+
+### Research Tasks
+
+None required. The spec defines every acceptance scenario, every interface contract (`toUserMessage(fallback?: string): string`), every migration pattern (`err instanceof AIError ? err.toUserMessage() : default`), and every cleanup step (delete `src/shared/errors.ts`, remove imports).
+
+## Phase 1 — Design
+
+### Key Entity
+
+**AIError** (existing class in `src/ai/errors.ts`):
+
+| Member | Kind | Current | After |
+|--------|------|---------|-------|
+| `message` | public inherited | string from Error | unchanged |
+| `status` | public readonly | number \| undefined | unchanged |
+| `recoverable` | public readonly | boolean (default false) | unchanged |
+| `toUserMessage()` | new method | — | string, appended hint when recoverable |
+
+### Interface Contracts
+
+No external interfaces are changed. The method is internal-only (called from route catch blocks). No contracts/ directory needed.
+
+### Validation Scenarios
+
+See `quickstart.md` for runnable validation.

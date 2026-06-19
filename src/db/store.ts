@@ -622,6 +622,67 @@ export class InMemoryUserStore implements UserStore {
   async updateUser(id: number, values: any) { const u = this.users.find(u => u.id === id); if (u) { if (values.name !== undefined) u.name = values.name; if (values.email !== undefined) u.email = values.email; if (values.passwordHash !== undefined) u.passwordHash = values.passwordHash; } }
 }
 
+// ── Composite in-memory store for tests that need the full ToolStore surface ──
+// Delegates to individual InMemory* stores, mirroring DrizzleMissionStore's composition.
+
+export class InMemoryToolStore implements MissionStore, LessonStore, ChatStore, ContentStore, RefDocStore, LearningRecordStore {
+  private _m = new InMemoryMissionStore();
+  private _l = new InMemoryLessonStore();
+  private _c = new InMemoryChatStore();
+  private _ct = new InMemoryContentStore();
+  private _r = new InMemoryRefDocStore();
+  private _lr = new InMemoryLearningRecordStore();
+
+  // MissionStore
+  createMission = (v: any) => this._m.createMission(v);
+  getMission = (id: number, userId: number) => this._m.getMission(id, userId);
+  listMissions = (userId: number, opts?: any) => this._m.listMissions(userId, opts);
+  updateMissionTitle = (id: number, title: string) => this._m.updateMissionTitle(id, title);
+  updateMissionOnboardingMode = (id: number, mode: "guided" | "chat") => this._m.updateMissionOnboardingMode(id, mode);
+  updateMissionStatus = (id: number, status: any) => this._m.updateMissionStatus(id, status);
+  deleteMission = (id: number) => this._m.deleteMission(id);
+
+  // LessonStore
+  createLesson = (v: any) => this._l.createLesson(v);
+  getLesson = (missionId: number, number: number, subNumber?: number | null) => this._l.getLesson(missionId, number, subNumber);
+  getLatestLesson = (missionId: number) => this._l.getLatestLesson(missionId);
+  listLessons = (missionId: number) => this._l.listLessons(missionId);
+  listLessonSummaries = (missionId: number) => this._l.listLessonSummaries(missionId);
+  getMaxLessonNumber = (missionId: number) => this._l.getMaxLessonNumber(missionId);
+  getSubLessonCount = (missionId: number, parentLessonId: number) => this._l.getSubLessonCount(missionId, parentLessonId);
+  getLessonCount = (missionId: number) => this._l.getLessonCount(missionId);
+  getMainLessonCount = (missionId: number) => this._l.getMainLessonCount(missionId);
+  getMaxSubNumber = (parentLessonId: number) => this._l.getMaxSubNumber(parentLessonId);
+  findLessonBySlug = (missionId: number, slug: string) => this._l.findLessonBySlug(missionId, slug);
+  updateLessonStatus = (missionId: number, number: number, subNumber: number | null, status: string, completedAt?: string | null) => this._l.updateLessonStatus(missionId, number, subNumber, status, completedAt);
+  updateLessonFeedback = (missionId: number, number: number, subNumber: number | null, rating: string, text?: string) => this._l.updateLessonFeedback(missionId, number, subNumber, rating, text);
+  listLessonFeedback = (missionId: number) => this._l.listLessonFeedback(missionId);
+  updateLessonContent = (missionId: number, number: number, subNumber: number | null, title: string, slug: string, htmlContent: string) => this._l.updateLessonContent(missionId, number, subNumber, title, slug, htmlContent);
+
+  // ChatStore
+  saveChatMessage = (v: any) => this._c.saveChatMessage(v);
+  getChatMessages = (missionId: number) => this._c.getChatMessages(missionId);
+  createGuidedQuestion = (v: any) => this._c.createGuidedQuestion(v);
+  getPendingQuestion = (missionId: number) => this._c.getPendingQuestion(missionId);
+  answerQuestion = (id: number, answer: string, answerText?: string | null) => this._c.answerQuestion(id, answer, answerText);
+  skipPendingQuestions = (missionId: number) => this._c.skipPendingQuestions(missionId);
+
+  // ContentStore
+  getMissionContent = (missionId: number, contentType: string) => this._ct.getMissionContent(missionId, contentType);
+  upsertMissionContent = (v: any) => this._ct.upsertMissionContent(v);
+
+  // RefDocStore
+  createReferenceDoc = (v: any) => this._r.createReferenceDoc(v);
+  getReferenceDoc = (id: number, missionId: number) => this._r.getReferenceDoc(id, missionId);
+  listReferenceDocs = (missionId: number) => this._r.listReferenceDocs(missionId);
+
+  // LearningRecordStore
+  createLearningRecord = (v: any) => this._lr.createLearningRecord(v);
+  listLearningRecords = (missionId: number) => this._lr.listLearningRecords(missionId);
+  updateLearningRecord = (id: number, values: any) => this._lr.updateLearningRecord(id, values);
+  getLearningRecordCount = (missionId: number) => this._lr.getLearningRecordCount(missionId);
+}
+
 export class InMemorySessionStore implements SessionStore {
   private sessions: any[] = [];
   private nextId = 1;

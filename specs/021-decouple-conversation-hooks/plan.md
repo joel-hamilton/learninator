@@ -1,113 +1,146 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Decouple Conversation Hooks
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `021-decouple-conversation-hooks` | **Date**: 2026-06-19 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Input**: Feature specification from `specs/021-decouple-conversation-hooks/spec.md`
 
-**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+---
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Move event emission (`tool_start`/`tool_end`) out of `createStandardHooks()` and `LessonGenerator.runConversation()` and into the `conversationLoop` function itself. This eliminates duplicated event-wiring code across two independent callers, simplifies the `ConversationHooks` interface to pure domain callbacks (DB persistence, job status updates), and gives new conversation-loop callers automatic progress visibility without extra work.
+
+**Technical approach**: Add an optional `EventBus` parameter to `ConversationLoopParams`. `conversationLoop` emits events directly before/after tool execution (lines 151–159 of the current implementation). `createStandardHooks` drops its `emit` parameter and `pendingToolNames` tracking. `LessonGenerator.runConversation` drops its `events?.emit(...)` calls but keeps its `job.messages.push(label)` logic in `onBeforeToolExecution`. All existing callers continue to work unchanged.
+
+---
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: TypeScript 5.x, Node.js 22, ES modules (`"type": "module"`)
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Primary Dependencies**: Hono (web framework), htmx (frontend interactivity), better-sqlite3 + Drizzle ORM (database), Anthropic SDK (AI), bcrypt (auth), Vitest (test runner)
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Storage**: SQLite via better-sqlite3, Drizzle ORM. No schema changes required for this feature.
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Testing**: Vitest with in-memory SQLite, `FakeAiClient`, `app.request()` HTTP-level testing. Existing tests (chat, missions, lessons, onboarding) must pass without modification.
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Target Platform**: Linux server (Docker Compose), macOS development
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: Web application — multi-user AI tutoring webapp
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Performance Goals**: Low-latency AI response streaming (SSE for tool progress). No new network calls or blocking I/O introduced.
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Constraints**:
+- Zero new npm dependencies
+- No database schema changes
+- No visible user behavior changes
+- All existing tests must pass without modification to test files
+- Pure code refactoring — no API contract changes for route handlers
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+**Scale/Scope**: ~3 source files modified (`ai/conversation.ts`, `services/mission-chat.service.ts`, `lessons/generator.ts`), ~1 type file touched if needed, ~2 test files potentially added or extended
 
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+---
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### I. Factory-Based Testability
+**Status: PASS** -- `createApp()` testability pattern is unchanged. The `EventBus` is already injectable through the existing dependency injection pattern. `conversationLoop` already accepts an optional parameters bag (`ConversationLoopParams`) where the `EventBus` will be added as an optional field.
+
+### II. HTTP-Level Integration Testing
+**Status: PASS** -- All existing HTTP-level tests must pass without modification (Success Criterion SC-003). New unit-level tests for event emission can use `createEventBus()` directly, or a simple mock `EventBus`, without HTTP scaffolding. The `FakeAiClient` pattern is unchanged.
+
+### III. Hypermedia-Driven Frontend
+**Status: PASS** -- This is a server-side plumbing refactor. htmx attributes, HTML fragment rendering, view templates, and sandboxed iframes are not touched.
+
+### IV. Explicit Dependency Injection
+**Status: PASS** -- `EventBus` is already provided through Hono context (`c.get("events")` or passed explicitly in `GeneratorDeps`/`MissionChatDeps`). The refactor moves *where* events are emitted (from hook callbacks into `conversationLoop`), not how the EventBus is wired.
+
+### V. Migration Snapshot Integrity
+**Status: PASS** -- No schema changes. No `schema.ts` edits, no `db:generate`, no migrations.
+
+**No violations found. Complexity Tracking table is not needed.**
+
+---
 
 ## Project Structure
 
 ### Documentation (this feature)
 
-```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+```
+specs/021-decouple-conversation-hooks/
+├── spec.md              # Feature specification (input)
+├── plan.md              # This file (planning output)
+├── research.md          # Phase 0 output (research findings)
+├── data-model.md        # Phase 1 output (entity design)
+├── quickstart.md        # Phase 1 output (validation guide)
+├── contracts/           # Phase 1 output (interface contracts)
+└── tasks.md             # Phase 2 output (generated by /speckit-tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
-```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+```
 src/
-├── models/
+├── ai/
+│   ├── conversation.ts    # PRIMARY: conversationLoop + createStandardHooks changes
+│   ├── events.ts          # REFERENCE: EventBus type, no changes needed
+│   ├── types.ts           # REFERENCE: no changes needed
+│   └── teacher.ts         # REFERENCE: no changes needed
 ├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+│   └── mission-chat.service.ts  # CALLER: update createStandardHooks invocation
+├── lessons/
+│   └── generator.ts       # CALLER: remove duplicated event emission
+└── test/
+    ├── chat.test.ts       # EXISTING: must pass unchanged
+    ├── missions.test.ts   # EXISTING: must pass unchanged
+    ├── lessons.test.ts    # EXISTING: must pass unchanged
+    └── conversation.test.ts  # NEW: event emission tests
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+---
+
+## Phase 0: Research
+
+### Unknowns to resolve
+
+1. **EventBus integration point in conversationLoop** -- Where exactly in the loop body should `emit` be called? Does the loop need to know about tool names for the payload, or can it derive them from existing data structures?
+2. **Error handling for event emission** -- The spec requires graceful handling if the EventBus is disposed or throws. What is the current error behavior of `EventBus.emit()`?
+3. **Tool name resolution in conversationLoop** -- Currently `pendingToolNames` is tracked in both callers using `TOOL_DISPLAY_NAMES` mapping. Can `conversationLoop` access this mapping directly, or should the event carry raw tool names?
+4. **Backward compatibility with existing callers** -- `mission-chat.service.ts` spreads `stdHooks` and overrides `onBeforeToolExecution`. How does this interact with the new event emission in the loop?
+5. **Test isolation for event verification** -- How to write a deterministic test that `tool_start`/`tool_end` are emitted without a full SSE integration test?
+
+These are resolved by direct codebase analysis. See `research.md` for findings.
+
+---
+
+## Phase 1: Design
+
+### Data Model
+
+No new entities. The `ConversationHooks` interface and `ConversationLoopParams` interface are modified:
+
+- **`ConversationLoopParams.events`** (new optional field): `EventBus | undefined`
+- **`StandardHooksDeps`** removes `emit` field (was `(missionId: number, event: ToolEvent) => void`)
+- **`ConversationHooks`** interface remains structurally the same but its callbacks no longer carry event emission concerns
+
+### Interface Contracts
+
+See `contracts/conversation-loop.md` for the full contract specification.
+
+### Quickstart Validation
+
+See `quickstart.md` for validation scenarios and commands.
+
+---
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+Not needed. Zero constitutional violations.
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+---
+
+## Agent Context
+
+After plan creation, update CLAUDE.md to reference this plan file.

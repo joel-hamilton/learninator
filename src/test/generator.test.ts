@@ -4,7 +4,7 @@ import {
   buildJobKey,
   type JobStatus,
 } from "../lessons/generator.js";
-import { InMemoryMissionStore } from "../db/store.js";
+import { InMemoryToolStore } from "../db/store.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
 import type { AiClient, AiMessage, AiMessageParam, AiTool, ToolCallOptions, ChatOptions } from "../ai/types.js";
@@ -33,7 +33,7 @@ function spyEventBus(): { bus: EventBus; events: Array<{ missionId: number; even
   };
 }
 
-async function seedMission(store: InMemoryMissionStore) {
+async function seedMission(store: InMemoryToolStore) {
   const mission = await store.createMission({
     userId: 1,
     title: "Test Mission",
@@ -43,7 +43,7 @@ async function seedMission(store: InMemoryMissionStore) {
   return mission;
 }
 
-async function seedLesson(store: InMemoryMissionStore, missionId: number) {
+async function seedLesson(store: InMemoryToolStore, missionId: number) {
   return store.createLesson({
     missionId,
     number: 1,
@@ -68,7 +68,7 @@ async function pollJobDone(
   return gen.getJobStatus(key);
 }
 
-function makeGenerator(store: InMemoryMissionStore, ai: AiClient, opts?: {
+function makeGenerator(store: InMemoryToolStore, ai: AiClient, opts?: {
   events?: EventBus;
 }) {
   const toolExecutor = createToolExecutor(store);
@@ -79,14 +79,12 @@ function makeGenerator(store: InMemoryMissionStore, ai: AiClient, opts?: {
 // ── Tests ──
 
 describe("LessonGenerator", () => {
-  let store: InMemoryMissionStore;
+  let store: InMemoryToolStore;
   let mission: Awaited<ReturnType<typeof seedMission>>;
   let lesson: Awaited<ReturnType<typeof seedLesson>>;
 
   beforeEach(async () => {
-    store = new InMemoryMissionStore();
-    // Seed a user so the AI tools don't choke on missing user lookups
-    await store.createUser({ email: "test@test.com", passwordHash: "hash" });
+    store = new InMemoryToolStore();
     mission = await seedMission(store);
     lesson = await seedLesson(store, mission.id);
   });
@@ -149,8 +147,7 @@ describe("LessonGenerator", () => {
 
   it("getJobStatus transitions: not_found → running → done → not_found", async () => {
     // Pre-seed lesson 2 so findResult discovers it
-    const store2 = new InMemoryMissionStore();
-    await store2.createUser({ email: "test@test.com", passwordHash: "hash" });
+    const store2 = new InMemoryToolStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
     await store2.createLesson({
@@ -309,8 +306,7 @@ describe("LessonGenerator", () => {
 
   it("result callback returns new lesson when a new one is created", async () => {
     // Seed a new lesson AFTER the AI response to simulate the AI creating one
-    const store2 = new InMemoryMissionStore();
-    await store2.createUser({ email: "test@test.com", passwordHash: "hash" });
+    const store2 = new InMemoryToolStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
 
