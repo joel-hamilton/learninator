@@ -233,6 +233,9 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   ask_guided_question: "Asking question",
   list_feedback_history: "Listing feedback",
   regenerate_lesson: "Regenerating lesson",
+  search_web: "Searching the web…",
+  read_reference_doc: "Reading a reference document…",
+  read_learning_record: "Reading a learning record…",
 };
 
 // ── Handler map ───────────────────────────────────────────────────────

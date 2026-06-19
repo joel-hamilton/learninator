@@ -4,6 +4,7 @@ import {
   getRegenerateSystemPrompt,
   TEACHER_SYSTEM_PROMPT,
   TEACHER_TOOLS,
+  TOOL_DISPLAY_NAMES,
 } from "../ai/index.js";
 import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/index.js";
 import type { MissionStore, LessonStore } from "../db/store.js";
@@ -470,29 +471,21 @@ export class LessonGenerator {
     name: string,
     input: Record<string, unknown> | undefined,
   ): string {
+    // Dynamic-input tools need special formatting on top of the base label.
+    // All other tools fall through to the single source of truth.
     switch (name) {
-      case "list_lessons":
-        return "Looking at previous lessons…";
       case "read_lesson":
         return `Reviewing lesson ${input?.number || ""}…`;
-      case "list_reference_docs":
-        return "Checking reference documents…";
-      case "list_learning_records":
-        return "Reviewing learning records…";
       case "create_lesson":
         return `Writing lesson: ${input?.title || "new lesson"}…`;
       case "create_sub_lesson":
         return `Writing sub-lesson: ${input?.title || "new sub-lesson"}…`;
       case "create_reference_doc":
         return `Creating reference: ${input?.title || "new doc"}…`;
-      case "read_mission_content":
-        return "Reading mission notes…";
-      case "list_feedback_history":
-        return "Checking feedback history…";
       case "regenerate_lesson":
         return `Regenerating lesson: ${input?.title || ""}…`;
       default:
-        return `Working (${name.replace(/_/g, " ")})…`;
+        return TOOL_DISPLAY_NAMES[name] || `Working (${name.replace(/_/g, " ")})…`;
     }
   }
 }

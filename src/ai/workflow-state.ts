@@ -1,4 +1,5 @@
 import type { EventBus, WorkflowEvent } from "./events.js";
+import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
 export interface WorkflowStep {
   label: string;
@@ -29,28 +30,9 @@ function uid(): string {
   return `wf_${Date.now()}_${nextId}`;
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  list_lessons: "Looking at previous lessons…",
-  read_lesson: "Reviewing a lesson…",
-  list_reference_docs: "Checking reference documents…",
-  read_reference_doc: "Reading a reference document…",
-  list_learning_records: "Reviewing learning records…",
-  read_learning_record: "Reading a learning record…",
-  create_lesson: "Creating a new lesson…",
-  create_sub_lesson: "Creating a sub-lesson…",
-  create_reference_doc: "Creating a reference document…",
-  create_learning_record: "Recording what you learned…",
-  read_mission_content: "Reading mission notes…",
-  write_mission_content: "Writing mission notes…",
-  list_feedback_history: "Checking feedback history…",
-  regenerate_lesson: "Regenerating a lesson…",
-  mark_mission_active: "Activating your mission…",
-  search_web: "Searching the web…",
-};
-
 /** Student-friendly label for a tool name. */
 export function toolDisplayLabel(name: string, _input?: Record<string, unknown>): string {
-  return TOOL_LABELS[name] || `Working (${name.replace(/_/g, " ")})…`;
+  return TOOL_DISPLAY_NAMES[name] || `Working (${name.replace(/_/g, " ")})…`;
 }
 
 export class WorkflowStateManager {
