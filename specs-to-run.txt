@@ -3,7 +3,7 @@
 # Worktrees go in .claude/worktrees/<feature>
 # Logs go in /tmp/learninator.logs/<feature>.log
 
-007-chat-based-mission-editing
+# 007-chat-based-mission-editing
 011-eliminate-duplicate-modules
 012-introduce-service-layer
 013-split-monolithic-store
@@ -12,3 +12,4 @@
 016-fix-ai-barrel-file
 017-extract-inline-javascript
 018-harden-session-auth
+019-complete-mission-editing
