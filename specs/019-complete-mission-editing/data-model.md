@@ -12,8 +12,8 @@ No new entities, tables, or columns. This feature operates entirely on the exist
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| id | text (PK) | UUID |
-| missionId | text (FK → missions.id) | Scoped to a single mission |
+| id | integer (PK, autoIncrement) | Row ID |
+| missionId | integer (FK → missions.id) | Scoped to a single mission |
 | contentType | text | `"mission"`, `"notes"`, `"resources"`, or `"glossary"` |
 | markdownContent | text | The stored markdown |
 | createdAt | text | ISO timestamp |
@@ -27,8 +27,8 @@ scoped to the authenticated user via the mission's `userId`.
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| id | text (PK) | UUID |
-| userId | text (FK → users.id) | Owner |
+| id | integer (PK, autoIncrement) | Row ID |
+| userId | integer (FK → users.id) | Owner |
 | status | text | `"onboarding"`, `"active"`, or `"archived"` |
 
 **State gating**: Mission content editing via chat is only allowed for `"active"`

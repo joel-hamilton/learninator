@@ -22,13 +22,14 @@
 **Decision**: Write an integration test that seeds two users each with their own mission, authenticates as user A, and verifies that `read_mission_content` returns empty/error when pointed at user B's mission ID.
 
 **Rationale**:
-- The store's `getMissionContent` already enforces scoping via the mission's `userId`. The test verifies this at the integration level.
+- The chat route (`src/routes/chat.ts`) enforces user scoping via `store.getMission(missionId, user.id)` before any tool executes. A 404 is returned if the mission doesn't belong to the authenticated user. The test verifies this at the integration level.
+- The store's `getMissionContent(missionId, contentType)` itself does NOT scope by userId — it relies on the route-level access check. This is acceptable because tool execution uses the route-verified missionId, not user-supplied input.
 - `FakeAiClient` can simulate a `read_mission_content` tool call targeting a different mission ID.
 - No code change needed — this is purely a test verifying existing behavior.
 
 **Alternatives considered**:
 - Unit test the store method directly: violates Principle II (HTTP-level integration testing). Rejected.
-- Add explicit mission-ownership check in the tool handler: redundant — the store already checks. Rejected.
+- Add explicit mission-ownership check in the tool handler: unnecessary given the route-level enforcement; the missionId is always route-verified before tools run. Rejected.
 
 ## Decision 3: How to test remaining sidebar tab routes
 
