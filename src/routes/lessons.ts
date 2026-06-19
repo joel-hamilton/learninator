@@ -20,6 +20,7 @@ import {
 import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { parseLessonParam } from "../shared/lesson-numbers.js";
+import { computeLessonNavigation } from "../view-models/lesson-navigation.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
 import { buildJobKey } from "../lessons/generator.js";
 import { lessonGenerationRoutes } from "./lesson-generation.js";
@@ -51,11 +52,7 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
 
   const allLessons = await store.listLessonSummaries(missionId);
 
-  const currentIndex = allLessons.findIndex(
-    (l) => l.number === number && l.subNumber === subNumber
-  );
-  const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : undefined;
-  const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : undefined;
+  const { prevLesson, nextLesson } = computeLessonNavigation(allLessons, number, subNumber);
 
   return c.html(lessonPage({
     missionId,

@@ -16,6 +16,8 @@ import { generateSlug } from "../shared/slug.js";
 import { missionLayout } from "../views/mission.js";
 import { guidedOnboardingLayout, onboardingLayout, newMissionPage } from "../views/onboarding.js";
 import { chatMessageBubble, generationProgressPanel, emptyLessonsMessage, lessonCard } from "../views/fragments.js";
+import { lessonGrouping } from "../view-models/lesson-grouping.js";
+import { renderChatMessages } from "../view-models/chat-messages.js";
 import { validateChatMessage, validateTitle, validateTopic, rateLimitedFragment } from "../security/index.js";
 import { renderOobSections } from "./home.js";
 import { onboardingRoutes } from "./onboarding.js";
@@ -174,26 +176,8 @@ missionRoutes.get("/:missionId", auth.requireAuth, async (c: Ctx) => {
     return c.html(missionLayout(user, mission, `${generationProgressPanel()}${emptyLessonsMessage(id)}`, "lessons"));
   }
 
-  const parentNums = new Set<number>();
-  const lastSubs = new Set<string>();
-  const maxSubByNum = new Map<number, number>();
-  for (const l of lessonRows) {
-    if (l.subNumber !== null) {
-      parentNums.add(l.number);
-      const curr = maxSubByNum.get(l.number) ?? 0;
-      if (l.subNumber > curr) maxSubByNum.set(l.number, l.subNumber);
-    }
-  }
-  for (const l of lessonRows) {
-    if (l.subNumber !== null && l.subNumber === maxSubByNum.get(l.number)) {
-      lastSubs.add(`${l.number}:${l.subNumber}`);
-    }
-  }
-
-  const lessonCards = lessonRows.map((l) => lessonCard(id, l, {
-    hasSubLessons: l.subNumber === null && parentNums.has(l.number),
-    isLastSub: l.subNumber !== null && lastSubs.has(`${l.number}:${l.subNumber}`),
-  })).join("");
+  const enriched = lessonGrouping(lessonRows);
+  const lessonCards = enriched.map((l) => lessonCard(id, l, l)).join("");
 
   return c.html(missionLayout(user, mission, `
     ${generationProgressPanel()}
@@ -282,20 +266,7 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
 
   const chatRows = await store.getChatMessages(id);
 
-  let messagesHtml = "";
-  if (chatRows.length === 0) {
-    messagesHtml = chatMessageBubble("assistant", `Hi! I'm your teacher for <strong>${mission.title}</strong>. What would you like to discuss?`);
-  } else {
-    for (const row of chatRows) {
-      const text = contentToText(row.content);
-      if (!text.trim()) continue;
-      if (row.role === "user") {
-        messagesHtml += chatMessageBubble("user", formatMarkdown(text));
-      } else {
-        messagesHtml += chatMessageBubble("assistant", formatMarkdown(text));
-      }
-    }
-  }
+  const messagesHtml = renderChatMessages(chatRows, `Hi! I'm your teacher for <strong>${mission.title}</strong>. What would you like to discuss?`);
 
   return c.html(missionLayout(user, mission, `
     <div class="section-header"><h2>Chat</h2></div>
