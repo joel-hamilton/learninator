@@ -13,34 +13,6 @@ function tabIcon(key: string): string {
   }
 }
 
-/** Actions dropdown for the mission header — rename, archive, restore, delete. */
-function missionActionsMenu(mission: { id: number; status: string }): string {
-  const isArchived = mission.status === "archived";
-  const actionsHtml = isArchived
-    ? `
-      <a href="#" onclick="event.preventDefault();document.getElementById('mission-title-display').click();this.closest('.user-menu-dropdown').classList.remove('open');">${svgIcon("settings")} Rename</a>
-      <form class="menu-form" hx-post="/missions/${mission.id}/restore" hx-target="body">
-        <button type="submit" class="menu-btn">${svgIcon("rotateCcw")} Restore</button>
-      </form>
-      <form class="menu-form" hx-post="/missions/${mission.id}/delete" hx-target="body">
-        <button type="submit" class="menu-btn menu-btn-danger" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
-      </form>`
-    : `
-      <a href="#" onclick="event.preventDefault();document.getElementById('mission-title-display').click();this.closest('.user-menu-dropdown').classList.remove('open');">${svgIcon("settings")} Rename</a>
-      <form class="menu-form" hx-post="/missions/${mission.id}/archive" hx-target="body">
-        <button type="submit" class="menu-btn" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
-      </form>`;
-
-  return `<div class="user-menu">
-    <button class="user-menu-trigger" onclick="toggleUserMenu(this)" aria-label="Mission actions" title="Mission actions">
-      <span class="avatar" style="background:var(--margin);color:var(--ink-secondary);">${svgIcon("settings")}</span>
-    </button>
-    <div class="user-menu-dropdown">
-      ${actionsHtml}
-    </div>
-  </div>`;
-}
-
 export function missionLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
   const tabs = [
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
@@ -52,7 +24,7 @@ export function missionLayout(user: { email: string; name?: string | null }, mis
 
   const tabHtml = tabs.map((t) =>
     `<a href="${t.href}" class="tab ${t.key === activeTab ? "active" : ""}">
-      <span class="tab-icon">${tabIcon(t.key)}</span>${t.label}
+      <span class="tab-icon">${tabIcon(t.key)}</span><span class="tab-label">${t.label}</span>
     </a>`
   ).join("");
 
@@ -83,12 +55,13 @@ ${HTMX_HEAD}
     top: 0;
     z-index: 100;
   }
-  .header-left { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+  .header-left { display: flex; align-items: center; gap: 2rem; min-width: 0; }
   .header .logo {
     font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
     display: flex; align-items: center; gap: 0.4rem;
     color: var(--ink); text-decoration: none; flex-shrink: 0;
     font-family: var(--font-display);
+    margin-right: 0.5rem;
   }
   .header .logo:hover { color: var(--ink); }
   .header .logo .svg-icon { width: 1.15em; height: 1.15em; color: var(--rubric); }
@@ -96,11 +69,32 @@ ${HTMX_HEAD}
     font-size: 0.9rem; font-weight: 600; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
+  .header-title-text {
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    padding-bottom: 1px;
+    transition: border-color 0.2s ease;
+  }
+  .header-title-text:hover {
+    border-bottom-color: var(--rule-hover);
+  }
+  .header-title .edit-hint {
+    display: inline-block;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    margin: 0 0.15rem;
+  }
+  .header-title .edit-hint .svg-icon {
+    width: 0.75em; height: 0.75em;
+    color: var(--ink-muted);
+    vertical-align: middle;
+  }
+  .header-title-text:hover .edit-hint { opacity: 1; }
   .status-tag {
     display: inline-block;
     font-size: 0.62rem; font-weight: 600; padding: 0.18rem 0.5rem;
     border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em;
-    margin-left: 0.5rem; vertical-align: middle;
+    margin-left: 1.25rem; vertical-align: middle;
   }
   .tag-active { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
   .tag-onboarding { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
@@ -115,8 +109,17 @@ ${HTMX_HEAD}
     transition: grid-template-columns 0.25s ease;
     position: relative;
   }
-  .layout.sidebar-collapsed { grid-template-columns: 0 1fr; }
-  .layout.sidebar-collapsed .sidebar { padding: 0; border-right: none; overflow: hidden; }
+  .layout.sidebar-collapsed { grid-template-columns: 56px 1fr; }
+  .layout.sidebar-collapsed .sidebar { padding: 0.5rem 0; overflow: hidden; }
+  .layout.sidebar-collapsed .sidebar-back { display: flex; justify-content: center; align-items: center; padding: 0.65rem 0.5rem; border: none; border-radius: 0; margin-bottom: 0.5rem; width: 100%; box-sizing: border-box; }
+  .layout.sidebar-collapsed .sidebar-back .svg-icon { width: 1.1em; height: 1.1em; }
+  .layout.sidebar-collapsed .sidebar-back .back-label { display: none; }
+  .layout.sidebar-collapsed .sidebar-label,
+  .layout.sidebar-collapsed .sidebar-footer,
+  .layout.sidebar-collapsed .sidebar-divider { display: none; }
+  .layout.sidebar-collapsed .tab { justify-content: center; padding: 0.55rem 0; }
+  .layout.sidebar-collapsed .tab-label { display: none; }
+  .layout.sidebar-collapsed .tab .tab-icon .svg-icon { width: 1.25em; height: 1.25em; }
 
   @media (max-width: 768px) {
     .layout:not(.sidebar-open) { grid-template-columns: 0 1fr; }
@@ -143,15 +146,14 @@ ${HTMX_HEAD}
   .sidebar-toggle {
     position: absolute;
     left: 250px;
-    top: 80px;
+    bottom: 20px;
     transform: translateX(-50%);
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     border: 1px solid var(--rule);
     background: var(--surface);
     color: var(--ink-muted);
-    font-size: 0.65rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -168,11 +170,11 @@ ${HTMX_HEAD}
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
   }
   .sidebar-toggle svg {
-    width: 10px;
-    height: 10px;
+    width: 16px;
+    height: 16px;
     transition: transform 0.25s ease;
   }
-  .layout.sidebar-collapsed .sidebar-toggle { left: 0; }
+  .layout.sidebar-collapsed .sidebar-toggle { left: 56px; }
   .layout.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   @media (max-width: 768px) {
     .sidebar-toggle { left: 0; }
@@ -211,6 +213,18 @@ ${HTMX_HEAD}
   }
   .sidebar-footer .mission-name { font-size: 0.8rem; color: var(--ink); font-weight: 600; margin-bottom: 0.1rem; }
   .sidebar-footer .mission-status { font-size: 0.7rem; color: var(--ink-muted); }
+  .sidebar-footer-actions { display: flex; gap: 0.35rem; margin-top: 0.6rem; }
+  .sidebar-action-btn {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    font-size: 0.68rem; padding: 0.25rem 0.45rem;
+    border: 1px solid var(--rule); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--ink-secondary);
+    cursor: pointer; font-family: inherit; font-weight: 500;
+    transition: all var(--transition);
+  }
+  .sidebar-action-btn:hover { border-color: var(--rule-hover); color: var(--ink); background: var(--surface-hover); }
+  .sidebar-action-btn--danger:hover { color: var(--danger); border-color: var(--danger); }
+  .sidebar-action-btn .svg-icon { width: 0.85em; height: 0.85em; color: var(--ink-muted); }
 
   /* Main */
   .main { padding: 2rem 2.5rem; overflow: auto; animation: fadeInUp 0.35s ease-out; }
@@ -287,20 +301,6 @@ ${HTMX_HEAD}
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--accent); }
 
-  /* Actions dropdown menu items (button variants inside .user-menu-dropdown) */
-  .user-menu-dropdown .menu-form { display: flex; }
-  .user-menu-dropdown .menu-btn {
-    display: flex; align-items: center; gap: 0.5rem;
-    width: 100%; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
-    font-size: 0.85rem; color: var(--ink); background: none; border: none;
-    cursor: pointer; transition: background var(--transition); font-weight: 500;
-    font-family: inherit; text-align: left; text-decoration: none; line-height: 1.4;
-  }
-  .user-menu-dropdown .menu-btn:hover { background: var(--surface-hover); }
-  .user-menu-dropdown .menu-btn .svg-icon { width: 1em; height: 1em; color: var(--ink-muted); }
-  .user-menu-dropdown .menu-btn.menu-btn-danger { color: var(--danger); }
-  .user-menu-dropdown .menu-btn.menu-btn-danger .svg-icon { color: var(--danger); }
-
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
@@ -308,20 +308,20 @@ ${HTMX_LOADING_BAR}
 <header class="header">
   <div class="header-left">
     <a href="/" class="logo">${svgIcon("zap")} Learninator</a>
-    <span class="header-title" id="mission-title-display" style="cursor:pointer" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();">${mission.title}${statusTag}</span>
+    <span class="header-title" id="mission-title-display" title="Click to rename" onclick="this.style.display='none';document.getElementById('mission-title-edit').style.display='inline-flex';document.getElementById('title-input').focus();document.getElementById('title-input').select();"><span class="header-title-text">${mission.title} <span class="edit-hint">${svgIcon("edit")}</span></span>${statusTag}</span>
     <form id="mission-title-edit" hx-put="/missions/${mission.id}/title" hx-target="#mission-title-display" hx-swap="outerHTML" style="display:none;align-items:center;gap:0.35rem;" hx-on::after-request="this.style.display='none'">
       <input type="text" id="title-input" name="title" value="${mission.title.replace(/"/g, "&quot;")}" style="font-size:0.85rem;padding:0.25rem 0.55rem;border:1.5px solid var(--rule);border-radius:6px;font-family:inherit;width:200px;">
       <button type="submit" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--rule);background:var(--surface);cursor:pointer;font-family:inherit;">Save</button>
       <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--rule);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
     </form>
   </div>
-  <div class="header-right">${missionActionsMenu(mission)}${userMenu(user)}</div>
+  <div class="header-right">${userMenu(user)}</div>
 </header>
 ${siteWideIndicator()}
 <div class="layout">
   <aside class="sidebar">
-    <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} ${backLabel}</a>
-    <div class="sidebar-label">Workspace</div>
+    <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} <span class="back-label">${backLabel}</span></a>
+    <div class="sidebar-label">${mission.title}</div>
     <nav class="tabs">
       ${tabHtml}
     </nav>
@@ -330,10 +330,18 @@ ${siteWideIndicator()}
       <div class="label">Mission</div>
       <div class="mission-name" id="sidebar-mission-name">${mission.title}</div>
       <div class="mission-status">${mission.status}</div>
+      <div class="sidebar-footer-actions">
+        ${mission.status === "archived" ? `
+          <form hx-post="/missions/${mission.id}/restore" hx-target="body"><button type="submit" class="sidebar-action-btn">${svgIcon("rotateCcw")} Restore</button></form>
+          <form hx-post="/missions/${mission.id}/delete" hx-target="body"><button type="submit" class="sidebar-action-btn sidebar-action-btn--danger" onclick="return confirm('Permanently delete this mission?')">${svgIcon("trash")} Delete</button></form>
+        ` : `
+          <form hx-post="/missions/${mission.id}/archive" hx-target="body"><button type="submit" class="sidebar-action-btn" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button></form>
+        `}
+      </div>
     </div>
   </aside>
   <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="17 17 12 12 17 7"/></svg>
   </button>
   <main class="main">
     ${content}

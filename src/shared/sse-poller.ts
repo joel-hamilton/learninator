@@ -1,6 +1,5 @@
 /** Workflow progress indicator — polling-based to avoid persistent connection accumulation.
- * Polls /workflows/state every 5 seconds for updates. Avoids the bfcache,
- * reconnection race, and connection-pool exhaustion issues that plague SSE.
+ * Polls /workflows/state only when workflows are known to be active. Stops when idle.
  */
 export function ssePollerScript(): string {
   return `<script>
@@ -14,7 +13,7 @@ export function ssePollerScript(): string {
   function startPolling() {
     if (interval) return;
     fetchState(); // immediate first fetch
-    interval = setInterval(fetchState, 5000);
+    // Don't set interval yet — fetchState will decide whether to keep polling
   }
 
   function stopPolling() {
@@ -22,6 +21,11 @@ export function ssePollerScript(): string {
       clearInterval(interval);
       interval = null;
     }
+  }
+
+  function scheduleNext() {
+    stopPolling();
+    interval = setInterval(fetchState, 5000);
   }
 
   function fetchState() {
@@ -34,10 +38,20 @@ export function ssePollerScript(): string {
         consecutiveErrors = 0;
         clearDisconnected();
         renderAll(data.workflows || []);
+        // Only keep polling if there are running workflows
+        var hasRunning = (data.workflows || []).some(function(w) { return w.status === "running"; });
+        if (hasRunning) {
+          scheduleNext();
+        } else {
+          stopPolling();
+        }
       })
       .catch(function() {
         consecutiveErrors++;
-        if (consecutiveErrors >= 3) showDisconnected();
+        if (consecutiveErrors >= 3) {
+          showDisconnected();
+          stopPolling();
+        }
       });
   }
 
