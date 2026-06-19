@@ -212,6 +212,15 @@ missionRoutes.post("/:missionId/archive", auth.requireAuth, async (c: Ctx) => {
   if (mission.status === "archived") return c.text("Already archived", 400);
 
   await store.updateMissionStatus(id, "archived");
+
+  // When triggered from mission detail view, redirect instead of returning
+  // OOB home-page swaps (which would have no target on the mission page).
+  const currentUrl = c.req.header("HX-Current-URL") || "";
+  if (currentUrl.includes("/missions/")) {
+    c.header("HX-Redirect", "/");
+    return c.body(null);
+  }
+
   return c.html(await renderOobSections(store, user.id));
 });
 
@@ -226,6 +235,13 @@ missionRoutes.post("/:missionId/restore", auth.requireAuth, async (c: Ctx) => {
   if (mission.status !== "archived") return c.text("Not archived", 400);
 
   await store.updateMissionStatus(id, "active");
+
+  const currentUrl = c.req.header("HX-Current-URL") || "";
+  if (currentUrl.includes("/missions/")) {
+    c.header("HX-Redirect", `/missions/${id}`);
+    return c.body(null);
+  }
+
   return c.html(await renderOobSections(store, user.id));
 });
 
@@ -240,6 +256,13 @@ missionRoutes.post("/:missionId/delete", auth.requireAuth, async (c: Ctx) => {
   if (mission.status !== "archived") return c.text("Must be archived first", 400);
 
   await store.deleteMission(id);
+
+  const currentUrl = c.req.header("HX-Current-URL") || "";
+  if (currentUrl.includes("/missions/")) {
+    c.header("HX-Redirect", "/");
+    return c.body(null);
+  }
+
   return c.html(await renderOobSections(store, user.id));
 });
 

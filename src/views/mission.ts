@@ -4,7 +4,6 @@ import { ssePollerScript } from "../shared/sse-poller.js";
 
 function tabIcon(key: string): string {
   switch (key) {
-    case "mission": return svgIcon("crosshair");
     case "lessons": return svgIcon("book");
     case "chat": return svgIcon("chat");
     case "reference": return svgIcon("file");
@@ -14,9 +13,36 @@ function tabIcon(key: string): string {
   }
 }
 
+/** Actions dropdown for the mission header — rename, archive, restore, delete. */
+function missionActionsMenu(mission: { id: number; status: string }): string {
+  const isArchived = mission.status === "archived";
+  const actionsHtml = isArchived
+    ? `
+      <a href="#" onclick="event.preventDefault();document.getElementById('mission-title-display').click();this.closest('.user-menu-dropdown').classList.remove('open');">${svgIcon("settings")} Rename</a>
+      <form class="menu-form" hx-post="/missions/${mission.id}/restore" hx-target="body">
+        <button type="submit" class="menu-btn">${svgIcon("rotateCcw")} Restore</button>
+      </form>
+      <form class="menu-form" hx-post="/missions/${mission.id}/delete" hx-target="body">
+        <button type="submit" class="menu-btn menu-btn-danger" onclick="return confirm('Permanently delete this mission? This cannot be undone.')">${svgIcon("trash")} Delete</button>
+      </form>`
+    : `
+      <a href="#" onclick="event.preventDefault();document.getElementById('mission-title-display').click();this.closest('.user-menu-dropdown').classList.remove('open');">${svgIcon("settings")} Rename</a>
+      <form class="menu-form" hx-post="/missions/${mission.id}/archive" hx-target="body">
+        <button type="submit" class="menu-btn" onclick="return confirm('Archive this mission?')">${svgIcon("archive")} Archive</button>
+      </form>`;
+
+  return `<div class="user-menu">
+    <button class="user-menu-trigger" onclick="toggleUserMenu(this)" aria-label="Mission actions" title="Mission actions">
+      <span class="avatar" style="background:var(--margin);color:var(--ink-secondary);">${svgIcon("settings")}</span>
+    </button>
+    <div class="user-menu-dropdown">
+      ${actionsHtml}
+    </div>
+  </div>`;
+}
+
 export function missionLayout(user: { email: string; name?: string | null }, mission: { id: number; title: string; status: string }, content: string, activeTab: string = "lessons", backHref: string = "/", backLabel: string = "Dashboard") {
   const tabs = [
-    { key: "mission", label: "Mission", href: `/missions/${mission.id}/mission` },
     { key: "lessons", label: "Lessons", href: `/missions/${mission.id}` },
     { key: "chat", label: "Chat", href: `/missions/${mission.id}/chat` },
     { key: "reference", label: "Reference", href: `/missions/${mission.id}/reference` },
@@ -261,37 +287,20 @@ ${HTMX_HEAD}
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
   .empty a { color: var(--accent); }
 
-  /* Mission content */
-  .mission-content { max-width: 68ch; line-height: 1.65; font-size: 0.9rem; }
-  .mission-content h1 { font-size: 1.25rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
-  .mission-content h2 { font-size: 1.1rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
-  .mission-content h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.3rem; }
-  .mission-content p { margin-bottom: 0.5rem; }
-  .mission-content ul, .mission-content ol { margin-bottom: 0.5rem; padding-left: 1.25rem; }
-  .mission-content li { margin-bottom: 0.2rem; }
-  .mission-content strong { font-weight: 600; }
-
-  /* Refine form */
-  .refine-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
-  .refine-section .refine-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-  .refine-form { display: flex; gap: 0.5rem; align-items: flex-end; }
-  .refine-form textarea {
-    flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius);
-    font-size: 0.85rem; font-family: inherit; resize: vertical; min-height: 42px;
-    transition: border-color var(--transition);
+  /* Actions dropdown menu items (button variants inside .user-menu-dropdown) */
+  .user-menu-dropdown .menu-form { display: flex; }
+  .user-menu-dropdown .menu-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    width: 100%; padding: 0.5rem 0.75rem; border-radius: var(--radius-sm);
+    font-size: 0.85rem; color: var(--ink); background: none; border: none;
+    cursor: pointer; transition: background var(--transition); font-weight: 500;
+    font-family: inherit; text-align: left; text-decoration: none; line-height: 1.4;
   }
-  .refine-form textarea:focus { outline: none; border-color: var(--accent); }
-  .refine-form button {
-    padding: 0.55rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--surface); font-size: 0.82rem; font-family: inherit; font-weight: 500;
-    cursor: pointer; transition: all var(--transition); white-space: nowrap; flex-shrink: 0;
-  }
-  .refine-form button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-ghost); }
-  .refine-form.htmx-request textarea { opacity: 0.5; border-color: var(--warning); }
-  .refine-form.htmx-request button { opacity: 0.5; pointer-events: none; }
+  .user-menu-dropdown .menu-btn:hover { background: var(--surface-hover); }
+  .user-menu-dropdown .menu-btn .svg-icon { width: 1em; height: 1em; color: var(--ink-muted); }
+  .user-menu-dropdown .menu-btn.menu-btn-danger { color: var(--danger); }
+  .user-menu-dropdown .menu-btn.menu-btn-danger .svg-icon { color: var(--danger); }
 
-  /* Refinement confirmation */
-  .refine-confirmation { margin-top: 1.5rem; padding: 0.75rem 1rem; background: var(--accent-ghost); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
@@ -306,7 +315,7 @@ ${HTMX_LOADING_BAR}
       <button type="button" onclick="this.closest('form').style.display='none';document.getElementById('mission-title-display').style.display=''" style="font-size:0.75rem;padding:0.25rem 0.55rem;border-radius:6px;border:1px solid var(--rule);background:var(--surface);cursor:pointer;font-family:inherit;">Cancel</button>
     </form>
   </div>
-  <div class="header-right">${userMenu(user)}</div>
+  <div class="header-right">${missionActionsMenu(mission)}${userMenu(user)}</div>
 </header>
 ${siteWideIndicator()}
 <div class="layout">
@@ -358,25 +367,4 @@ ${ssePollerScript()}
 </script>
 </body>
 </html>`;
-}
-
-/** Mission tab content: rendered MISSION.md + AI-powered refinement form. */
-export function missionTabContent(missionId: number, formattedMarkdown: string, confirmationMessage: string = ""): string {
-  const confirmationHtml = confirmationMessage
-    ? `<div class="refine-confirmation">${confirmationMessage}</div>`
-    : "";
-
-  return `<div id="mission-content-area">
-  <div id="mission-content-display" class="mission-content markdown-body">
-    ${formattedMarkdown}
-  </div>
-  ${confirmationHtml}
-  <div class="refine-section">
-    <div class="refine-label">Refine Mission</div>
-    <form class="refine-form" hx-post="/missions/${missionId}/mission/refine" hx-target="#mission-content-area" hx-swap="outerHTML" hx-indicator="this">
-      <textarea name="message" placeholder="How should the mission change? e.g. 'I need to focus more on hands-on practice' or 'My time constraints have changed…'" rows="2"></textarea>
-      <button type="submit">Refine</button>
-    </form>
-  </div>
-</div>`;
 }
