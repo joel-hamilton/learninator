@@ -159,9 +159,9 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/013-split-monolithic-store/plan.md
-Feature: Complete Mission Editing Coverage — fill all test-coverage and behavior
-gaps found in the 007-chat-based-mission-editing analysis: inject mission content
-into chat context, enforce cross-user scoping, verify sidebar tab routes, and
-test all five edge cases.
+Current plan: specs/018-harden-session-auth/plan.md
+Feature: Harden Session Auth — replace raw-user-ID cookies with server-side session
+tokens (UUID v4), add CSRF protection for all state-changing requests, rate-limit
+auth endpoints by IP, set Secure cookie flag conditionally on NODE_ENV, and add
+opportunistic expired-session cleanup.
 <!-- SPECKIT END -->

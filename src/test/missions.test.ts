@@ -25,9 +25,9 @@ describe("missions", () => {
         db,
       );
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
-      const res = await authedReq(app, cookie, "POST", "/missions", {
+      const res = await authedReq(app, lr, "POST", "/missions", {
         message: "I want to learn guitar",
       });
 
@@ -55,9 +55,9 @@ describe("missions", () => {
         db,
       );
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
-      const res = await authedReq(app, cookie, "POST", "/missions", {
+      const res = await authedReq(app, lr, "POST", "/missions", {
         message: "I want to learn guitar",
         mode: "chat",
       });
@@ -103,7 +103,7 @@ describe("missions", () => {
         db,
       );
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       // Create mission directly in DB (onboarding, guided)
       const [mission] = await db
@@ -121,7 +121,7 @@ describe("missions", () => {
       // Step 1: POST guided/start → Q1 HTML
       const q1Res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/guided/start`,
       );
@@ -138,7 +138,7 @@ describe("missions", () => {
         .limit(1);
       const q2Res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/guided/answer`,
         {
@@ -160,7 +160,7 @@ describe("missions", () => {
         .offset(1);
       const a3Res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${missionId}/guided/answer`,
         {
@@ -212,17 +212,17 @@ describe("missions", () => {
       return m.id;
     }
 
-    let cookie: string;
+    let lr: any; // LoginResult
     beforeEach(async () => {
       app = createTestApp(new FakeAiClient([]), db);
       await seedUser(db, "user@test.com", "password123");
-      cookie = await login(app, "user@test.com", "password123");
+      lr = await login(app, "user@test.com", "password123");
     });
 
     it("home page renders stable section containers with collapsed archived <details>", async () => {
       await seedActive("Active 1");
       await seedArchived("Archived 1");
-      const res = await authedReq(app, cookie, "GET", "/");
+      const res = await authedReq(app, lr, "GET", "/");
       const html = await res.text();
       expect(html).toContain('id="active-section"');
       expect(html).toContain('id="archived-section"');
@@ -233,7 +233,7 @@ describe("missions", () => {
 
     it("home page omits <details> when there are no archived missions", async () => {
       await seedActive("Active 1");
-      const res = await authedReq(app, cookie, "GET", "/");
+      const res = await authedReq(app, lr, "GET", "/");
       const html = await res.text();
       expect(html).toContain('id="archived-section"');
       expect(html).not.toContain("<details");
@@ -241,7 +241,7 @@ describe("missions", () => {
 
     it("archive endpoint returns OOB swaps that populate both sections", async () => {
       const m = await seedActive("To Archive");
-      const res = await authedReq(app, cookie, "POST", `/missions/${m}/archive`);
+      const res = await authedReq(app, lr, "POST", `/missions/${m}/archive`);
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain('id="active-section"');
@@ -254,7 +254,7 @@ describe("missions", () => {
 
     it("restore endpoint returns OOB swaps with mission moved to active", async () => {
       const m = await seedArchived("To Restore");
-      const res = await authedReq(app, cookie, "POST", `/missions/${m}/restore`);
+      const res = await authedReq(app, lr, "POST", `/missions/${m}/restore`);
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain('hx-swap-oob="innerHTML:#active-section"');
@@ -267,7 +267,7 @@ describe("missions", () => {
     it("delete endpoint returns OOB swaps reflecting removal", async () => {
       await seedArchived("Keep");
       const m = await seedArchived("Delete Me");
-      const res = await authedReq(app, cookie, "POST", `/missions/${m}/delete`);
+      const res = await authedReq(app, lr, "POST", `/missions/${m}/delete`);
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
@@ -278,17 +278,17 @@ describe("missions", () => {
 
     it("archive then restore: count returns to zero and details element disappears", async () => {
       const m = await seedActive("Round Trip");
-      const archiveRes = await authedReq(app, cookie, "POST", `/missions/${m}/archive`);
+      const archiveRes = await authedReq(app, lr, "POST", `/missions/${m}/archive`);
       const archiveHtml = await archiveRes.text();
       expect(archiveHtml).toContain("Archived (1)");
 
-      const restoreRes = await authedReq(app, cookie, "POST", `/missions/${m}/restore`);
+      const restoreRes = await authedReq(app, lr, "POST", `/missions/${m}/restore`);
       const restoreHtml = await restoreRes.text();
       expect(restoreHtml).not.toContain("<details");
     });
 
     it("error responses (404) remain plain text, not HTML swaps", async () => {
-      const res = await authedReq(app, cookie, "POST", "/missions/99999/archive");
+      const res = await authedReq(app, lr, "POST", "/missions/99999/archive");
       expect(res.status).toBe(404);
       const body = await res.text();
       expect(body).not.toContain("hx-swap-oob");
@@ -306,7 +306,7 @@ describe("missions", () => {
         db,
       );
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db
         .insert(schema.missions)
@@ -329,7 +329,7 @@ describe("missions", () => {
 
       const res = await authedReq(
         app,
-        cookie,
+        lr,
         "POST",
         `/missions/${mission.id}/guided/skip`,
       );
@@ -361,14 +361,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Test Mission", slug: "test-mission",
         status: "active", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/archive`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -389,14 +389,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Only Mission", slug: "only-mission",
         status: "active", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/archive`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -410,14 +410,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Archived Mission", slug: "archived-mission",
         status: "archived", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/restore`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/restore`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -439,14 +439,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Last Archived", slug: "last-archived",
         status: "archived", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/restore`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/restore`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -460,7 +460,7 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       // Create two archived missions — delete one
       await db.insert(schema.missions).values({
@@ -472,7 +472,7 @@ describe("missions", () => {
         status: "archived", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${toDelete.id}/delete`);
+      const res = await authedReq(app, lr, "POST", `/missions/${toDelete.id}/delete`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -487,14 +487,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Solo Archived", slug: "solo-archived",
         status: "archived", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/delete`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/delete`);
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -508,9 +508,9 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
-      const res = await authedReq(app, cookie, "POST", "/missions/99999/archive");
+      const res = await authedReq(app, lr, "POST", "/missions/99999/archive");
       expect(res.status).toBe(404);
       const contentType = res.headers.get("Content-Type") || "";
       expect(contentType).toContain("text/plain");
@@ -520,14 +520,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Already Archived", slug: "already-archived",
         status: "archived", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/archive`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/archive`);
       expect(res.status).toBe(400);
       const contentType = res.headers.get("Content-Type") || "";
       expect(contentType).toContain("text/plain");
@@ -537,14 +537,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db.insert(schema.missions).values({
         userId: 1, title: "Active Mission", slug: "active-mission",
         status: "active", onboardingMode: "chat",
       }).returning();
 
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/delete`);
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/delete`);
       expect(res.status).toBe(400);
       const contentType = res.headers.get("Content-Type") || "";
       expect(contentType).toContain("text/plain");
@@ -556,7 +556,7 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       // With at least one active mission
       await db.insert(schema.missions).values({
@@ -564,7 +564,7 @@ describe("missions", () => {
         status: "active", onboardingMode: "chat",
       });
 
-      const res = await authedReq(app, cookie, "GET", "/");
+      const res = await authedReq(app, lr, "GET", "/");
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -576,14 +576,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       await db.insert(schema.missions).values({
         userId: 1, title: "Archived One", slug: "archived-one",
         status: "archived", onboardingMode: "chat",
       });
 
-      const res = await authedReq(app, cookie, "GET", "/");
+      const res = await authedReq(app, lr, "GET", "/");
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -598,14 +598,14 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       await db.insert(schema.missions).values({
         userId: 1, title: "Active Only", slug: "active-only",
         status: "active", onboardingMode: "chat",
       });
 
-      const res = await authedReq(app, cookie, "GET", "/");
+      const res = await authedReq(app, lr, "GET", "/");
       expect(res.status).toBe(200);
       const html = await res.text();
 
@@ -619,7 +619,7 @@ describe("missions", () => {
       const fakeAi = new FakeAiClient([]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [m1] = await db.insert(schema.missions).values({
         userId: 1, title: "M1", slug: "m1",
@@ -631,11 +631,11 @@ describe("missions", () => {
       }).returning();
 
       // Archive first
-      const r1 = await authedReq(app, cookie, "POST", `/missions/${m1.id}/archive`);
+      const r1 = await authedReq(app, lr, "POST", `/missions/${m1.id}/archive`);
       expect(await r1.text()).toContain("Archived (1)");
 
       // Archive second
-      const r2 = await authedReq(app, cookie, "POST", `/missions/${m2.id}/archive`);
+      const r2 = await authedReq(app, lr, "POST", `/missions/${m2.id}/archive`);
       const html2 = await r2.text();
       expect(html2).toContain("Archived (2)");
       expect(html2).toContain("M1");
@@ -650,7 +650,7 @@ describe("missions", () => {
       ]);
       app = createTestApp(fakeAi, db);
       await seedUser(db, "user@test.com", "password123");
-      const cookie = await login(app, "user@test.com", "password123");
+      const lr = await login(app, "user@test.com", "password123");
 
       const [mission] = await db
         .insert(schema.missions)
@@ -673,7 +673,7 @@ describe("missions", () => {
       ];
 
       for (const path of tabPaths) {
-        const res = await authedReq(app, cookie, "GET", path);
+        const res = await authedReq(app, lr, "GET", path);
         expect(res.status, `${path} should return 200`).toBe(200);
       }
     });

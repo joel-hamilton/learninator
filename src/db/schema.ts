@@ -130,6 +130,20 @@ export const guidedQuestions = sqliteTable("guided_questions", {
     .$defaultFn(() => new Date().toISOString()),
 });
 
+// ── Sessions ─────────────────────────────────────────────────────
+export const sessions = sqliteTable("sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").notNull().unique(),
+  csrfToken: text("csrf_token").notNull(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .$defaultFn(() => new Date().toISOString()),
+});
+
 // ── Chat Messages ────────────────────────────────────────────────
 export const chatMessages = sqliteTable("chat_messages", {
   id: integer("id").primaryKey({ autoIncrement: true }),

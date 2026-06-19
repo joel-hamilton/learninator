@@ -43,30 +43,59 @@ export async function seedUser(
   return user;
 }
 
+export interface LoginResult {
+  cookie: string;
+  csrfToken: string;
+}
+
 export async function login(
   app: ReturnType<typeof createApp>,
   email: string,
   password: string,
-): Promise<string> {
+): Promise<LoginResult> {
   const res = await app.request("/login", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ email, password }).toString(),
   });
-  const cookie = res.headers.get("Set-Cookie");
-  if (!cookie)
-    throw new Error(`login() failed — no cookie (status ${res.status})`);
-  return cookie.split(";")[0];
+  // Collect all Set-Cookie headers
+  const rawCookies = res.headers.getSetCookie?.() ?? [];
+  if (rawCookies.length === 0) {
+    const cookie = res.headers.get("Set-Cookie");
+    if (!cookie)
+      throw new Error(`login() failed — no cookie (status ${res.status})`);
+    rawCookies.push(cookie);
+  }
+  // Parse out individual cookie name=value pairs
+  const pairs: string[] = [];
+  let csrfToken = "";
+  for (const h of rawCookies) {
+    const parts = h.split(";");
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (trimmed.startsWith("learninator_csrf=")) {
+        csrfToken = trimmed.split("=")[1];
+        pairs.push(trimmed);
+      } else if (trimmed.startsWith("learninator_sid=")) {
+        pairs.push(trimmed);
+      }
+    }
+  }
+  return { cookie: pairs.join("; "), csrfToken };
 }
 
 export async function authedReq(
   app: ReturnType<typeof createApp>,
-  cookie: string,
+  loginResult: LoginResult,
   method: string,
   path: string,
   body?: Record<string, string>,
 ) {
-  const headers: Record<string, string> = { Cookie: cookie };
+  const headers: Record<string, string> = { Cookie: loginResult.cookie };
+  // Include CSRF token on state-changing methods
+  if (loginResult.csrfToken && method !== "GET" && method !== "HEAD") {
+    headers["X-CSRF-Token"] = loginResult.csrfToken;
+  }
   let bodyStr: string | undefined;
   if (body) {
     headers["Content-Type"] = "application/x-www-form-urlencoded";

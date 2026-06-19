@@ -9,7 +9,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 describe("US1 - Remove insecure SSE tool-events endpoint", () => {
   let db: BetterSQLite3Database<typeof schema>;
   let app: ReturnType<typeof createTestApp>;
-  let cookie: string;
+  let lr: any; // LoginResult
 
   beforeEach(async () => {
     db = createTestDb();
@@ -21,7 +21,7 @@ describe("US1 - Remove insecure SSE tool-events endpoint", () => {
   }
 
   async function loginUser() {
-    cookie = await login(app, "us1@test.com", "password123");
+    lr = await login(app, "us1@test.com", "password123");
   }
 
   it("T006: GET /missions/:missionId/chat/tool-events returns 404 after removal", async () => {
@@ -33,7 +33,7 @@ describe("US1 - Remove insecure SSE tool-events endpoint", () => {
       .values({ userId: 1, title: "SSE Removal Test", slug: "sse-removal-test", status: "active" })
       .returning();
 
-    const res = await authedReq(app, cookie, "GET", `/missions/${mission.id}/chat/tool-events`);
+    const res = await authedReq(app, lr, "GET", `/missions/${mission.id}/chat/tool-events`);
     expect(res.status).toBe(404);
   });
 
@@ -41,7 +41,7 @@ describe("US1 - Remove insecure SSE tool-events endpoint", () => {
     setupApp();
     await loginUser();
 
-    const res = await authedReq(app, cookie, "GET", "/workflows/events");
+    const res = await authedReq(app, lr, "GET", "/workflows/events");
     const contentType = res.headers.get("Content-Type") || res.headers.get("content-type");
     expect(contentType).toBe("text/event-stream");
   });
@@ -50,7 +50,7 @@ describe("US1 - Remove insecure SSE tool-events endpoint", () => {
 describe("US2 - Server-side input length limits", () => {
   let db: BetterSQLite3Database<typeof schema>;
   let app: ReturnType<typeof createTestApp>;
-  let cookie: string;
+  let lr: any; // LoginResult
 
   beforeEach(async () => {
     db = createTestDb();
@@ -62,7 +62,7 @@ describe("US2 - Server-side input length limits", () => {
   }
 
   async function loginUser() {
-    cookie = await login(app, "us2@test.com", "password123");
+    lr = await login(app, "us2@test.com", "password123");
   }
 
   const over10k = "x".repeat(10_001);
@@ -80,7 +80,7 @@ describe("US2 - Server-side input length limits", () => {
       .values({ userId: 1, title: "Chat Limit", slug: "chat-limit", status: "active" })
       .returning();
 
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: over10k });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: over10k });
     const html = await res.text();
     expect(html).toContain("too long");
     expect(html).toContain("10,000");
@@ -95,7 +95,7 @@ describe("US2 - Server-side input length limits", () => {
       .values({ userId: 1, title: "Chat OK", slug: "chat-ok", status: "active" })
       .returning();
 
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: exact10k });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: exact10k });
     const html = await res.text();
     expect(html).not.toContain("too long");
   });
@@ -109,7 +109,7 @@ describe("US2 - Server-side input length limits", () => {
       .values({ userId: 1, title: "Original", slug: "original", status: "active" })
       .returning();
 
-    const res = await authedReq(app, cookie, "PUT", `/missions/${mission.id}/title`, { title: over200 });
+    const res = await authedReq(app, lr, "PUT", `/missions/${mission.id}/title`, { title: over200 });
     const html = await res.text();
     expect(html).toContain("Title must be 200 characters or fewer");
   });
@@ -118,7 +118,7 @@ describe("US2 - Server-side input length limits", () => {
     setupApp();
     await loginUser();
 
-    const res = await authedReq(app, cookie, "POST", "/missions/new", { topic: over200, mode: "chat" });
+    const res = await authedReq(app, lr, "POST", "/missions/new", { topic: over200, mode: "chat" });
     const html = await res.text();
     expect(html).toContain("bit long");
     expect(html).toContain("200");
@@ -128,7 +128,7 @@ describe("US2 - Server-side input length limits", () => {
     setupApp();
     await loginUser();
 
-    const res = await authedReq(app, cookie, "POST", "/missions", { message: over200, mode: "guided" });
+    const res = await authedReq(app, lr, "POST", "/missions", { message: over200, mode: "guided" });
     const html = await res.text();
     expect(html).toContain("bit long");
     expect(html).toContain("200");
@@ -153,7 +153,7 @@ describe("US2 - Server-side input length limits", () => {
         status: "completed",
       });
 
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/lessons/1/feedback`, { rating: "just_right", feedbackText: over2k });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/lessons/1/feedback`, { rating: "just_right", feedbackText: over2k });
     const html = await res.text();
     expect(html).toContain("Feedback");
     expect(html).toContain("2,000");
@@ -178,7 +178,7 @@ describe("US2 - Server-side input length limits", () => {
         status: "completed",
       });
 
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: over1k, feedback: "" });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: over1k, feedback: "" });
     const html = await res.text();
     expect(html).toContain("Notes");
     expect(html).toContain("1,000");
@@ -202,7 +202,7 @@ describe("US2 - Server-side input length limits", () => {
       });
 
     const over5k = "x".repeat(5_001);
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/guided/answer`, { question_id: "1", answer: over5k, other_text: "" });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/guided/answer`, { question_id: "1", answer: over5k, other_text: "" });
     const html = await res.text();
     expect(html).toContain("too long");
     expect(html).toContain("5,000");
@@ -211,7 +211,7 @@ describe("US2 - Server-side input length limits", () => {
 
 describe("US3 - In-memory rate limiting on AI endpoints", () => {
   let db: BetterSQLite3Database<typeof schema>;
-  let cookie: string;
+  let lr: any; // LoginResult
 
   beforeEach(async () => {
     db = createTestDb();
@@ -219,7 +219,7 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
   });
 
   async function loginUser(app: ReturnType<typeof createApp>) {
-    cookie = await login(app, "us3@test.com", "password123");
+    lr = await login(app, "us3@test.com", "password123");
   }
 
   it("T025: 21 chat requests → first 20 accepted, 21st rate limited", async () => {
@@ -237,13 +237,13 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
 
     // Send 20 requests — all should be accepted
     for (let i = 0; i < 20; i++) {
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: `test ${i}` });
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: `test ${i}` });
       const html = await res.text();
       expect(html).not.toContain("too quickly");
     }
 
     // 21st request should be rate limited
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: "one too many" });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: "one too many" });
     const html = await res.text();
     expect(html).toContain("too quickly");
   });
@@ -277,11 +277,11 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
 
     // Send oversized message — should be rejected by input validation, not consume rate limit
     const over10k = "x".repeat(10_001);
-    const big = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: over10k });
+    const big = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: over10k });
     expect(await big.text()).toContain("too long");
 
     // Normal message should still be accepted (rate limit not consumed)
-    const normal = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: "hello" });
+    const normal = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: "hello" });
     expect(await normal.text()).not.toContain("too quickly");
   });
 
@@ -295,7 +295,7 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
       .returning();
 
     // With no rate limiter, requests should not be rate limited (they'll hit AI error, but not rate limit)
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/chat`, { message: "test" });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/chat`, { message: "test" });
     const html = await res.text();
     expect(html).not.toContain("too quickly");
   });
@@ -325,13 +325,13 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
 
     // 10 lesson generation requests — accepted
     for (let i = 0; i < 10; i++) {
-      const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: "", feedback: "" });
+      const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: "", feedback: "" });
       const html = await res.text();
       expect(html).not.toContain("too quickly");
     }
 
     // 11th should be rate limited
-    const res = await authedReq(app, cookie, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: "", feedback: "" });
+    const res = await authedReq(app, lr, "POST", `/missions/${mission.id}/lessons/1/generate-next`, { notes: "", feedback: "" });
     const html = await res.text();
     expect(html).toContain("too quickly");
   });
@@ -346,13 +346,13 @@ describe("US3 - In-memory rate limiting on AI endpoints", () => {
 
     // 5 mission creates via POST /missions/new — accepted (redirect)
     for (let i = 0; i < 5; i++) {
-      const res = await authedReq(app, cookie, "POST", "/missions/new", { topic: `Mission ${i}`, mode: "chat" });
+      const res = await authedReq(app, lr, "POST", "/missions/new", { topic: `Mission ${i}`, mode: "chat" });
       // Accepted means a redirect, not a rate limit error
       expect(await res.text()).not.toContain("too quickly");
     }
 
     // 6th should be rate limited
-    const res = await authedReq(app, cookie, "POST", "/missions/new", { topic: "Mission 6", mode: "chat" });
+    const res = await authedReq(app, lr, "POST", "/missions/new", { topic: "Mission 6", mode: "chat" });
     expect(await res.text()).toContain("too quickly");
   });
 });
