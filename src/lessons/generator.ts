@@ -11,6 +11,8 @@ import type { MissionStore, LessonStore } from "../db/store.js";
 import type { EventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 import { formatLessonNumber } from "../shared/lesson-numbers.js";
+import type { InternalJob, JobStore } from "./job-store.js";
+import { InMemoryJobStore } from "./job-store.js";
 
 // ── Public types ──
 
@@ -28,20 +30,10 @@ export interface GeneratorDeps {
   lessonStore: LessonStore;
   events?: EventBus;
   logger: Logger;
+  jobStore?: JobStore;
 }
 
 // ── Internal types ──
-
-interface InternalJob {
-  status: "running" | "done" | "error";
-  messages: string[];
-  result: {
-    lessonNumber: number;
-    lessonSubNumber: number | null;
-    lessonTitle: string;
-  } | null;
-  error: string | null;
-}
 
 type FindResultFn = () => Promise<{
   lessonNumber: number;
@@ -107,11 +99,15 @@ export function buildJobKey(
 // ── LessonGenerator ──
 
 export class LessonGenerator {
-  private jobs = new Map<string, InternalJob>();
   private deps: GeneratorDeps;
+  private _fallbackStore?: InMemoryJobStore;
 
   constructor(deps: GeneratorDeps) {
     this.deps = deps;
+  }
+
+  private get jobStore(): JobStore {
+    return this.deps.jobStore ?? (this._fallbackStore ??= new InMemoryJobStore());
   }
 
   /**
@@ -330,16 +326,16 @@ export class LessonGenerator {
    * the job is removed from internal storage.
    */
   getJobStatus(key: string): JobStatus {
-    const job = this.jobs.get(key);
+    const job = this.jobStore.getJob(key);
     if (!job) return { status: "not_found" };
 
     if (job.status === "error") {
-      this.jobs.delete(key);
+      this.jobStore.deleteJob(key);
       return { status: "error", error: job.error || "Something went wrong." };
     }
 
     if (job.status === "done") {
-      this.jobs.delete(key);
+      this.jobStore.deleteJob(key);
       if (job.result) {
         return {
           status: "done",
@@ -374,7 +370,7 @@ export class LessonGenerator {
     direction?: "harder" | "easier",
   ): string {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, config.jobKeyType);
-    if (this.jobs.has(key)) return key;
+    if (this.jobStore.getJob(key) !== undefined) return key;
 
     const systemPrompt = config.buildSystemPrompt(missionId, mission, lesson, direction);
     const userMessage = config.buildUserMessage(lesson, opts, direction);
@@ -410,7 +406,7 @@ export class LessonGenerator {
       result: null,
       error: null,
     };
-    this.jobs.set(key, job);
+    this.jobStore.setJob(key, job);
 
     const { logger } = this.deps;
 
@@ -425,7 +421,7 @@ export class LessonGenerator {
           err instanceof Error ? err.message : "Something went wrong.";
         logger.error(`${errorLabel} failed:`, job.error);
       } finally {
-        setTimeout(() => this.jobs.delete(key), 60_000);
+        setTimeout(() => this.jobStore.deleteJob(key), 60_000);
       }
     })();
   }
@@ -491,5 +487,8 @@ export class LessonGenerator {
 }
 
 export function createLessonGenerator(deps: GeneratorDeps): LessonGenerator {
-  return new LessonGenerator(deps);
+  return new LessonGenerator({
+    ...deps,
+    jobStore: deps.jobStore ?? new InMemoryJobStore(),
+  });
 }
