@@ -2,7 +2,7 @@ import type { AiClient, AiTool, AiToolUseBlock, ToolExecutor } from "../ai/types
 import type { Logger } from "../logger.js";
 import type { EventBus } from "../ai/events.js";
 import type { WorkflowStateManager } from "../ai/workflow-state.js";
-import type { MissionStore } from "../db/store.js";
+import type { MissionStore, ChatStore, ContentStore } from "../db/store.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
@@ -13,7 +13,7 @@ import { AIError } from "../ai/errors.js";
 export interface MissionChatDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
-  store: MissionStore;
+  store: MissionStore & ChatStore & ContentStore;
   logger: Pick<Logger, "debug" | "info" | "error">;
   events: EventBus;
   workflowState: WorkflowStateManager;

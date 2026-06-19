@@ -1,8 +1,8 @@
 import { eq, asc } from "drizzle-orm";
 import type { AiMessageParam } from "../ai/types.js";
-import type { MissionStore } from "../db/store.js";
+import type { ChatStore } from "../db/store.js";
 
-export async function saveMessage(store: MissionStore, missionId: number, role: "user" | "assistant", content: unknown) {
+export async function saveMessage(store: ChatStore, missionId: number, role: "user" | "assistant", content: unknown) {
   await store.saveChatMessage({
     missionId,
     role,
@@ -10,7 +10,7 @@ export async function saveMessage(store: MissionStore, missionId: number, role: 
   });
 }
 
-export async function loadMessages(store: MissionStore, missionId: number): Promise<AiMessageParam[]> {
+export async function loadMessages(store: ChatStore, missionId: number): Promise<AiMessageParam[]> {
   const rows = await store.getChatMessages(missionId);
 
   const messages: AiMessageParam[] = [];

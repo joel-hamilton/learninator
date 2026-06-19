@@ -11,7 +11,7 @@ import type {
 } from "./types.js";
 import type { Logger } from "../logger.js";
 import type { ToolEvent } from "./events.js";
-import type { MissionStore } from "../db/store.js";
+import type { ChatStore } from "../db/store.js";
 import { saveMessage } from "../shared/messages.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
 
@@ -56,7 +56,7 @@ export interface ConversationLoopResult {
 /** Dependencies for the standard conversation hooks factory. */
 export interface StandardHooksDeps {
   missionId: number;
-  store: MissionStore;
+  store: ChatStore;
   emit?: (missionId: number, event: ToolEvent) => void;
   logger?: Pick<Logger, "debug">;
 }
