@@ -3,14 +3,14 @@ import type { Logger } from "../logger.js";
 import { conversationLoop, createStandardHooks } from "./conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "./teacher.js";
 import { loadMessages } from "../shared/messages.js";
-import type { MissionStore } from "../db/store.js";
+import type { MissionStore, ChatStore, ContentStore } from "../db/store.js";
 
 // ── Public types ──
 
 export interface MissionConversationDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
-  store: MissionStore;
+  store: MissionStore & ChatStore & ContentStore;
   logger: Pick<Logger, "debug" | "info" | "error">;
 }
 
@@ -91,7 +91,7 @@ export function createMissionConversation(
 async function buildSystemPrompt(
   missionStatus: string,
   onboardingMode?: string,
-  store?: MissionStore,
+  store?: MissionStore & ContentStore,
   missionId?: number
 ): Promise<string> {
   if (missionStatus === "onboarding") {
@@ -118,7 +118,7 @@ async function buildSystemPrompt(
 
 async function generateMissionTitle(
   missionId: number,
-  store: MissionStore,
+  store: MissionStore & ChatStore,
   ai: AiClient
 ): Promise<void> {
   try {

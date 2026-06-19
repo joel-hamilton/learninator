@@ -1,4 +1,4 @@
-import type { MissionStore } from "../db/store.js";
+import type { DrizzleMissionStore } from "../db/store.js";
 import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam } from "./types.js";
 
 // ── Individual tool handlers ──────────────────────────────────────────
@@ -262,7 +262,7 @@ function buildHandlerMap(): Map<string, ToolHandler> {
 
 // ── Factory ───────────────────────────────────────────────────────────
 
-export function createToolExecutor(store: MissionStore): ToolExecutor {
+export function createToolExecutor(store: DrizzleMissionStore): ToolExecutor {
   const handlers = buildHandlerMap();
 
   return {

@@ -5,7 +5,7 @@ import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { AIError } from "../ai/index.js";
 import { saveMessage, loadMessages } from "../shared/messages.js";
-import type { MissionStore } from "../db/store.js";
+import type { MissionStore, ChatStore } from "../db/store.js";
 
 // ── Public types ──
 
@@ -18,7 +18,7 @@ export type OnboardingResult =
 export interface OnboardingDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
-  store: MissionStore;
+  store: MissionStore & ChatStore;
   logger: Logger;
 }
 
