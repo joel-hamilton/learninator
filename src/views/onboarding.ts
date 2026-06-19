@@ -181,7 +181,7 @@ ${HTMX_HEAD}
     </div>
   </div>
 </div>
-	${GUIDED_QUESTION_SCRIPT}
+	<script>${GUIDED_QUESTION_SCRIPT}</script>
 ${ssePollerScript()}
 </body>
 </html>`;

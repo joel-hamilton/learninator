@@ -1,5 +1,50 @@
 /** Shared HTML snippets for all pages. */
 
+/** Guided question JS for onboarding pages. */
+export const GUIDED_QUESTION_SCRIPT = '\n' +
+  'function selectOption(row, idx) {\n' +
+  '  const radio = row.querySelector(\'input[type="radio"]\');\n' +
+  '  if (radio) radio.checked = true;\n' +
+  '  onOptionChange(idx);\n' +
+  '}\n' +
+  'function onOptionChange(idx) {\n' +
+  '  const options = document.querySelectorAll(\'#options-container .option-row\');\n' +
+  '  options.forEach(function(row, i) { row.classList.toggle(\'selected\', i === idx); });\n' +
+  '  const isOther = idx === options.length - 1;\n' +
+  '  const otherInput = document.getElementById(\'other-input\');\n' +
+  '  if (otherInput) otherInput.classList.toggle(\'visible\', isOther);\n' +
+  '  const submitBtn = document.getElementById(\'submit-btn\');\n' +
+  '  if (submitBtn) submitBtn.disabled = false;\n' +
+  '  const hidden = document.getElementById(\'answer-hidden\');\n' +
+  '  const radio = document.querySelector(\'input[name="answer"]:checked\');\n' +
+  '  if (hidden && radio) hidden.value = radio.value;\n' +
+  '}\n' +
+  'function onOtherInput(input) {\n' +
+  '  const hidden = document.getElementById(\'other-text-hidden\');\n' +
+  '  if (hidden) hidden.value = input.value;\n' +
+  '  const answerHidden = document.getElementById(\'answer-hidden\');\n' +
+  '  if (answerHidden) answerHidden.value = input.value;\n' +
+  '}\n' +
+  'function validateAnswer() {\n' +
+  '  const otherInput = document.getElementById(\'other-input\');\n' +
+  '  const otherText = document.getElementById(\'other-text\');\n' +
+  '  const isVisible = otherInput && otherInput.classList.contains(\'visible\');\n' +
+  '  if (isVisible && otherText && !otherText.value.trim()) {\n' +
+  '    otherText.focus();\n' +
+  '    return false;\n' +
+  '  }\n' +
+  '  return true;\n' +
+  '}\n' +
+  'function submitGuidedAnswer() {\n' +
+  '  if (!validateAnswer()) return false;\n' +
+  '  var section = document.getElementById(\'question-section\');\n' +
+  '  if (section) {\n' +
+  '    section.innerHTML = \'<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>\';\n' +
+  '  }\n' +
+  '  return true;\n' +
+  '}\n' +
+  '\n';
+
 export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -633,47 +678,7 @@ document.addEventListener('click', function(e) {
   }
 });
 // Guided question helpers
-function selectOption(row, idx) {
-  const radio = row.querySelector('input[type="radio"]');
-  if (radio) radio.checked = true;
-  onOptionChange(idx);
-}
-function onOptionChange(idx) {
-  const options = document.querySelectorAll('#options-container .option-row');
-  options.forEach(function(row, i) { row.classList.toggle('selected', i === idx); });
-  const isOther = idx === options.length - 1;
-  const otherInput = document.getElementById('other-input');
-  if (otherInput) otherInput.classList.toggle('visible', isOther);
-  const submitBtn = document.getElementById('submit-btn');
-  if (submitBtn) submitBtn.disabled = false;
-  const hidden = document.getElementById('answer-hidden');
-  const radio = document.querySelector('input[name="answer"]:checked');
-  if (hidden && radio) hidden.value = radio.value;
-}
-function onOtherInput(input) {
-  const hidden = document.getElementById('other-text-hidden');
-  if (hidden) hidden.value = input.value;
-  const answerHidden = document.getElementById('answer-hidden');
-  if (answerHidden) answerHidden.value = input.value;
-}
-function validateAnswer() {
-  const otherInput = document.getElementById('other-input');
-  const otherText = document.getElementById('other-text');
-  const isVisible = otherInput && otherInput.classList.contains('visible');
-  if (isVisible && otherText && !otherText.value.trim()) {
-    otherText.focus();
-    return false;
-  }
-  return true;
-}
-function submitGuidedAnswer() {
-  if (!validateAnswer()) return false;
-  var section = document.getElementById('question-section');
-  if (section) {
-    section.innerHTML = '<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>';
-  }
-  return true;
-}
+${GUIDED_QUESTION_SCRIPT}
 function addFollowupMessage(text) {
   const container = document.querySelector("#followup-messages");
   if (!container || !text) return;
@@ -727,50 +732,6 @@ export function spinnerSvg(size: number = 16): string {
   return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" style="animation: spin 0.6s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
 }
 
-/** Guided question JS for onboarding pages. */
-export const GUIDED_QUESTION_SCRIPT = '<script>\n' +
-  'function selectOption(row, idx) {\n' +
-  '  const radio = row.querySelector(\'input[type="radio"]\');\n' +
-  '  if (radio) radio.checked = true;\n' +
-  '  onOptionChange(idx);\n' +
-  '}\n' +
-  'function onOptionChange(idx) {\n' +
-  '  const options = document.querySelectorAll(\'#options-container .option-row\');\n' +
-  '  options.forEach(function(row, i) { row.classList.toggle(\'selected\', i === idx); });\n' +
-  '  const isOther = idx === options.length - 1;\n' +
-  '  const otherInput = document.getElementById(\'other-input\');\n' +
-  '  if (otherInput) otherInput.classList.toggle(\'visible\', isOther);\n' +
-  '  const submitBtn = document.getElementById(\'submit-btn\');\n' +
-  '  if (submitBtn) submitBtn.disabled = false;\n' +
-  '  const hidden = document.getElementById(\'answer-hidden\');\n' +
-  '  const radio = document.querySelector(\'input[name="answer"]:checked\');\n' +
-  '  if (hidden && radio) hidden.value = radio.value;\n' +
-  '}\n' +
-  'function onOtherInput(input) {\n' +
-  '  const hidden = document.getElementById(\'other-text-hidden\');\n' +
-  '  if (hidden) hidden.value = input.value;\n' +
-  '  const answerHidden = document.getElementById(\'answer-hidden\');\n' +
-  '  if (answerHidden) answerHidden.value = input.value;\n' +
-  '}\n' +
-  'function validateAnswer() {\n' +
-  '  const otherInput = document.getElementById(\'other-input\');\n' +
-  '  const otherText = document.getElementById(\'other-text\');\n' +
-  '  const isVisible = otherInput && otherInput.classList.contains(\'visible\');\n' +
-  '  if (isVisible && otherText && !otherText.value.trim()) {\n' +
-  '    otherText.focus();\n' +
-  '    return false;\n' +
-  '  }\n' +
-  '  return true;\n' +
-  '}\n' +
-  'function submitGuidedAnswer() {\n' +
-  '  if (!validateAnswer()) return false;\n' +
-  '  var section = document.getElementById(\'question-section\');\n' +
-  '  if (section) {\n' +
-  '    section.innerHTML = \'<div class="question-card" id="question-card"><div class="msg assistant thinking-bubble"><span class="thinking-dots"><span></span><span></span><span></span></span></div></div>\';\n' +
-  '  }\n' +
-  '  return true;\n' +
-  '}\n' +
-  '</script>';
 
 /** Loading bar — add right after <body> in page layouts, NOT inside <head>. */
 export const HTMX_LOADING_BAR = '<div id="htmx-loading-bar" class="htmx-indicator"></div>';
