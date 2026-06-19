@@ -42,6 +42,7 @@ describe("tool handlers", () => {
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_mission_content ON mission_content (mission_id, content_type);
 
       CREATE TABLE IF NOT EXISTS lessons (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

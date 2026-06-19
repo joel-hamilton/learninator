@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // ── Users ────────────────────────────────────────────────────────
 export const users = sqliteTable("users", {
@@ -34,22 +34,31 @@ export const missions = sqliteTable("missions", {
 });
 
 // ── Mission Content (singular docs: mission, notes, resources, glossary) ──
-export const missionContent = sqliteTable("mission_content", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  missionId: integer("mission_id")
-    .notNull()
-    .references(() => missions.id),
-  contentType: text("content_type", {
-    enum: ["mission", "notes", "resources", "glossary"],
-  }).notNull(),
-  markdownContent: text("markdown_content").notNull().default(""),
-  createdAt: text("created_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-  updatedAt: text("updated_at")
-    .notNull()
-    .$defaultFn(() => new Date().toISOString()),
-});
+export const missionContent = sqliteTable(
+  "mission_content",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    missionId: integer("mission_id")
+      .notNull()
+      .references(() => missions.id),
+    contentType: text("content_type", {
+      enum: ["mission", "notes", "resources", "glossary"],
+    }).notNull(),
+    markdownContent: text("markdown_content").notNull().default(""),
+    createdAt: text("created_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+    updatedAt: text("updated_at")
+      .notNull()
+      .$defaultFn(() => new Date().toISOString()),
+  },
+  (table) => ({
+    uniqueContentTypePerMission: uniqueIndex("uq_mission_content").on(
+      table.missionId,
+      table.contentType,
+    ),
+  }),
+);
 
 // ── Lessons ──────────────────────────────────────────────────────
 export const lessons = sqliteTable("lessons", {

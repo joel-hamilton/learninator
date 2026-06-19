@@ -441,24 +441,20 @@ export class DrizzleMissionStore implements MissionStore, LessonStore, ChatStore
   async upsertMissionContent(values: {
     missionId: number; contentType: string; markdownContent: string;
   }) {
-    const [existing] = await this.db.select().from(schema.missionContent)
-      .where(and(
-        eq(schema.missionContent.missionId, values.missionId),
-        eq(schema.missionContent.contentType, values.contentType as any),
-      ))
-      .limit(1);
-
-    if (existing) {
-      await this.db.update(schema.missionContent)
-        .set({ markdownContent: values.markdownContent, updatedAt: new Date().toISOString() })
-        .where(eq(schema.missionContent.id, existing.id));
-    } else {
-      await this.db.insert(schema.missionContent).values({
-        missionId: values.missionId,
-        contentType: values.contentType as any,
+    await this.db.insert(schema.missionContent).values({
+      missionId: values.missionId,
+      contentType: values.contentType as any,
+      markdownContent: values.markdownContent,
+    }).onConflictDoUpdate({
+      target: [
+        schema.missionContent.missionId,
+        schema.missionContent.contentType,
+      ],
+      set: {
         markdownContent: values.markdownContent,
-      });
-    }
+        updatedAt: new Date().toISOString(),
+      },
+    });
   }
 
   // Users
