@@ -1,6 +1,4 @@
 import type { InferSelectModel } from "drizzle-orm"
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
-import type * as schema from "./db/schema.js"
 import type { users } from "./db/schema.js"
 import type { Logger } from "./logger.js"
 import type { AiClient, ToolExecutor } from "./ai/types.js"
@@ -9,6 +7,7 @@ import type { EventBus } from "./ai/events.js"
 import type { WorkflowStateManager } from "./ai/workflow-state.js"
 import type { RateLimiter } from "./security/rate-limiter.js"
 import type { LessonGenerator } from "./lessons/generator.js"
+import type { MissionChatService } from "./services/mission-chat.service.js"
 
 export type User = InferSelectModel<typeof users>
 
@@ -32,7 +31,6 @@ export type AppVariables = {
   user: User | null
   logger: Logger
   ai: AiClient
-  db: BetterSQLite3Database<typeof schema>
   toolExecutor: ToolExecutor
   store: MissionStore
   events: EventBus
@@ -40,4 +38,5 @@ export type AppVariables = {
   profileStore: ProfileStore | null
   rateLimiter: RateLimiter | null
   lessonGenerator: LessonGenerator
+  missionChatService: MissionChatService
 }

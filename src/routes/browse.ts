@@ -5,7 +5,8 @@ import type { AppVariables } from "../types.js";
 import type { MissionStore } from "../db/store.js";
 import { layout } from "../views/home.js";
 import { browsePage, browseOptionsFragment, refreshOptionsFragment, optionsOnly, errorState, BROWSE_STYLES } from "../views/browse.js";
-import { AIError } from "../ai/index.js";
+import { generateSlug } from "../shared/slug.js";
+import { formatAIError } from "../shared/errors.js";
 import { saveMessage } from "../shared/messages.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -77,7 +78,7 @@ function parseBrowseResponse(raw: string, maxOptions: number): BrowseResult {
 async function createMissionAndRedirect(c: Ctx, topic: string, path: string[]): Promise<Response> {
   const log = c.get("logger");
   const store = c.get("store");
-  const slug = topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "new-mission";
+  const slug = generateSlug(topic);
   const mission = await store.createMission({ userId: c.get("user")!.id, title: topic, slug, onboardingMode: "guided" });
 
   // Save a seed message so the guided onboarding has context
@@ -194,7 +195,7 @@ browseRoutes.post("/browse/select", auth.requireAuth, async (c: Ctx) => {
     return c.html(BROWSE_STYLES + browseOptionsFragment(options, path, iteration, isLastQuestion));
   } catch (err) {
     log.error("Browse select AI error:", err);
-    const msg = err instanceof AIError ? err.message : "Something went wrong. Please try again.";
+    const msg = formatAIError(err);
     return c.html(BROWSE_STYLES + errorState(msg));
   }
 });

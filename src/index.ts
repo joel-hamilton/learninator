@@ -17,6 +17,7 @@ import { db } from "./db/index.js";
 import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
 import { createLessonGenerator } from "./lessons/generator.js";
+import { createMissionChatService } from "./services/mission-chat.service.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
@@ -55,7 +56,7 @@ export function createApp(opts?: {
     await next();
   });
 
-  // AI client + tool executor + lesson generator injection
+  // AI client + tool executor + lesson generator + service injection
   const toolExecutor = createToolExecutor(store);
   const lessonGenerator = createLessonGenerator({
     ai: resolvedAi,
@@ -63,10 +64,19 @@ export function createApp(opts?: {
     db: resolvedDb,
     logger: createLogger("generator"),
   });
+  const missionChatService = createMissionChatService({
+    ai: resolvedAi,
+    toolExecutor,
+    store,
+    logger: createLogger("chat"),
+    events: eventBus,
+    workflowState,
+  });
   app.use("*", async (c, next) => {
     c.set("ai", resolvedAi);
     c.set("toolExecutor", toolExecutor);
     c.set("lessonGenerator", lessonGenerator);
+    c.set("missionChatService", missionChatService);
     await next();
   });
 
