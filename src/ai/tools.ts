@@ -1,14 +1,15 @@
-import type { ToolHandler, ToolHandlerContext, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam, ToolStore } from "./types.js";
+import type { ToolHandler, ToolExecutor, AiToolUseBlock, AiToolResultBlockParam, ToolStore } from "./types.js";
+import type { ContentStore, LessonStore, ChatStore, MissionStore, RefDocStore, LearningRecordStore } from "../db/store.js";
 
 // ── Individual tool handlers ──────────────────────────────────────────
 
-async function readMissionContent(ctx: ToolHandlerContext): Promise<string> {
+async function readMissionContent(ctx: { store: ContentStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const row = await store.getMissionContent(missionId, input.content_type as string);
   return row?.markdownContent || "(empty)";
 }
 
-async function writeMissionContent(ctx: ToolHandlerContext): Promise<string> {
+async function writeMissionContent(ctx: { store: ContentStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   await store.upsertMissionContent({
     missionId,
@@ -18,7 +19,7 @@ async function writeMissionContent(ctx: ToolHandlerContext): Promise<string> {
   return `Saved ${input.content_type} content.`;
 }
 
-async function createLesson(ctx: ToolHandlerContext): Promise<string> {
+async function createLesson(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const mainCount = await store.getMainLessonCount(missionId);
   const num = mainCount + 1;
@@ -34,7 +35,7 @@ async function createLesson(ctx: ToolHandlerContext): Promise<string> {
   return `Created lesson ${String(num).padStart(4, "0")}: "${input.title}". The user can now view it.`;
 }
 
-async function createSubLesson(ctx: ToolHandlerContext): Promise<string> {
+async function createSubLesson(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const parentNumber = input.parent_lesson_number as number;
 
@@ -58,7 +59,7 @@ async function createSubLesson(ctx: ToolHandlerContext): Promise<string> {
   return `Created sub-lesson ${displayNum}: "${input.title}". The user can now view it.`;
 }
 
-async function readLesson(ctx: ToolHandlerContext): Promise<string> {
+async function readLesson(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const lessonNumber = input.number as number;
   const subNumber = (input.sub_number as number | undefined) ?? null;
@@ -75,7 +76,7 @@ async function readLesson(ctx: ToolHandlerContext): Promise<string> {
   });
 }
 
-async function listLessons(ctx: ToolHandlerContext): Promise<string> {
+async function listLessons(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId } = ctx;
   const rows = await store.listLessons(missionId);
   return JSON.stringify(rows.map(r => ({
@@ -88,7 +89,7 @@ async function listLessons(ctx: ToolHandlerContext): Promise<string> {
   })));
 }
 
-async function createReferenceDoc(ctx: ToolHandlerContext): Promise<string> {
+async function createReferenceDoc(ctx: { store: RefDocStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   await store.createReferenceDoc({
     missionId,
@@ -100,7 +101,7 @@ async function createReferenceDoc(ctx: ToolHandlerContext): Promise<string> {
   return `Created reference doc: "${input.title}" (${input.doc_type}).`;
 }
 
-async function listReferenceDocs(ctx: ToolHandlerContext): Promise<string> {
+async function listReferenceDocs(ctx: { store: RefDocStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId } = ctx;
   const rows = await store.listReferenceDocs(missionId);
   return JSON.stringify(rows.map(r => ({
@@ -112,7 +113,7 @@ async function listReferenceDocs(ctx: ToolHandlerContext): Promise<string> {
   })));
 }
 
-async function createLearningRecord(ctx: ToolHandlerContext): Promise<string> {
+async function createLearningRecord(ctx: { store: LearningRecordStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const recordCount = await store.getLearningRecordCount(missionId);
   const num = recordCount + 1;
@@ -127,7 +128,7 @@ async function createLearningRecord(ctx: ToolHandlerContext): Promise<string> {
   return `Created learning record LR${String(num).padStart(4, "0")}: "${input.title}".`;
 }
 
-async function listLearningRecords(ctx: ToolHandlerContext): Promise<string> {
+async function listLearningRecords(ctx: { store: LearningRecordStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId } = ctx;
   const rows = await store.listLearningRecords(missionId);
   return JSON.stringify(rows.map(r => ({
@@ -139,7 +140,7 @@ async function listLearningRecords(ctx: ToolHandlerContext): Promise<string> {
   })));
 }
 
-async function updateLearningRecord(ctx: ToolHandlerContext): Promise<string> {
+async function updateLearningRecord(ctx: { store: LearningRecordStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const records = await store.listLearningRecords(missionId);
   const record = records.find(r => r.number === (input.number as number));
@@ -154,21 +155,21 @@ async function updateLearningRecord(ctx: ToolHandlerContext): Promise<string> {
   return `Updated learning record LR${String(input.number).padStart(4, "0")} status to ${input.status}.`;
 }
 
-async function markMissionActive(ctx: ToolHandlerContext): Promise<string> {
+async function markMissionActive(ctx: { store: MissionStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId } = ctx;
   await store.updateMissionStatus(missionId, "active");
   return "Mission is now active. You can begin creating lessons.";
 }
 
-async function readResources(ctx: ToolHandlerContext): Promise<string> {
+async function readResources(ctx: { store: ContentStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   return readMissionContent({ ...ctx, input: { content_type: "resources" } });
 }
 
-async function writeResources(ctx: ToolHandlerContext): Promise<string> {
+async function writeResources(ctx: { store: ContentStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   return writeMissionContent({ ...ctx, input: { ...ctx.input, content_type: "resources" } });
 }
 
-async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
+async function askGuidedQuestion(ctx: { store: ChatStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const options = [...(input.options as string[]), "Other (please specify)"];
   await store.createGuidedQuestion({
@@ -179,7 +180,7 @@ async function askGuidedQuestion(ctx: ToolHandlerContext): Promise<string> {
   return `Question saved. Waiting for user answer.`;
 }
 
-async function listFeedbackHistory(ctx: ToolHandlerContext): Promise<string> {
+async function listFeedbackHistory(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId } = ctx;
   const rows = await store.listLessonFeedback(missionId);
   if (rows.length === 0) return "No feedback yet.";
@@ -193,7 +194,7 @@ async function listFeedbackHistory(ctx: ToolHandlerContext): Promise<string> {
   }).join("\n");
 }
 
-async function regenerateLesson(ctx: ToolHandlerContext): Promise<string> {
+async function regenerateLesson(ctx: { store: LessonStore; missionId: number; input: Record<string, unknown> }): Promise<string> {
   const { store, missionId, input } = ctx;
   const number = input.number as number;
   const subNumber = (input.sub_number as number | undefined) ?? null;
@@ -241,7 +242,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
 // ── Handler map ───────────────────────────────────────────────────────
 
 function buildHandlerMap(): Map<string, ToolHandler> {
-  return new Map([
+  return new Map<string, ToolHandler>([
     ["read_mission_content", readMissionContent],
     ["write_mission_content", writeMissionContent],
     ["create_lesson", createLesson],
