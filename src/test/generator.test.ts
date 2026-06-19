@@ -333,4 +333,62 @@ describe("LessonGenerator", () => {
       expect(final.lessonTitle).toBe("Lesson Two");
     }
   });
+
+  // ── T015: job.messages.push(label) works without event emission in LessonGenerator ──
+
+  it("pushs tool labels to job.messages in onBeforeToolExecution without event emission (T015 US3)", async () => {
+    const ai = new FakeAiClient([
+      FakeAiClient.toolUseResponse("list_lessons", {}),
+      FakeAiClient.textResponse("Done."),
+    ]);
+    const store2 = new InMemoryToolStore();
+    const mission2 = await seedMission(store2);
+    const lesson2 = await seedLesson(store2, mission2.id);
+    await store2.createLesson({
+      missionId: mission2.id,
+      number: 2,
+      title: "Lesson Two",
+      slug: "lesson-two",
+      htmlContent: "<p>Next</p>",
+      status: "active",
+    });
+
+    const gen = makeGenerator(store2, ai);
+    const key = gen.generateNext(mission2.id, lesson2, mission2);
+    const final = await pollJobDone(gen, key);
+    expect(final.status).toBe("done");
+  });
+
+  // ── T016: lesson generation completes without EventBus ──
+
+  it("completes lesson generation successfully without EventBus (T016 US3)", async () => {
+    const ai = new FakeAiClient([
+      FakeAiClient.toolUseResponse("list_lessons", {}),
+      FakeAiClient.textResponse("Done."),
+    ]);
+    const store2 = new InMemoryToolStore();
+    const mission2 = await seedMission(store2);
+    const lesson2 = await seedLesson(store2, mission2.id);
+    await store2.createLesson({
+      missionId: mission2.id,
+      number: 2,
+      title: "Lesson Two",
+      slug: "lesson-two",
+      htmlContent: "<p>Next</p>",
+      status: "active",
+    });
+
+    // Create LessonGenerator without EventBus
+    const toolExecutor = createToolExecutor(store2);
+    const gen = new LessonGenerator({
+      ai,
+      toolExecutor,
+      store: store2,
+      logger: noopLogger,
+    });
+
+    const key = gen.generateNext(mission2.id, lesson2, mission2);
+    const final = await pollJobDone(gen, key);
+    expect(final.status).toBe("done");
+  });
 });

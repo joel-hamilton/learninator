@@ -117,7 +117,6 @@ export function createMissionChatService(deps: MissionChatDeps) {
     const stdHooks = createStandardHooks({
       missionId,
       store,
-      emit: events.emit.bind(events),
       logger,
     });
 
@@ -156,6 +155,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
         tools,
         logger,
         pauseOnTools,
+        events,
         hooks: {
           ...stdHooks,
           onBeforeToolExecution: async (toolUseBlocks) => {

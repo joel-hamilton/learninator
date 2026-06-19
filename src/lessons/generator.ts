@@ -4,7 +4,6 @@ import {
   getRegenerateSystemPrompt,
   TEACHER_SYSTEM_PROMPT,
   TEACHER_TOOLS,
-  TOOL_DISPLAY_NAMES,
 } from "../ai/index.js";
 import type { AiClient, AiMessageParam, ToolExecutor } from "../ai/index.js";
 import type { MissionStore, LessonStore } from "../db/store.js";
@@ -353,7 +352,8 @@ export class LessonGenerator {
   }
 
   /**
-   * Common conversation loop with hooks that update job messages and emit events.
+   * Common conversation loop with hooks that update job messages.
+   * Event emission is handled by conversationLoop via the events field.
    */
   private async runConversation(
     missionId: number,
@@ -362,7 +362,6 @@ export class LessonGenerator {
     initialMessages: AiMessageParam[],
   ): Promise<void> {
     const { ai, toolExecutor, events } = this.deps;
-    let pendingToolNames: string[] = [];
 
     await conversationLoop({
       client: ai,
@@ -371,23 +370,16 @@ export class LessonGenerator {
       systemPrompt,
       initialMessages,
       tools: TEACHER_TOOLS,
+      events,
       hooks: {
         onBeforeToolExecution: async (toolUseBlocks) => {
-          pendingToolNames = [];
           for (const block of toolUseBlocks) {
             const label = this.toolLabel(
               block.name,
               block.input as Record<string, unknown> | undefined,
             );
             job.messages.push(label);
-            pendingToolNames.push(
-              TOOL_DISPLAY_NAMES[block.name] || block.name,
-            );
           }
-          events?.emit(missionId, { type: "tool_start", names: pendingToolNames });
-        },
-        onAfterToolExecution: async (_results) => {
-          events?.emit(missionId, { type: "tool_end", names: pendingToolNames });
         },
         onTruncated: async () => {
           job.messages.push("Response was cut short…");

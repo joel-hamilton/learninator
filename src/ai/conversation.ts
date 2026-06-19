@@ -10,7 +10,7 @@ import type {
   AiContentBlock,
 } from "./types.js";
 import type { Logger } from "../logger.js";
-import type { ToolEvent } from "./events.js";
+import type { EventBus } from "./events.js";
 import type { ChatStore } from "../db/store.js";
 import { saveMessage } from "../shared/messages.js";
 import { TOOL_DISPLAY_NAMES } from "./tools.js";
@@ -40,6 +40,8 @@ export interface ConversationLoopParams {
   pauseOnTools?: Set<string>;
   /** Maximum number of tool-use turns before forcing a stop. Defaults to 20. */
   maxTurns?: number;
+  /** Event bus for emitting tool progress events. If omitted, no events are emitted. */
+  events?: EventBus;
 }
 
 export interface ConversationLoopResult {
@@ -57,7 +59,6 @@ export interface ConversationLoopResult {
 export interface StandardHooksDeps {
   missionId: number;
   store: ChatStore;
-  emit?: (missionId: number, event: ToolEvent) => void;
   logger?: Pick<Logger, "debug">;
 }
 
@@ -66,20 +67,16 @@ export interface StandardHooksDeps {
  * Callers can spread and override individual hooks for non-standard behavior.
  */
 export function createStandardHooks(deps: StandardHooksDeps): ConversationHooks {
-  const { missionId, store, emit, logger } = deps;
-  let pendingToolNames: string[] = [];
+  const { missionId, store, logger } = deps;
 
   return {
     onAssistantMessage: async (content) => {
       await saveMessage(store, missionId, "assistant", content);
     },
     onBeforeToolExecution: async (toolUseBlocks) => {
-      pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
-      emit?.(missionId, { type: "tool_start", names: pendingToolNames });
       logger?.debug("Tool calls:", toolUseBlocks.map((b) => b.name).join(", "));
     },
     onAfterToolExecution: async (results) => {
-      emit?.(missionId, { type: "tool_end", names: pendingToolNames });
       await saveMessage(store, missionId, "user", results);
     },
   };
@@ -110,6 +107,7 @@ export async function conversationLoop(
     options,
     hooks,
     logger,
+    events,
   } = params;
 
   let currentResponse = await client.chatWithTools(
@@ -148,6 +146,9 @@ export async function conversationLoop(
       break;
     }
 
+    const names = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
+    events?.emit(missionId, { type: "tool_start", names });
+
     await hooks?.onBeforeToolExecution?.(toolUseBlocks);
 
     const results = await toolExecutor.executeToolCalls(
@@ -157,6 +158,8 @@ export async function conversationLoop(
     toolCallsExecuted += toolUseBlocks.length;
 
     await hooks?.onAfterToolExecution?.(results);
+
+    events?.emit(missionId, { type: "tool_end", names });
 
     // Check if any executed tool matches pauseOnTools
     if (params.pauseOnTools) {
