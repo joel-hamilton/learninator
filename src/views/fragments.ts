@@ -122,27 +122,23 @@ export function generationRunningBar(missionId: number, number: number, subNumbe
   </div>`;
 }
 
-function hideBannerOnSettle(): string {
-  return "";
-}
-
 export function generationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--rubric);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
 export function generationErrorBar(missionId: number, error: string): string {
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to generate next lesson: ${error}</span>
     <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
   </div>`;
 }
 
 export function generationMissingBar(missionId: number): string {
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--ink);">Back to lessons &rarr;</a></span></div>`;
+  return `<div class="feedback-bar" id="feedback-bar"><span class="label">Something went wrong. <a href="/missions/${missionId}" style="color:var(--ink);">Back to lessons &rarr;</a></span></div>`;
 }
 
 // ── Lesson regeneration ──
@@ -180,13 +176,13 @@ export function regenerationRunningBar(missionId: number, number: number, subNum
 export function regenerationDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Updated</span> Lesson regenerated! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">View Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
 export function regenerationErrorBar(missionId: number, error: string): string {
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to regenerate lesson: ${error}</span>
     <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
   </div>`;
@@ -227,13 +223,13 @@ export function bridgingRunningBar(missionId: number, number: number, subNumber:
 export function bridgingDoneBar(missionId: number, number: number, subNumber: number | null, lessonTitle: string): string {
   const lid = lessonIdStr(number, subNumber);
   const displayNum = formatLessonNumber(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-ready" style="margin-right:0.5rem;">Ready</span> Bridging lesson created! <a href="/missions/${missionId}/lessons/${lid}" style="color:var(--accent);font-weight:500;">Start Lesson ${displayNum}: ${lessonTitle} &rarr;</a></span>
   </div>`;
 }
 
 export function bridgingErrorBar(missionId: number, error: string): string {
-  return `<div class="feedback-bar" id="feedback-bar"${hideBannerOnSettle()}>
+  return `<div class="feedback-bar" id="feedback-bar">
     <span class="label"><span class="badge badge-error" style="margin-right:0.5rem;">Error</span> Failed to create bridging lesson: ${error}</span>
     <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Back to lessons &rarr;</a>
   </div>`;
