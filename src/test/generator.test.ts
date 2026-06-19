@@ -4,10 +4,18 @@ import {
   buildJobKey,
   type JobStatus,
 } from "../lessons/generator.js";
-import { InMemoryToolStore } from "../db/store.js";
+import {
+  InMemoryMissionStore,
+  InMemoryLessonStore,
+  InMemoryChatStore,
+  InMemoryContentStore,
+  InMemoryRefDocStore,
+  InMemoryLearningRecordStore,
+} from "../db/store.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createToolExecutor } from "../ai/tools.js";
 import type { AiClient, AiMessage, AiMessageParam, AiTool, ToolCallOptions, ChatOptions } from "../ai/types.js";
+import type { ToolStore } from "../ai/types.js";
 import type { EventBus, ToolEvent } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 
@@ -17,6 +25,30 @@ const noopLogger: Logger = {
   warn() {},
   error() {},
 };
+
+/**
+ * Creates a combined store that satisfies the ToolStore intersection
+ * by delegating to individual InMemory store instances.
+ */
+function createCombinedStore(): ToolStore {
+  const mission = new InMemoryMissionStore();
+  const lesson = new InMemoryLessonStore();
+  const chat = new InMemoryChatStore();
+  const content = new InMemoryContentStore();
+  const refdoc = new InMemoryRefDocStore();
+  const learningRecord = new InMemoryLearningRecordStore();
+  const stores = { mission, lesson, chat, content, refdoc, learningRecord };
+  return new Proxy({} as ToolStore, {
+    get(_target, prop: string | symbol) {
+      for (const store of Object.values(stores)) {
+        const val = (store as any)[prop];
+        if (typeof val === "function") {
+          return val.bind(store);
+        }
+      }
+    },
+  });
+}
 
 function spyEventBus(): { bus: EventBus; events: Array<{ missionId: number; event: ToolEvent }> } {
   const events: Array<{ missionId: number; event: ToolEvent }> = [];
@@ -33,7 +65,7 @@ function spyEventBus(): { bus: EventBus; events: Array<{ missionId: number; even
   };
 }
 
-async function seedMission(store: InMemoryToolStore) {
+async function seedMission(store: ToolStore) {
   const mission = await store.createMission({
     userId: 1,
     title: "Test Mission",
@@ -43,7 +75,7 @@ async function seedMission(store: InMemoryToolStore) {
   return mission;
 }
 
-async function seedLesson(store: InMemoryToolStore, missionId: number) {
+async function seedLesson(store: ToolStore, missionId: number) {
   return store.createLesson({
     missionId,
     number: 1,
@@ -68,23 +100,31 @@ async function pollJobDone(
   return gen.getJobStatus(key);
 }
 
-function makeGenerator(store: InMemoryToolStore, ai: AiClient, opts?: {
+function makeGenerator(store: ToolStore, ai: AiClient, opts?: {
   events?: EventBus;
 }) {
   const toolExecutor = createToolExecutor(store);
   const events = opts?.events ?? spyEventBus().bus;
-  return new LessonGenerator({ ai, toolExecutor, store, events, logger: noopLogger });
+  return new LessonGenerator({
+    ai,
+    toolExecutor,
+    store,
+    missionStore: store,
+    lessonStore: store,
+    events,
+    logger: noopLogger,
+  });
 }
 
 // ── Tests ──
 
 describe("LessonGenerator", () => {
-  let store: InMemoryToolStore;
+  let store: ToolStore;
   let mission: Awaited<ReturnType<typeof seedMission>>;
   let lesson: Awaited<ReturnType<typeof seedLesson>>;
 
   beforeEach(async () => {
-    store = new InMemoryToolStore();
+    store = createCombinedStore();
     mission = await seedMission(store);
     lesson = await seedLesson(store, mission.id);
   });
@@ -147,7 +187,7 @@ describe("LessonGenerator", () => {
 
   it("getJobStatus transitions: not_found → running → done → not_found", async () => {
     // Pre-seed lesson 2 so findResult discovers it
-    const store2 = new InMemoryToolStore();
+    const store2 = createCombinedStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
     await store2.createLesson({
@@ -306,7 +346,7 @@ describe("LessonGenerator", () => {
 
   it("result callback returns new lesson when a new one is created", async () => {
     // Seed a new lesson AFTER the AI response to simulate the AI creating one
-    const store2 = new InMemoryToolStore();
+    const store2 = createCombinedStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
 
@@ -341,7 +381,7 @@ describe("LessonGenerator", () => {
       FakeAiClient.toolUseResponse("list_lessons", {}),
       FakeAiClient.textResponse("Done."),
     ]);
-    const store2 = new InMemoryToolStore();
+    const store2 = createCombinedStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
     await store2.createLesson({
@@ -366,7 +406,7 @@ describe("LessonGenerator", () => {
       FakeAiClient.toolUseResponse("list_lessons", {}),
       FakeAiClient.textResponse("Done."),
     ]);
-    const store2 = new InMemoryToolStore();
+    const store2 = createCombinedStore();
     const mission2 = await seedMission(store2);
     const lesson2 = await seedLesson(store2, mission2.id);
     await store2.createLesson({
@@ -384,6 +424,8 @@ describe("LessonGenerator", () => {
       ai,
       toolExecutor,
       store: store2,
+      missionStore: store2,
+      lessonStore: store2,
       logger: noopLogger,
     });
 

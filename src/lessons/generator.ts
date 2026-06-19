@@ -23,6 +23,8 @@ export interface GeneratorDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
   store: MissionStore & LessonStore;
+  missionStore: MissionStore;
+  lessonStore: LessonStore;
   events?: EventBus;
   logger: Logger;
 }
@@ -152,7 +154,7 @@ export class LessonGenerator {
           return msg;
         },
         findResult: async (mid, l) => {
-          const latest = await this.deps.store.getLatestLesson(mid);
+          const latest = await this.deps.lessonStore.getLatestLesson(mid);
           if (
             latest &&
             (latest.number !== l.number ||
@@ -206,7 +208,7 @@ export class LessonGenerator {
           return `The user wants to go deeper on Lesson ${displayNum}: "${l.title}". Please create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${l.number}.`;
         },
         findResult: async (mid, l) => {
-          const latest = await this.deps.store.getLatestLesson(mid);
+          const latest = await this.deps.lessonStore.getLatestLesson(mid);
           if (
             latest &&
             (latest.number !== l.number ||
@@ -253,7 +255,7 @@ export class LessonGenerator {
           return `Please regenerate Lesson ${displayNum}: "${l.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, check feedback history, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
         },
         findResult: async (mid, l) => {
-          const found = await this.deps.store.getLesson(
+          const found = await this.deps.lessonStore.getLesson(
             mid,
             l.number,
             l.subNumber,
@@ -300,7 +302,7 @@ export class LessonGenerator {
           return `Create a bridging sub-lesson for Lesson ${displayNum}: "${l.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.`;
         },
         findResult: async (mid, l) => {
-          const latest = await this.deps.store.getLatestLesson(mid);
+          const latest = await this.deps.lessonStore.getLatestLesson(mid);
           if (
             latest &&
             (latest.number !== l.number ||

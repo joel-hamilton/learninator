@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../schema.js";
-import { DrizzleMissionStore, InMemoryLearningRecordStore } from "../store.js";
+import { DrizzleLearningRecordAdapter } from "../adapters/index.js";
+import { InMemoryLearningRecordStore } from "../store.js";
 import type { LearningRecordStore } from "../store.js";
 
 function createTestDb() {
@@ -99,6 +100,6 @@ function runTests(label: string, factory: () => LearningRecordStore) {
 }
 
 describe("LearningRecordStore implementations", () => {
-  runTests("DrizzleMissionStore (learning record methods)", () => new DrizzleMissionStore(createTestDb()));
+  runTests("DrizzleLearningRecordAdapter", () => new DrizzleLearningRecordAdapter(createTestDb()));
   runTests("InMemoryLearningRecordStore", () => new InMemoryLearningRecordStore());
 });

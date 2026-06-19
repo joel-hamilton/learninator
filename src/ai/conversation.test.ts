@@ -5,7 +5,17 @@ import * as schema from "../db/schema.js";
 import { FakeAiClient } from "./fake.js";
 import { conversationLoop } from "./conversation.js";
 import { createToolExecutor } from "./tools.js";
-import { DrizzleMissionStore } from "../db/store.js";
+import {
+  DrizzleMissionAdapter,
+  DrizzleLessonAdapter,
+  DrizzleChatAdapter,
+  DrizzleContentAdapter,
+  DrizzleRefDocAdapter,
+  DrizzleLearningRecordAdapter,
+  DrizzleUserAdapter,
+  DrizzleSessionAdapter,
+  DrizzleStore,
+} from "../db/adapters/index.js";
 
 describe("conversationLoop", () => {
   let executor: ReturnType<typeof createToolExecutor>;
@@ -97,8 +107,23 @@ describe("conversationLoop", () => {
     );
 
     const testDb = drizzle(sqlite, { schema });
-    const testStore = new DrizzleMissionStore(testDb);
-    executor = createToolExecutor(testStore);
+    const missionAdapter = new DrizzleMissionAdapter(testDb);
+    const lessonAdapter = new DrizzleLessonAdapter(testDb);
+    const chatAdapter = new DrizzleChatAdapter(testDb);
+    const contentAdapter = new DrizzleContentAdapter(testDb);
+    const refDocAdapter = new DrizzleRefDocAdapter(testDb);
+    const learningRecordAdapter = new DrizzleLearningRecordAdapter(testDb);
+    const store = new DrizzleStore(
+      missionAdapter,
+      lessonAdapter,
+      chatAdapter,
+      contentAdapter,
+      refDocAdapter,
+      learningRecordAdapter,
+      new DrizzleUserAdapter(testDb),
+      new DrizzleSessionAdapter(testDb),
+    );
+    executor = createToolExecutor(store);
   });
 
   it("returns text when AI gives text-only response", async () => {

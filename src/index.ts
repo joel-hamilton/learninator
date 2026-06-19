@@ -11,7 +11,17 @@ import { createObservability } from "./observability/index.js";
 import { SlidingWindowRateLimiter } from "./security/rate-limiter.js";
 import type { RateLimiter } from "./security/rate-limiter.js";
 import { db } from "./db/index.js";
-import { DrizzleMissionStore } from "./db/store.js";
+import {
+  DrizzleMissionAdapter,
+  DrizzleLessonAdapter,
+  DrizzleChatAdapter,
+  DrizzleContentAdapter,
+  DrizzleRefDocAdapter,
+  DrizzleLearningRecordAdapter,
+  DrizzleUserAdapter,
+  DrizzleSessionAdapter,
+  DrizzleStore,
+} from "./db/adapters/index.js";
 import { auth } from "./auth/index.js";
 import { csrfMiddleware } from "./auth/csrf.js";
 import { createLessonGenerator } from "./lessons/generator.js";
@@ -38,7 +48,24 @@ export function createApp(opts?: {
 
   const app = new Hono<{ Variables: AppVariables }>();
 
-  const store = new DrizzleMissionStore(resolvedDb);
+  const missionAdapter = new DrizzleMissionAdapter(resolvedDb);
+  const lessonAdapter = new DrizzleLessonAdapter(resolvedDb);
+  const chatAdapter = new DrizzleChatAdapter(resolvedDb);
+  const contentAdapter = new DrizzleContentAdapter(resolvedDb);
+  const refDocAdapter = new DrizzleRefDocAdapter(resolvedDb);
+  const learningRecordAdapter = new DrizzleLearningRecordAdapter(resolvedDb);
+  const userAdapter = new DrizzleUserAdapter(resolvedDb);
+  const sessionAdapter = new DrizzleSessionAdapter(resolvedDb);
+  const store = new DrizzleStore(
+    missionAdapter,
+    lessonAdapter,
+    chatAdapter,
+    contentAdapter,
+    refDocAdapter,
+    learningRecordAdapter,
+    userAdapter,
+    sessionAdapter,
+  );
   const eventBus = createEventBus();
   const workflowState = new WorkflowStateManager(eventBus);
   const observability = createObservability();
@@ -60,6 +87,8 @@ export function createApp(opts?: {
     ai: resolvedAi,
     toolExecutor,
     store,
+    missionStore: missionAdapter,
+    lessonStore: lessonAdapter,
     events: eventBus,
     logger: createLogger("generator"),
   });
@@ -67,6 +96,9 @@ export function createApp(opts?: {
     ai: resolvedAi,
     toolExecutor,
     store,
+    missionStore: missionAdapter,
+    chatStore: chatAdapter,
+    contentStore: contentAdapter,
     logger: createLogger("chat"),
     events: eventBus,
     workflowState,

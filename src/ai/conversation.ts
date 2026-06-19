@@ -56,6 +56,7 @@ export interface ConversationLoopResult {
 }
 
 /** Dependencies for the standard conversation hooks factory. */
+// Minimal interface: only ChatStore is needed (saveMessage for assistant and tool_result messages)
 export interface StandardHooksDeps {
   missionId: number;
   store: ChatStore;

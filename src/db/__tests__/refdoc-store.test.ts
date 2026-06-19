@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../schema.js";
-import { DrizzleMissionStore, InMemoryRefDocStore } from "../store.js";
+import { DrizzleRefDocAdapter } from "../adapters/index.js";
+import { InMemoryRefDocStore } from "../store.js";
 import type { RefDocStore } from "../store.js";
 
 function createTestDb() {
@@ -72,6 +73,6 @@ function runTests(label: string, factory: () => RefDocStore) {
 }
 
 describe("RefDocStore implementations", () => {
-  runTests("DrizzleMissionStore (refdoc methods)", () => new DrizzleMissionStore(createTestDb()));
+  runTests("DrizzleRefDocAdapter", () => new DrizzleRefDocAdapter(createTestDb()));
   runTests("InMemoryRefDocStore", () => new InMemoryRefDocStore());
 });

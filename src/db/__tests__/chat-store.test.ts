@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../schema.js";
-import { DrizzleMissionStore, InMemoryChatStore } from "../store.js";
+import { DrizzleChatAdapter } from "../adapters/index.js";
+import { InMemoryChatStore } from "../store.js";
 import type { ChatStore } from "../store.js";
 
 function createTestDb() {
@@ -101,6 +102,6 @@ function runTests(label: string, factory: () => ChatStore) {
 }
 
 describe("ChatStore implementations", () => {
-  runTests("DrizzleMissionStore (chat methods)", () => new DrizzleMissionStore(createTestDb()));
+  runTests("DrizzleChatAdapter", () => new DrizzleChatAdapter(createTestDb()));
   runTests("InMemoryChatStore", () => new InMemoryChatStore());
 });

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../schema.js";
-import { DrizzleMissionStore, InMemoryMissionStore } from "../store.js";
+import { DrizzleMissionAdapter } from "../adapters/index.js";
+import { InMemoryMissionStore } from "../store.js";
 import type { MissionStore } from "../store.js";
 
 function createTestDb() {
@@ -109,6 +110,6 @@ function runTests(label: string, factory: () => MissionStore) {
 }
 
 describe("MissionStore implementations", () => {
-  runTests("DrizzleMissionStore", () => new DrizzleMissionStore(createTestDb()));
+  runTests("DrizzleMissionAdapter", () => new DrizzleMissionAdapter(createTestDb()));
   runTests("InMemoryMissionStore", () => new InMemoryMissionStore());
 });

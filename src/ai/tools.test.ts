@@ -4,7 +4,17 @@ import { drizzle } from "drizzle-orm/better-sqlite3"
 import * as schema from "../db/schema.js"
 import { createToolExecutor } from "./tools.js"
 import type { AiToolUseBlock } from "./types.js"
-import { DrizzleMissionStore } from "../db/store.js"
+import {
+  DrizzleMissionAdapter,
+  DrizzleLessonAdapter,
+  DrizzleChatAdapter,
+  DrizzleContentAdapter,
+  DrizzleRefDocAdapter,
+  DrizzleLearningRecordAdapter,
+  DrizzleUserAdapter,
+  DrizzleSessionAdapter,
+  DrizzleStore,
+} from "../db/adapters/index.js"
 
 describe("tool handlers", () => {
   let executor: ReturnType<typeof createToolExecutor>
@@ -100,7 +110,25 @@ describe("tool handlers", () => {
     )
 
     const testDb = drizzle(sqlite, { schema })
-    executor = createToolExecutor(new DrizzleMissionStore(testDb))
+    const missionAdapter = new DrizzleMissionAdapter(testDb)
+    const lessonAdapter = new DrizzleLessonAdapter(testDb)
+    const chatAdapter = new DrizzleChatAdapter(testDb)
+    const contentAdapter = new DrizzleContentAdapter(testDb)
+    const refDocAdapter = new DrizzleRefDocAdapter(testDb)
+    const learningRecordAdapter = new DrizzleLearningRecordAdapter(testDb)
+    const userAdapter = new DrizzleUserAdapter(testDb)
+    const sessionAdapter = new DrizzleSessionAdapter(testDb)
+    const store = new DrizzleStore(
+      missionAdapter,
+      lessonAdapter,
+      chatAdapter,
+      contentAdapter,
+      refDocAdapter,
+      learningRecordAdapter,
+      userAdapter,
+      sessionAdapter,
+    )
+    executor = createToolExecutor(store)
   })
 
   it("read_mission_content returns empty for missing content", async () => {

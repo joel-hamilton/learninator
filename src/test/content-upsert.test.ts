@@ -7,12 +7,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import * as schema from "../db/schema.js";
-import { DrizzleMissionStore } from "../db/store.js";
+import { DrizzleContentAdapter } from "../db/adapters/index.js";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
 describe("atomic content upsert", () => {
   let db: BetterSQLite3Database<typeof schema>;
-  let store: DrizzleMissionStore;
+  let store: DrizzleContentAdapter;
   let missionId: number;
 
   beforeEach(async () => {
@@ -26,7 +26,7 @@ describe("atomic content upsert", () => {
     );
     migrate(db, { migrationsFolder });
 
-    store = new DrizzleMissionStore(db);
+    store = new DrizzleContentAdapter(db);
 
     // Seed a user (FK requirement for missions.user_id)
     const passwordHash = await bcrypt.hash("password", 10);

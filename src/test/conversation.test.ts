@@ -3,15 +3,47 @@ import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { FakeAiClient } from "../ai/fake.js";
 import { createEventBus } from "../ai/events.js";
 import { createToolExecutor } from "../ai/tools.js";
-import { InMemoryToolStore } from "../db/store.js";
+import {
+  InMemoryMissionStore,
+  InMemoryLessonStore,
+  InMemoryChatStore,
+  InMemoryContentStore,
+  InMemoryRefDocStore,
+  InMemoryLearningRecordStore,
+} from "../db/store.js";
 import type { ToolEvent } from "../ai/events.js";
+import type { ToolStore } from "../ai/types.js";
+
+/**
+ * Creates a combined store that satisfies the ToolStore intersection
+ * by delegating to individual InMemory store instances.
+ */
+function createCombinedStore(): ToolStore {
+  const mission = new InMemoryMissionStore();
+  const lesson = new InMemoryLessonStore();
+  const chat = new InMemoryChatStore();
+  const content = new InMemoryContentStore();
+  const refdoc = new InMemoryRefDocStore();
+  const learningRecord = new InMemoryLearningRecordStore();
+  const stores = { mission, lesson, chat, content, refdoc, learningRecord };
+  return new Proxy({} as ToolStore, {
+    get(_target, prop: string | symbol) {
+      for (const store of Object.values(stores)) {
+        const val = (store as any)[prop];
+        if (typeof val === "function") {
+          return val.bind(store);
+        }
+      }
+    },
+  });
+}
 
 // ── User Story 1: conversationLoop emits events directly ──
 
 describe("User Story 1 — conversationLoop emits events directly", () => {
   // T007: conversationLoop with EventBus + tool blocks
   it("emits tool_start before execution and tool_end after execution (T007 US1)", async () => {
-    const store = new InMemoryToolStore();
+    const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
     const bus = createEventBus();
     const received: ToolEvent[] = [];
@@ -42,7 +74,7 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
 
   // T008: conversationLoop without EventBus — no crash
   it("does not crash when events is not provided (T008 US1)", async () => {
-    const store = new InMemoryToolStore();
+    const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
 
     const ai = new FakeAiClient([
@@ -65,7 +97,7 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
 
   // T009: conversationLoop with no tool blocks — no events
   it("does not emit events when AI returns no tool blocks (T009 US1)", async () => {
-    const store = new InMemoryToolStore();
+    const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
     const bus = createEventBus();
     const received: ToolEvent[] = [];
@@ -96,7 +128,7 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
 describe("User Story 2 — createStandardHooks only persists to DB", () => {
   // T011: createStandardHooks has no event emission side effects
   it("returned hooks have no event emission side effects — only DB saves occur (T011 US2)", async () => {
-    const store = new InMemoryToolStore();
+    const store = new InMemoryChatStore();
     const hooks = createStandardHooks({ missionId: 1, store });
 
     // The hooks object shape: no event-related methods
@@ -124,7 +156,7 @@ describe("User Story 2 — createStandardHooks only persists to DB", () => {
 describe("User Story 4 — new callers get event emission for free", () => {
   // T020: new caller with minimal hooks + EventBus
   it("fires events without any event wiring in hooks (T020 US4)", async () => {
-    const store = new InMemoryToolStore();
+    const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
     const bus = createEventBus();
     const received: ToolEvent[] = [];

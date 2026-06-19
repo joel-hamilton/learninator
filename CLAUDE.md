@@ -21,7 +21,8 @@ src/
   db/
     schema.ts           # Drizzle schema definitions (7 tables)
     index.ts            # DB connection singleton
-    store.ts            # MissionStore interface + DrizzleMissionStore adapter
+    store.ts            # Store interfaces + InMemory stores
+    adapters/           # Drizzle adapter classes (one per store interface)
     migrate.ts          # Migration runner
     migrations/         # SQL migrations + Drizzle snapshots
   auth/
@@ -162,6 +163,6 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/022-atomic-content-upsert/plan.md
-Feature: Atomic Mission Content Upsert — replace select-then-insert race condition in upsertMissionContent with atomic upsert backed by a unique constraint on (missionId, contentType).
+Current plan: specs/025-parameterize-progress-bars/plan.md
+Feature: Parameterize Generation Progress Bars — replace 13 near-identical generation progress bar functions with a single parameterized function and GenStyle config objects.
 <!-- SPECKIT END -->

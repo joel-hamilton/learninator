@@ -4,7 +4,17 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema.js";
 import { FakeAiClient, createToolExecutor } from "../ai/index.js";
-import { DrizzleMissionStore } from "../db/store.js";
+import {
+  DrizzleMissionAdapter,
+  DrizzleLessonAdapter,
+  DrizzleChatAdapter,
+  DrizzleContentAdapter,
+  DrizzleRefDocAdapter,
+  DrizzleLearningRecordAdapter,
+  DrizzleUserAdapter,
+  DrizzleSessionAdapter,
+  DrizzleStore,
+} from "../db/adapters/index.js";
 import { createEventBus } from "../ai/events.js";
 import type { EventBus, ToolEvent, WorkflowEvent } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
@@ -127,6 +137,28 @@ function createTestDb() {
   return drizzle(sqlite, { schema });
 }
 
+/** Create a DrizzleStore composite from a test db. */
+function createStore(db: ReturnType<typeof createTestDb>) {
+  const missionAdapter = new DrizzleMissionAdapter(db);
+  const lessonAdapter = new DrizzleLessonAdapter(db);
+  const chatAdapter = new DrizzleChatAdapter(db);
+  const contentAdapter = new DrizzleContentAdapter(db);
+  const refDocAdapter = new DrizzleRefDocAdapter(db);
+  const learningRecordAdapter = new DrizzleLearningRecordAdapter(db);
+  const userAdapter = new DrizzleUserAdapter(db);
+  const sessionAdapter = new DrizzleSessionAdapter(db);
+  return new DrizzleStore(
+    missionAdapter,
+    lessonAdapter,
+    chatAdapter,
+    contentAdapter,
+    refDocAdapter,
+    learningRecordAdapter,
+    userAdapter,
+    sessionAdapter,
+  );
+}
+
 async function pollUntilDone(
   generator: LessonGenerator,
   key: string,
@@ -150,7 +182,7 @@ describe("LessonGenerator", () => {
 
   beforeEach(() => {
     db = createTestDb();
-    executor = createToolExecutor(new DrizzleMissionStore(db));
+    executor = createToolExecutor(createStore(db));
   });
 
   describe("buildJobKey", () => {
@@ -189,7 +221,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -233,7 +267,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -272,7 +308,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -314,7 +352,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -345,7 +385,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: new FakeAiClient([]),
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -376,7 +418,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -409,7 +453,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -448,7 +494,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -496,7 +544,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         events: testEvents,
         logger,
       });
@@ -542,7 +592,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         logger,
         events,
       });
@@ -590,7 +642,9 @@ describe("LessonGenerator", () => {
       generator = new LessonGenerator({
         ai: client,
         toolExecutor: executor,
-        store: new DrizzleMissionStore(db),
+        store: createStore(db),
+        missionStore: createStore(db),
+        lessonStore: createStore(db),
         logger,
       });
 

@@ -14,6 +14,9 @@ export interface MissionChatDeps {
   ai: AiClient;
   toolExecutor: ToolExecutor;
   store: MissionStore & ChatStore & ContentStore;
+  missionStore: MissionStore;
+  chatStore: ChatStore;
+  contentStore: ContentStore;
   logger: Pick<Logger, "debug" | "info" | "error">;
   events: EventBus;
   workflowState: WorkflowStateManager;
@@ -51,7 +54,7 @@ export interface MissionChatResult {
 export type MissionChatService = ReturnType<typeof createMissionChatService>;
 
 export function createMissionChatService(deps: MissionChatDeps) {
-  const { ai, toolExecutor, store, logger, events, workflowState } = deps;
+  const { ai, toolExecutor, store, missionStore, chatStore, contentStore, logger, events, workflowState } = deps;
 
   async function buildSystemPrompt(
     missionId: number,
@@ -81,7 +84,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
     }
 
     let prompt = TEACHER_SYSTEM_PROMPT + `\nThe current mission ID is ${missionId}.\n`;
-    const storedContent = await store.getMissionContent(missionId, "mission");
+    const storedContent = await contentStore.getMissionContent(missionId, "mission");
     if (storedContent?.markdownContent) {
       prompt += `\n\nCurrent mission goals:\n${storedContent.markdownContent}`;
     }
@@ -116,7 +119,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
 
     const stdHooks = createStandardHooks({
       missionId,
-      store,
+      store: chatStore,
       logger,
     });
 
@@ -131,9 +134,9 @@ export function createMissionChatService(deps: MissionChatDeps) {
         }
 
         if (lesson) {
-          await saveMessage(store, missionId, "user", `[Re: Lesson ${lesson.number}: ${lesson.title}]\n${message}`);
+          await saveMessage(chatStore, missionId, "user", `[Re: Lesson ${lesson.number}: ${lesson.title}]\n${message}`);
         } else {
-          await saveMessage(store, missionId, "user", userContent);
+          await saveMessage(chatStore, missionId, "user", userContent);
         }
       }
 
@@ -144,7 +147,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
         lesson,
       );
 
-      const messages = await loadMessages(store, missionId);
+      const messages = await loadMessages(chatStore, missionId);
 
       const result = await conversationLoop({
         client: ai,
@@ -185,7 +188,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
 
   async function generateTitle(missionId: number): Promise<string | null> {
     try {
-      const messages = await loadMessages(store, missionId);
+      const messages = await loadMessages(chatStore, missionId);
       if (messages.length === 0) return null;
 
       const conversationText = messages
@@ -219,7 +222,7 @@ export function createMissionChatService(deps: MissionChatDeps) {
         .replace(/^["']|["']$/g, "")
         .slice(0, 120);
       if (cleanTitle) {
-        await store.updateMissionTitle(missionId, cleanTitle);
+        await missionStore.updateMissionTitle(missionId, cleanTitle);
       }
       return cleanTitle || null;
     } catch {
