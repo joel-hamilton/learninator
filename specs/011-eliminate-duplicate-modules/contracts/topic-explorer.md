@@ -1,5 +1,7 @@
 # Contract: TopicExplorer
 
+No changes required by this refactor. The `TopicExplorer` is already wired to browse routes.
+
 ## Factory
 
 ```typescript
