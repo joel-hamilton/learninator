@@ -59,6 +59,12 @@ src/index.ts               # Single-line wiring change: store+events instead of 
 src/test/                  # New: generator.test.ts (unit tests with InMemoryMissionStore)
 ```
 
+**Structure Decision**: Single project (existing Hono web app). The refactor touches only `src/lessons/generator.ts` (implementation) and `src/index.ts` (one-line wiring change). New unit tests go in `src/test/generator.test.ts` alongside existing test files.
+
+## Complexity Tracking
+
+No constitution violations — all gates pass. This is a pure refactor aligning existing code with established patterns (constructor injection, MissionStore interface, EventBus abstraction).
+
 ## Design Decisions
 
 ### D1: GeneratorDeps shape
