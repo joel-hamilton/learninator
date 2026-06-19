@@ -48,6 +48,19 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     --font-display: "Crimson Text", Georgia, "Times New Roman", serif;
     --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    /* Accent tokens (used by FAB, lesson page, refine forms) */
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-light: #eef2ff;
+    --accent-ghost: #f5f3ff;
+    /* Aliases — keep legacy names resolving to existing tokens */
+    --border: var(--rule);
+    --border-hover: var(--rule-hover);
+    --text: var(--ink);
+    --text-secondary: var(--ink-secondary);
+    --text-muted: var(--ink-muted);
+    --primary-light: var(--accent-light);
+    --bg: var(--paper);
   }
 
   /* ── Reset ── */
@@ -193,7 +206,7 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
 
   /* ── Chat Messages ── */
   .msg-row {
-    position: relative; max-width: 88%;
+    position: relative; max-width: 88%; min-width: 0;
     animation: fadeIn 0.25s ease-out;
     padding-top: 8px;
   }
@@ -213,7 +226,14 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   .msg {
     padding: 0.65rem 0.9rem; border-radius: 14px; line-height: 1.55;
     font-size: 0.9rem;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
   }
+  .msg .markdown-body table,
+  .msg .markdown-body img,
+  .msg .markdown-body pre { max-width: 100%; }
+  .msg .markdown-body pre { overflow-x: auto; }
   .msg-row.user .msg {
     background: var(--ink); color: #fff;
     border-bottom-right-radius: 4px;
@@ -229,6 +249,7 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
   /* Standalone .msg (no .msg-row wrapper) */
   .msg.assistant:not(.msg-row .msg) {
     max-width: 88%; align-self: flex-start;
+    overflow-wrap: break-word; word-break: break-word;
     background: var(--surface); border: 1px solid var(--rule);
     color: var(--ink); border-bottom-left-radius: 4px;
     box-shadow: var(--shadow-sm);
@@ -237,6 +258,7 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
     max-width: 88%; align-self: flex-end;
     background: var(--ink); color: #fff;
     border-bottom-right-radius: 4px;
+    overflow-wrap: break-word; word-break: break-word;
   }
 
   /* Markdown overrides inside user bubbles */
@@ -690,6 +712,7 @@ export function svgIcon(name: string, className: string = "svg-icon"): string {
     rotateCcw: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
     logOut: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
     settings: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    chevronDown: '<svg class="' + className + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
   };
   return icons[name] || "";
 }

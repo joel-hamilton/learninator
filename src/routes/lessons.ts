@@ -4,15 +4,33 @@ import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
 import { TEACHER_SYSTEM_PROMPT, TEACHER_TOOLS } from "../ai/teacher.js";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
-import { TOOL_DISPLAY_NAMES } from "../ai/tools.js";
 import { lessonPage } from "../views/lesson.js";
-import { lessonActionBar, completedLessonBar, generationPollingBar, generationRunningBar, generationDoneBar, generationErrorBar, generationMissingBar, chatMessageBubble, feedbackThanksBar, feedbackModal } from "../views/fragments.js";
+import {
+  lessonActionBar,
+  completedLessonBar,
+  generationPollingBar,
+  generationRunningBar,
+  generationDoneBar,
+  generationErrorBar,
+  generationMissingBar,
+  chatMessageBubble,
+  feedbackThanksBar,
+  feedbackModal,
+  regenerationPollingBar,
+  regenerationRunningBar,
+  regenerationDoneBar,
+  regenerationErrorBar,
+  bridgingPollingBar,
+  bridgingRunningBar,
+  bridgingDoneBar,
+  bridgingErrorBar,
+} from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
-import { saveMessage, contentToText } from "../shared/messages.js";
+import { saveMessage } from "../shared/messages.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { AIError } from "../ai/index.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
-import type { MissionStore } from "../db/store.js";
+import { buildJobKey } from "../lessons/generator.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
 export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
@@ -25,11 +43,6 @@ function parseLessonParam(param: string): { number: number; subNumber: number | 
     number: parseInt(parts[0], 10),
     subNumber: parts.length > 1 ? parseInt(parts[1], 10) : null,
   };
-}
-
-function formatLessonNumber(number: number, subNumber: number | null): string {
-  const base = String(number).padStart(4, "0");
-  return subNumber !== null ? `${base}.${subNumber}` : base;
 }
 
 function lessonIdStr(number: number, subNumber: number | null): string {
@@ -159,20 +172,45 @@ lessonRoutes.get("/:number/feedback-modal", auth.requireAuth, async (c: Ctx) => 
   }));
 });
 
-// ── In-memory tracking for generation jobs ──
-type GenerationJob = {
-  missionId: number;
-  completedLessonNumber: number;
-  completedSubNumber: number | null;
-  status: "running" | "done" | "error";
-  messages: string[];
-  result: { lessonNumber: number; lessonSubNumber: number | null; lessonTitle: string } | null;
-  error: string | null;
-};
-const generationJobs = new Map<string, GenerationJob>();
+// ── Generation routes (delegate to LessonGenerator) ──
 
-function jobKey(missionId: number, number: number, subNumber: number | null, type: "next" | "sub" = "next") {
-  return `${missionId}-${number}-${subNumber ?? "m"}-${type}`;
+function renderJobStatus(
+  c: Ctx,
+  kind: "next" | "sub" | "regenerate" | "bridge",
+): Response {
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const generator = c.get("lessonGenerator");
+  const key = buildJobKey(missionId, number, subNumber, kind);
+  const status = generator.getJobStatus(key);
+
+  if (status.status === "not_found") {
+    return c.html(generationMissingBar(missionId));
+  }
+  if (status.status === "error") {
+    if (kind === "regenerate") return c.html(regenerationErrorBar(missionId, status.error));
+    if (kind === "bridge") return c.html(bridgingErrorBar(missionId, status.error));
+    return c.html(generationErrorBar(missionId, status.error));
+  }
+  if (status.status === "done") {
+    if (kind === "regenerate") {
+      return c.html(regenerationDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle));
+    }
+    if (kind === "bridge") {
+      return c.html(bridgingDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle));
+    }
+    return c.html(generationDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle));
+  }
+
+  // running
+  if (kind === "regenerate") {
+    return c.html(regenerationRunningBar(missionId, number, subNumber, status.message));
+  }
+  if (kind === "bridge") {
+    return c.html(bridgingRunningBar(missionId, number, subNumber, status.message));
+  }
+  const isSub = kind === "sub";
+  return c.html(generationRunningBar(missionId, number, subNumber, isSub, status.message));
 }
 
 lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => {
@@ -198,122 +236,23 @@ lessonRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => 
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
-  // Save feedback text if provided
   if (feedback) {
     await store.updateLessonFeedback(missionId, number, subNumber, lesson.feedbackRating || "just_right", feedback);
   }
 
-  const key = jobKey(missionId, number, subNumber, "next");
-  if (generationJobs.has(key)) {
-    return c.html(`<div class="feedback-bar" id="feedback-bar"><span class="label">Already generating your next lesson…</span></div>`);
-  }
-
-  const job: GenerationJob = {
+  const generator = c.get("lessonGenerator");
+  generator.generateNext(
     missionId,
-    completedLessonNumber: number,
-    completedSubNumber: subNumber,
-    status: "running",
-    messages: ["Starting…"],
-    result: null,
-    error: null,
-  };
-  generationJobs.set(key, job);
-
-  const log = c.get("logger");
-  const capturedAi = c.get("ai");
-  const capturedToolExecutor = c.get("toolExecutor");
-  const events = c.get("events");
-  (async () => {
-    try {
-      const displayNum = formatLessonNumber(number, subNumber);
-      let userMessage = `The user just completed Lesson ${displayNum}: "${lesson.title}". Please create the next logical lesson.`;
-      if (feedback) {
-        userMessage += `\n\nThe user gave this feedback on the lesson: ${feedback}`;
-      }
-      if (notes) {
-        userMessage += `\n\nThe user requested the next lesson cover: ${notes}`;
-      }
-      userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Decide whether the next step is a new topic (use create_lesson) or a same-topic follow-up / deeper dive (use create_sub_lesson with parent_lesson_number: ${number}).`;
-
-      const systemPrompt = TEACHER_SYSTEM_PROMPT + `
-The current mission ID is ${missionId}.
-Mission title: ${mission.title}
-Mission status: ${mission.status}
-
-You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". Review existing lessons first to understand what's been covered. If this is a continuation of the same topic, use create_sub_lesson. If it's a genuinely new topic, use create_lesson.`;
-
-      const messages = [
-        { role: "user" as const, content: userMessage },
-      ];
-
-      let pendingToolNames: string[] = [];
-
-      await conversationLoop({
-        client: capturedAi,
-        toolExecutor: capturedToolExecutor,
-        missionId,
-        systemPrompt,
-        initialMessages: messages,
-        tools: TEACHER_TOOLS,
-        hooks: {
-          onBeforeToolExecution: async (toolUseBlocks) => {
-            pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
-            job.messages.push(...pendingToolNames);
-            events.emit(missionId, { type: "tool_start", names: pendingToolNames });
-          },
-          onAfterToolExecution: async (_results) => {
-            events.emit(missionId, { type: "tool_end", names: pendingToolNames });
-          },
-          onTruncated: async () => {
-            job.messages.push("Response was cut short…");
-          },
-        },
-      });
-
-      const latestLesson = await store.getLatestLesson(missionId);
-
-      if (latestLesson && latestLesson.id !== lesson.id) {
-        job.result = {
-          lessonNumber: latestLesson.number,
-          lessonSubNumber: latestLesson.subNumber,
-          lessonTitle: latestLesson.title,
-        };
-      }
-      job.status = "done";
-    } catch (err: unknown) {
-      job.status = "error";
-      job.error = err instanceof Error ? err.message : "Something went wrong.";
-      log.error("generate-next failed:", job.error);
-    } finally {
-      setTimeout(() => generationJobs.delete(key), 60_000);
-    }
-  })();
+    { number, subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+    { feedback: feedback || undefined, notes: notes || undefined },
+  );
 
   return c.html(generationPollingBar(missionId, number, subNumber, false));
 });
 
 lessonRoutes.get("/:number/generate-next/status", auth.requireAuth, (c: Ctx) => {
-  const missionId = parseInt(c.req.param("missionId")!);
-  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
-  const key = jobKey(missionId, number, subNumber, "next");
-  const job = generationJobs.get(key);
-
-  if (!job) {
-    return c.html(generationMissingBar(missionId));
-  }
-
-  if (job.status === "error") {
-    generationJobs.delete(key);
-    return c.html(generationErrorBar(missionId, job.error || "Something went wrong."));
-  }
-
-  if (job.status === "done" && job.result) {
-    generationJobs.delete(key);
-    return c.html(generationDoneBar(missionId, job.result.lessonNumber, job.result.lessonSubNumber, job.result.lessonTitle));
-  }
-
-  const latestMsg = job.messages.at(-1) || "Working…";
-  return c.html(generationRunningBar(missionId, number, subNumber, false, latestMsg));
+  return renderJobStatus(c, "next");
 });
 
 // ── Generate sub-lesson ──
@@ -330,113 +269,93 @@ lessonRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ct
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
-  const rateLimiterSub = c.get("rateLimiter");
-  if (rateLimiterSub && !rateLimiterSub.check(user.id, "lesson_gen", 10, 60_000)) {
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
     return c.html(rateLimitedFragment());
   }
 
-  const key = jobKey(missionId, number, subNumber, "sub");
-  if (generationJobs.has(key)) {
-    return c.html(`<div class="feedback-bar" id="feedback-bar"><span class="label">Already generating a sub-lesson…</span></div>`);
-  }
-
-  const job: GenerationJob = {
+  const generator = c.get("lessonGenerator");
+  generator.generateSubLesson(
     missionId,
-    completedLessonNumber: number,
-    completedSubNumber: subNumber,
-    status: "running",
-    messages: ["Starting…"],
-    result: null,
-    error: null,
-  };
-  generationJobs.set(key, job);
-
-  const log = c.get("logger");
-  const capturedAi = c.get("ai");
-  const capturedToolExecutor = c.get("toolExecutor");
-  const events = c.get("events");
-  (async () => {
-    try {
-      const displayNum = formatLessonNumber(number, subNumber);
-      const userMessage = `The user wants to go deeper on Lesson ${displayNum}: "${lesson.title}". Please create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${number}.`;
-
-      const systemPrompt = TEACHER_SYSTEM_PROMPT + `
-The current mission ID is ${missionId}.
-Mission title: ${mission.title}
-Mission status: ${mission.status}
-
-You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Review existing lessons first to understand what has been covered. Use create_sub_lesson.`;
-
-      const messages = [{ role: "user" as const, content: userMessage }];
-
-      let pendingToolNames: string[] = [];
-
-      await conversationLoop({
-        client: capturedAi,
-        toolExecutor: capturedToolExecutor,
-        missionId,
-        systemPrompt,
-        initialMessages: messages,
-        tools: TEACHER_TOOLS,
-        hooks: {
-          onBeforeToolExecution: async (toolUseBlocks) => {
-            pendingToolNames = toolUseBlocks.map((b) => TOOL_DISPLAY_NAMES[b.name] || b.name);
-            job.messages.push(...pendingToolNames);
-            events.emit(missionId, { type: "tool_start", names: pendingToolNames });
-          },
-          onAfterToolExecution: async (_results) => {
-            events.emit(missionId, { type: "tool_end", names: pendingToolNames });
-          },
-          onTruncated: async () => {
-            job.messages.push("Response was cut short…");
-          },
-        },
-      });
-
-      const latestLesson = await store.getLatestLesson(missionId);
-
-      if (latestLesson && latestLesson.id !== lesson.id) {
-        job.result = {
-          lessonNumber: latestLesson.number,
-          lessonSubNumber: latestLesson.subNumber,
-          lessonTitle: latestLesson.title,
-        };
-      }
-      job.status = "done";
-    } catch (err: unknown) {
-      job.status = "error";
-      job.error = err instanceof Error ? err.message : "Something went wrong.";
-      log.error("generate-sub-lesson failed:", job.error);
-    } finally {
-      setTimeout(() => generationJobs.delete(key), 60_000);
-    }
-  })();
+    { number, subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+  );
 
   return c.html(generationPollingBar(missionId, number, subNumber, true));
 });
 
 lessonRoutes.get("/:number/generate-sub-lesson/status", auth.requireAuth, (c: Ctx) => {
+  return renderJobStatus(c, "sub");
+});
+
+// ── Regenerate (in-place difficulty adjustment) ──
+
+lessonRoutes.post("/:number/regenerate", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
-  const key = jobKey(missionId, number, subNumber, "sub");
-  const job = generationJobs.get(key);
-
-  if (!job) {
-    return c.html(generationMissingBar(missionId));
+  const body = await c.req.parseBody();
+  const direction = String(body.direction || "");
+  if (direction !== "harder" && direction !== "easier") {
+    return c.text("Invalid direction", 400);
   }
 
-  if (job.status === "error") {
-    generationJobs.delete(key);
-    return c.html(generationErrorBar(missionId, job.error || "Something went wrong."));
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
+    return c.html(rateLimitedFragment());
   }
 
-  if (job.status === "done" && job.result) {
-    generationJobs.delete(key);
-    return c.html(generationDoneBar(missionId, job.result.lessonNumber, job.result.lessonSubNumber, job.result.lessonTitle));
+  const mission = await store.getMission(missionId, user.id);
+  if (!mission) return c.text("Not found", 404);
+  const lesson = await store.getLesson(missionId, number, subNumber);
+  if (!lesson) return c.text("Lesson not found", 404);
+
+  const generator = c.get("lessonGenerator");
+  generator.generateRegenerate(
+    missionId,
+    { number, subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+    direction,
+  );
+
+  return c.html(regenerationPollingBar(missionId, number, subNumber));
+});
+
+lessonRoutes.get("/:number/regenerate/status", auth.requireAuth, (c: Ctx) => {
+  return renderJobStatus(c, "regenerate");
+});
+
+// ── Bridging sub-lesson ──
+
+lessonRoutes.post("/:number/generate-bridging", auth.requireAuth, async (c: Ctx) => {
+  const user = c.get("user")!;
+  const store = c.get("store");
+  const missionId = parseInt(c.req.param("missionId")!);
+  const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+
+  const rateLimiter = c.get("rateLimiter");
+  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
+    return c.html(rateLimitedFragment());
   }
 
-  const latestMsg = job.messages.at(-1) || "Working…";
-  return c.html(generationRunningBar(missionId, number, subNumber, true, latestMsg));
+  const mission = await store.getMission(missionId, user.id);
+  if (!mission) return c.text("Not found", 404);
+  const lesson = await store.getLesson(missionId, number, subNumber);
+  if (!lesson) return c.text("Lesson not found", 404);
+
+  const generator = c.get("lessonGenerator");
+  generator.generateBridging(
+    missionId,
+    { number, subNumber, title: lesson.title },
+    { title: mission.title, status: mission.status },
+  );
+
+  return c.html(bridgingPollingBar(missionId, number, subNumber));
+});
+
+lessonRoutes.get("/:number/generate-bridging/status", auth.requireAuth, (c: Ctx) => {
+  return renderJobStatus(c, "bridge");
 });
 
 // ── Lesson chat ──

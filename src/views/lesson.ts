@@ -137,7 +137,7 @@ ${HTMX_HEAD}
     transition: all var(--transition-slow);
   }
   .fab:hover { background: var(--accent-hover); transform: scale(1.05); box-shadow: 0 8px 32px rgba(79,70,229,0.35); }
-  .fab .svg-icon { width: 1.2em; height: 1.2em; }
+  .fab .svg-icon { width: 1.2em; height: 1.2em; color: #fff; }
   .fab.hidden { display: none; }
 
   /* Chat Panel */
@@ -169,11 +169,13 @@ ${HTMX_HEAD}
   .chat-panel-header button .svg-icon { width: 0.95em; height: 0.95em; }
 
   .chat-panel-messages {
-    flex: 1; overflow-y: auto; padding: 0.75rem;
+    flex: 1; overflow-y: auto; overflow-x: auto; padding: 0.75rem;
     display: flex; flex-direction: column; gap: 0.5rem;
     min-height: 150px;
     max-height: 320px;
+    overflow-wrap: break-word; word-break: break-word;
   }
+  .chat-panel-messages > * { min-width: 0; max-width: 100%; }
 
   .chat-panel-footer {
     padding: 0.5rem; border-top: 1px solid var(--border);

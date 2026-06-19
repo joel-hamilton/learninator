@@ -159,8 +159,8 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/009-fix-archive-ui/plan.md
-Feature: Fix Archive UI — fix archive/restore/delete to immediately update both
-sections via HTMX out-of-band swaps, and collapse the archived section by default
-using a native <details> element.
+Current plan: specs/007-chat-based-mission-editing/plan.md
+Feature: Chat-Based Mission Editing — remove the broken "Mission" sidebar tab
+and let users read/update mission goals through chat using the existing
+read_mission_content / write_mission_content AI tools.
 <!-- SPECKIT END -->

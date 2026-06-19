@@ -87,6 +87,7 @@ ${HTMX_HEAD}
     grid-template-columns: 250px 1fr;
     min-height: calc(100vh - 56px);
     transition: grid-template-columns 0.25s ease;
+    position: relative;
   }
   .layout.sidebar-collapsed { grid-template-columns: 0 1fr; }
   .layout.sidebar-collapsed .sidebar { padding: 0; border-right: none; overflow: hidden; }
@@ -112,11 +113,12 @@ ${HTMX_HEAD}
   .sidebar-back:hover { border-color: var(--rule-hover); color: var(--ink); background: var(--surface-hover); }
   .sidebar-back .svg-icon { width: 0.8em; height: 0.8em; }
 
-  /* Sidebar toggle */
+  /* Sidebar toggle — sibling of .sidebar, positioned at the sidebar/main boundary */
   .sidebar-toggle {
     position: absolute;
-    right: -12px;
-    bottom: 80px;
+    left: 250px;
+    top: 80px;
+    transform: translateX(-50%);
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -128,9 +130,9 @@ ${HTMX_HEAD}
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    z-index: 101;
     box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    transition: all 0.2s ease;
+    transition: left 0.25s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     padding: 0;
     line-height: 1;
   }
@@ -144,10 +146,11 @@ ${HTMX_HEAD}
     height: 10px;
     transition: transform 0.25s ease;
   }
-  .sidebar-collapsed .sidebar-toggle { right: -28px; }
-  .sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
+  .layout.sidebar-collapsed .sidebar-toggle { left: 0; }
+  .layout.sidebar-collapsed .sidebar-toggle svg { transform: rotate(180deg); }
   @media (max-width: 768px) {
-    .layout .sidebar-toggle { right: -28px; z-index: 101; }
+    .sidebar-toggle { left: 0; }
+    .layout.sidebar-open .sidebar-toggle { left: 250px; }
   }
 
   .sidebar-label {
@@ -250,7 +253,9 @@ ${HTMX_HEAD}
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem;
     margin-bottom: 1rem; max-height: 60vh; overflow-y: auto; padding: 0.25rem;
+    overflow-wrap: break-word; word-break: break-word;
   }
+  #chat-messages > * { min-width: 0; max-width: 100%; }
 
   /* Empty */
   .empty { text-align: center; color: var(--text-secondary); padding: 4rem 2rem; }
@@ -307,9 +312,6 @@ ${siteWideIndicator()}
 <div class="layout">
   <aside class="sidebar">
     <a href="${backHref}" class="sidebar-back">${svgIcon("arrowLeft")} ${backLabel}</a>
-    <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
-    </button>
     <div class="sidebar-label">Workspace</div>
     <nav class="tabs">
       ${tabHtml}
@@ -321,6 +323,9 @@ ${siteWideIndicator()}
       <div class="mission-status">${mission.status}</div>
     </div>
   </aside>
+  <button class="sidebar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10 3 5 8 10 13"/></svg>
+  </button>
   <main class="main">
     ${content}
   </main>
@@ -328,20 +333,27 @@ ${siteWideIndicator()}
 ${ssePollerScript()}
 <script>
 (function() {
-  // Sidebar toggle
-  var toggle = document.querySelector(".sidebar .sidebar-toggle");
+  // Sidebar toggle — persist collapse state across navigation (tabs are plain links)
+  var toggle = document.querySelector(".layout > .sidebar-toggle");
   var layout = document.querySelector(".layout");
-  if (toggle && layout) {
-    if (window.innerWidth <= 768) {
-      layout.classList.add("sidebar-collapsed");
-    }
-    toggle.addEventListener("click", function() {
-      layout.classList.toggle("sidebar-collapsed");
-      if (window.innerWidth <= 768) {
-        layout.classList.toggle("sidebar-open");
-      }
-    });
+  if (!toggle || !layout) return;
+  var STORAGE_KEY = "learninator:sidebar-collapsed";
+  var stored = null;
+  try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+  if (stored === "1") {
+    layout.classList.add("sidebar-collapsed");
+  } else if (stored === null && window.innerWidth <= 768) {
+    layout.classList.add("sidebar-collapsed");
   }
+  toggle.addEventListener("click", function() {
+    layout.classList.toggle("sidebar-collapsed");
+    if (window.innerWidth <= 768) {
+      layout.classList.toggle("sidebar-open");
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, layout.classList.contains("sidebar-collapsed") ? "1" : "0");
+    } catch (e) {}
+  });
 })();
 </script>
 </body>

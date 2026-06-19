@@ -16,6 +16,7 @@ import type { RateLimiter } from "./security/rate-limiter.js";
 import { db } from "./db/index.js";
 import { DrizzleMissionStore } from "./db/store.js";
 import { auth } from "./auth/index.js";
+import { createLessonGenerator } from "./lessons/generator.js";
 import { homeRoutes } from "./routes/home.js";
 import { missionRoutes } from "./routes/missions.js";
 import { lessonRoutes } from "./routes/lessons.js";
@@ -54,10 +55,18 @@ export function createApp(opts?: {
     await next();
   });
 
-  // AI client + tool executor injection
+  // AI client + tool executor + lesson generator injection
+  const toolExecutor = createToolExecutor(store);
+  const lessonGenerator = createLessonGenerator({
+    ai: resolvedAi,
+    toolExecutor,
+    db: resolvedDb,
+    logger: createLogger("generator"),
+  });
   app.use("*", async (c, next) => {
     c.set("ai", resolvedAi);
-    c.set("toolExecutor", createToolExecutor(store));
+    c.set("toolExecutor", toolExecutor);
+    c.set("lessonGenerator", lessonGenerator);
     await next();
   });
 

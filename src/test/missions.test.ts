@@ -183,6 +183,118 @@ describe("missions", () => {
     });
   });
 
+  describe("archive / restore / delete UI", () => {
+    async function seedActive(title: string): Promise<number> {
+      const [m] = await db
+        .insert(schema.missions)
+        .values({
+          userId: 1,
+          title,
+          slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          status: "active",
+          onboardingMode: "chat",
+        })
+        .returning();
+      return m.id;
+    }
+
+    async function seedArchived(title: string): Promise<number> {
+      const [m] = await db
+        .insert(schema.missions)
+        .values({
+          userId: 1,
+          title,
+          slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          status: "archived",
+          onboardingMode: "chat",
+        })
+        .returning();
+      return m.id;
+    }
+
+    let cookie: string;
+    beforeEach(async () => {
+      app = createTestApp(new FakeAiClient([]), db);
+      await seedUser(db, "user@test.com", "password123");
+      cookie = await login(app, "user@test.com", "password123");
+    });
+
+    it("home page renders stable section containers with collapsed archived <details>", async () => {
+      await seedActive("Active 1");
+      await seedArchived("Archived 1");
+      const res = await authedReq(app, cookie, "GET", "/");
+      const html = await res.text();
+      expect(html).toContain('id="active-section"');
+      expect(html).toContain('id="archived-section"');
+      // <details> present, no `open` attribute → collapsed by default
+      expect(html).toMatch(/<details[^>]*class="archived-details"(?![^>]*\bopen\b)/);
+      expect(html).toContain("Archived (1)");
+    });
+
+    it("home page omits <details> when there are no archived missions", async () => {
+      await seedActive("Active 1");
+      const res = await authedReq(app, cookie, "GET", "/");
+      const html = await res.text();
+      expect(html).toContain('id="archived-section"');
+      expect(html).not.toContain("archived-details");
+    });
+
+    it("archive endpoint returns OOB swaps that populate both sections", async () => {
+      const m = await seedActive("To Archive");
+      const res = await authedReq(app, cookie, "POST", `/missions/${m}/archive`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('id="active-section"');
+      expect(html).toContain('hx-swap-oob="innerHTML:#active-section"');
+      expect(html).toContain('id="archived-section"');
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      expect(html).toContain("Archived (1)");
+      expect(html).toContain("To Archive");
+    });
+
+    it("restore endpoint returns OOB swaps with mission moved to active", async () => {
+      const m = await seedArchived("To Restore");
+      const res = await authedReq(app, cookie, "POST", `/missions/${m}/restore`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('hx-swap-oob="innerHTML:#active-section"');
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      expect(html).toContain("To Restore");
+      // Last restore: archived section becomes empty (no <details>)
+      expect(html).not.toContain("archived-details");
+    });
+
+    it("delete endpoint returns OOB swaps reflecting removal", async () => {
+      await seedArchived("Keep");
+      const m = await seedArchived("Delete Me");
+      const res = await authedReq(app, cookie, "POST", `/missions/${m}/delete`);
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      expect(html).toContain('hx-swap-oob="innerHTML:#archived-section"');
+      expect(html).toContain("Archived (1)");
+      expect(html).toContain("Keep");
+      expect(html).not.toContain("Delete Me");
+    });
+
+    it("archive then restore: count returns to zero and details element disappears", async () => {
+      const m = await seedActive("Round Trip");
+      const archiveRes = await authedReq(app, cookie, "POST", `/missions/${m}/archive`);
+      const archiveHtml = await archiveRes.text();
+      expect(archiveHtml).toContain("Archived (1)");
+
+      const restoreRes = await authedReq(app, cookie, "POST", `/missions/${m}/restore`);
+      const restoreHtml = await restoreRes.text();
+      expect(restoreHtml).not.toContain("archived-details");
+    });
+
+    it("error responses (404) remain plain text, not HTML swaps", async () => {
+      const res = await authedReq(app, cookie, "POST", "/missions/99999/archive");
+      expect(res.status).toBe(404);
+      const body = await res.text();
+      expect(body).not.toContain("hx-swap-oob");
+    });
+  });
+
   describe("POST /missions/:id/guided/skip", () => {
     it("skips questions and activates mission", async () => {
       app = createTestApp(

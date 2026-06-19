@@ -93,7 +93,7 @@ export class LessonGenerator {
         if (opts?.notes) {
           userMessage += `\n\nThe user requested the next lesson cover: ${opts.notes}`;
         }
-        userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Decide whether the next step is a new topic (use create_lesson) or a same-topic follow-up / deeper dive (use create_sub_lesson with parent_lesson_number: ${lesson.number}).`;
+        userMessage += `\n\nReview what's been covered so far (use list_lessons and read references). Create the next main lesson using create_lesson. Do NOT use create_sub_lesson.`;
 
         const systemPrompt =
           TEACHER_SYSTEM_PROMPT +
@@ -103,7 +103,7 @@ export class LessonGenerator {
             `Mission title: ${mission.title}`,
             `Mission status: ${mission.status}`,
             "",
-            `You are creating the next lesson after Lesson ${displayNum}: "${lesson.title}". Call list_feedback_history to check past difficulty ratings, then review existing lessons to understand what's been covered. Calibrate difficulty based on the student's feedback pattern. If this is a continuation of the same topic, use create_sub_lesson. If it's a genuinely new topic, use create_lesson.`,
+            `You are creating the next main lesson after Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what's been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. ALWAYS use create_lesson for a NEW main lesson. Do NOT use create_sub_lesson — this action is reserved for "Dive Deeper".`,
           ].join("\n");
 
         await this.runConversation(missionId, job, systemPrompt, [
@@ -186,7 +186,7 @@ export class LessonGenerator {
             `Mission title: ${mission.title}`,
             `Mission status: ${mission.status}`,
             "",
-            `You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". Call list_feedback_history to check past difficulty ratings, then review existing lessons to understand what has been covered. Calibrate difficulty based on the student's feedback pattern. Use create_sub_lesson.`,
+            `You are creating a sub-lesson of Lesson ${displayNum}: "${lesson.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what has been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. Use create_sub_lesson.`,
           ].join("\n");
 
         await this.runConversation(missionId, job, systemPrompt, [

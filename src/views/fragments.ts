@@ -28,23 +28,17 @@ export function lessonActionBar(missionId: number, number: number, subNumber: nu
   return `<div class="feedback-bar" id="feedback-bar">
     <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
       hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"too_easy"}'>😴 Too Easy</button>
+      hx-vals='{"rating":"too_easy"}'>Too Easy</button>
     <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
       hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"just_right"}'>👍 Just Right</button>
+      hx-vals='{"rating":"just_right"}'>Just Right</button>
     <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
       hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"too_hard"}'>🤯 Too Hard</button>
+      hx-vals='{"rating":"too_hard"}'>Too Hard</button>
     <span style="flex:1"></span>
-    <button class="btn btn-ghost btn-sm"
+    <button class="btn btn-primary btn-sm"
       hx-post="/missions/${missionId}/lessons/${lid}/complete"
       hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
-    <button class="btn btn-secondary btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
-      hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
-    <button class="btn btn-secondary btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
-      hx-target="#feedback-bar" hx-swap="outerHTML">More on This</button>
   </div>`;
 }
 
@@ -78,38 +72,26 @@ export function feedbackThanksBar(rating: string, missionId: number, number: num
   </div>`;
 }
 
-export function completeBar(alreadyCompleted: boolean, missionId: number, number: number, subNumber: number | null): string {
-  const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
-    <span class="label">
-      ${alreadyCompleted
-        ? '<span class="badge badge-info">Already completed</span>'
-        : '<span class="badge badge-completed">Completed</span>'}
-      <span style="margin-left:0.5rem;font-weight:400;">${alreadyCompleted ? "Lesson already completed." : "Lesson completed!"}</span>
-    </span>
-    <div style="display:flex;gap:0.5rem;align-items:center;">
-      <button hx-get="/missions/${missionId}/lessons/${lid}/feedback-modal?mode=next" hx-target="#modal-container" hx-swap="innerHTML" class="btn btn-primary btn-sm">
-        Create Next Lesson
-      </button>
-      <a href="/missions/${missionId}" class="btn btn-ghost btn-sm">Done</a>
-    </div>
-  </div>`;
-}
-
 export function completedLessonBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar">
-    <span class="badge badge-completed">Completed</span>
-    <button class="btn btn-ghost btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/incomplete"
-      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Incomplete</button>
-    <span style="flex:1"></span>
-    <button class="btn btn-secondary btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
-      hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
-    <button class="btn btn-secondary btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
-      hx-target="#feedback-bar" hx-swap="outerHTML">More on This</button>
+  return `<div class="feedback-bar post-completion-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <span class="badge badge-completed">Completed</span>
+      <strong style="margin-left:0.25rem;">What's next?</strong>
+      <span style="flex:1"></span>
+      <button class="btn btn-ghost btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/incomplete"
+        hx-target="#feedback-bar" hx-swap="outerHTML">Mark Incomplete</button>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
+        hx-target="#feedback-bar" hx-swap="outerHTML">Continue Learning</button>
+      <button class="btn btn-secondary btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
+        hx-target="#feedback-bar" hx-swap="outerHTML">Dive Deeper</button>
+      <a class="btn btn-secondary btn-sm" href="/browse">Explore Something New</a>
+    </div>
   </div>`;
 }
 

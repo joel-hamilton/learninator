@@ -8,6 +8,7 @@ import type { MissionStore } from "./db/store.js"
 import type { EventBus } from "./ai/events.js"
 import type { WorkflowStateManager } from "./ai/workflow-state.js"
 import type { RateLimiter } from "./security/rate-limiter.js"
+import type { LessonGenerator } from "./lessons/generator.js"
 
 export type User = InferSelectModel<typeof users>
 
@@ -38,4 +39,5 @@ export type AppVariables = {
   workflowState: WorkflowStateManager
   profileStore: ProfileStore | null
   rateLimiter: RateLimiter | null
+  lessonGenerator: LessonGenerator
 }

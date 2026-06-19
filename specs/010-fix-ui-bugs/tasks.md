@@ -33,9 +33,9 @@
 
 **⚠️**: US1 and US2 can proceed in parallel with this phase since they don't depend on new tokens.
 
-- [ ] T001 Define `--accent`, `--accent-hover`, `--accent-light`, `--accent-ghost` in `:root` block in `src/views/shared.ts` (values: `#4f46e5`, `#4338ca`, `#eef2ff`, `#f5f3ff` respectively)
-- [ ] T002 [P] Define `--border` as alias for `var(--rule)` in `:root` block in `src/views/shared.ts`
-- [ ] T003 [P] Define `--text-muted` as alias for `var(--ink-muted)`, `--text` as alias for `var(--ink)`, `--text-secondary` as alias for `var(--ink-secondary)`, `--primary-light` as alias for `var(--accent-light)` in `:root` block in `src/views/shared.ts`
+- [X] T001 Define `--accent`, `--accent-hover`, `--accent-light`, `--accent-ghost` in `:root` block in `src/views/shared.ts` (values: `#4f46e5`, `#4338ca`, `#eef2ff`, `#f5f3ff` respectively)
+- [X] T002 [P] Define `--border` as alias for `var(--rule)` in `:root` block in `src/views/shared.ts`
+- [X] T003 [P] Define `--text-muted` as alias for `var(--ink-muted)`, `--text` as alias for `var(--ink)`, `--text-secondary` as alias for `var(--ink-secondary)`, `--primary-light` as alias for `var(--accent-light)` in `:root` block in `src/views/shared.ts`
 
 **Checkpoint**: All CSS custom properties referenced across views now resolve to actual values.
 
@@ -49,11 +49,11 @@
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Move `.sidebar-toggle` button HTML from inside `<aside class="sidebar">` to a sibling element (direct child of `.layout`) in `src/views/mission.ts` — update the `missionLayout()` function
-- [ ] T005 [US1] Update `.sidebar-toggle` CSS positioning in `src/views/mission.ts`: remove `position: absolute` and `right` offsets; instead position relative to `.layout` so it sits at the boundary between sidebar and main content; ensure it remains visible when sidebar is collapsed (`overflow: hidden` no longer affects it)
-- [ ] T006 [US1] Update sidebar collapse media query CSS in `src/views/mission.ts`: remove the `right: -28px` mobile override since positioning is now relative to `.layout`; ensure toggle is accessible at ≤768px
-- [ ] T007 [US1] Update sidebar toggle JavaScript in `src/views/mission.ts`: verify toggle click handler still correctly toggles `sidebar-collapsed` and `sidebar-open` classes after HTML restructuring
-- [ ] T008 [US1] Ensure sidebar collapse state persists across htmx tab navigation — add `hx-preserve` or equivalent to sidebar state; or verify that htmx swaps on `.main` only don't reset the sidebar
+- [X] T004 [US1] Move `.sidebar-toggle` button HTML from inside `<aside class="sidebar">` to a sibling element (direct child of `.layout`) in `src/views/mission.ts` — update the `missionLayout()` function
+- [X] T005 [US1] Update `.sidebar-toggle` CSS positioning in `src/views/mission.ts`: remove `position: absolute` and `right` offsets; instead position relative to `.layout` so it sits at the boundary between sidebar and main content; ensure it remains visible when sidebar is collapsed (`overflow: hidden` no longer affects it)
+- [X] T006 [US1] Update sidebar collapse media query CSS in `src/views/mission.ts`: remove the `right: -28px` mobile override since positioning is now relative to `.layout`; ensure toggle is accessible at ≤768px
+- [X] T007 [US1] Update sidebar toggle JavaScript in `src/views/mission.ts`: verify toggle click handler still correctly toggles `sidebar-collapsed` and `sidebar-open` classes after HTML restructuring
+- [X] T008 [US1] Ensure sidebar collapse state persists across htmx tab navigation — add `hx-preserve` or equivalent to sidebar state; or verify that htmx swaps on `.main` only don't reset the sidebar
 
 **Checkpoint**: Sidebar toggle works reliably — collapse and re-open tested at 375px, 768px, 1024px, 1440px.
 
@@ -67,11 +67,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Add `overflow-wrap: break-word; word-break: break-word;` to `.msg` and standalone `.msg` variants in `src/views/shared.ts` (lines 213-240)
-- [ ] T010 [US2] Add `min-width: 0` to `.msg-row` in `src/views/shared.ts` to prevent flex items from ignoring `max-width: 88%`
-- [ ] T011 [P] [US2] Add `max-width: 100%` to `.markdown-body table`, `.markdown-body img`, `.markdown-body pre` within `.msg` context in `src/views/shared.ts` to prevent wide tables/code/images from overflowing message bubbles
-- [ ] T012 [P] [US2] Add `overflow-x: auto` to `.chat-panel-messages` in `src/views/lesson.ts` as a safety net for the chat panel container
-- [ ] T013 [P] [US2] Add `overflow-wrap: break-word` to `#chat-messages` in mission chat and onboarding chat styles in `src/views/mission.ts` and `src/views/onboarding.ts`
+- [X] T009 [US2] Add `overflow-wrap: break-word; word-break: break-word;` to `.msg` and standalone `.msg` variants in `src/views/shared.ts` (lines 213-240)
+- [X] T010 [US2] Add `min-width: 0` to `.msg-row` in `src/views/shared.ts` to prevent flex items from ignoring `max-width: 88%`
+- [X] T011 [P] [US2] Add `max-width: 100%` to `.markdown-body table`, `.markdown-body img`, `.markdown-body pre` within `.msg` context in `src/views/shared.ts` to prevent wide tables/code/images from overflowing message bubbles
+- [X] T012 [P] [US2] Add `overflow-x: auto` to `.chat-panel-messages` in `src/views/lesson.ts` as a safety net for the chat panel container
+- [X] T013 [P] [US2] Add `overflow-wrap: break-word` to `#chat-messages` in mission chat and onboarding chat styles in `src/views/mission.ts` and `src/views/onboarding.ts`
 
 **Checkpoint**: Long unbroken strings wrap within message bubbles; no horizontal scrollbar on any page at ≥375px.
 
@@ -85,9 +85,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Verify `.fab` CSS in `src/views/lesson.ts` — after T001 defines `--accent`, the FAB should show `background: #4f46e5` with white icon. Test that `color: #fff` on `.fab` correctly propagates to the SVG icon via `currentColor`
-- [ ] T015 [US3] If SVG icon does not inherit `color: #fff` from `.fab`, add explicit `.fab .svg-icon { color: #fff; }` rule in `src/views/lesson.ts`
-- [ ] T016 [US3] Verify `.fab:hover` state in `src/views/lesson.ts` — background darkens to `--accent-hover`, cursor shows pointer, button scales to 1.05
+- [X] T014 [US3] Verify `.fab` CSS in `src/views/lesson.ts` — after T001 defines `--accent`, the FAB should show `background: #4f46e5` with white icon. Test that `color: #fff` on `.fab` correctly propagates to the SVG icon via `currentColor`
+- [X] T015 [US3] If SVG icon does not inherit `color: #fff` from `.fab`, add explicit `.fab .svg-icon { color: #fff; }` rule in `src/views/lesson.ts`
+- [X] T016 [US3] Verify `.fab:hover` state in `src/views/lesson.ts` — background darkens to `--accent-hover`, cursor shows pointer, button scales to 1.05
 
 **Checkpoint**: FAB is clearly visible (indigo circle, white icon); hover state provides clear visual feedback.
 
@@ -101,12 +101,12 @@
 
 ### Implementation for User Story 4
 
-- [ ] T017 [US4] Audit all pages at 375px viewport — check for horizontal overflow, clipped elements, overlapping components, invisible controls. Document findings and fix each in the relevant view file (`src/views/*.ts`)
-- [ ] T018 [P] [US4] Audit all pages at 768px viewport — same checks as T017
-- [ ] T019 [P] [US4] Audit all pages at 1024px and 1440px viewports — same checks as T017
-- [ ] T020 [US4] Replace any remaining `var(--border)` with `var(--rule)` or ensure token alias (T002) resolves correctly in `src/views/lesson.ts` and `src/views/mission.ts`
-- [ ] T021 [US4] Verify all `.btn-accent` and other accent-dependent styles across `src/views/shared.ts`, `src/views/lesson.ts`, `src/views/mission.ts` render correctly after T001 token definitions
-- [ ] T022 [US4] Test that no CSS custom property warnings appear in browser devtools console — all `var()` references resolve to defined tokens
+- [X] T017 [US4] Audit all pages at 375px viewport — check for horizontal overflow, clipped elements, overlapping components, invisible controls. Document findings and fix each in the relevant view file (`src/views/*.ts`)
+- [X] T018 [P] [US4] Audit all pages at 768px viewport — same checks as T017
+- [X] T019 [P] [US4] Audit all pages at 1024px and 1440px viewports — same checks as T017
+- [X] T020 [US4] Replace any remaining `var(--border)` with `var(--rule)` or ensure token alias (T002) resolves correctly in `src/views/lesson.ts` and `src/views/mission.ts`
+- [X] T021 [US4] Verify all `.btn-accent` and other accent-dependent styles across `src/views/shared.ts`, `src/views/lesson.ts`, `src/views/mission.ts` render correctly after T001 token definitions
+- [X] T022 [US4] Test that no CSS custom property warnings appear in browser devtools console — all `var()` references resolve to defined tokens
 
 **Checkpoint**: Zero visual defects at any supported viewport on any page.
 
@@ -116,9 +116,9 @@
 
 **Purpose**: Final integration verification across all fixes.
 
-- [ ] T023 Run quickstart.md verification scenarios for all four user stories
-- [ ] T024 Run `npm test` to confirm no existing tests regressed
-- [ ] T025 [P] Test in Chrome, Firefox, and Safari at 375px and 1440px — confirm consistent rendering
+- [X] T023 Run quickstart.md verification scenarios for all four user stories
+- [X] T024 Run `npm test` to confirm no existing tests regressed
+- [X] T025 [P] Test in Chrome, Firefox, and Safari at 375px and 1440px — confirm consistent rendering
 
 ---
 

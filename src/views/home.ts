@@ -113,6 +113,26 @@ ${HTMX_HEAD}
   .mission-card--archived { opacity: 0.65; }
   .mission-card--archived:hover { opacity: 0.85; }
   .mission-card .actions .btn-primary { font-weight: 600; }
+
+  /* ── Archived Section (collapsible <details>) ── */
+  #archived-section { margin-top: 2.5rem; }
+  .archived-details { display: block; }
+  .archived-details > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0.85rem;
+  }
+  .archived-details > summary::-webkit-details-marker { display: none; }
+  .archived-summary > span { white-space: nowrap; }
+  .archived-chevron {
+    width: 0.9em; height: 0.9em;
+    transition: transform var(--transition-slow);
+    flex-shrink: 0;
+    margin-right: 0.4rem;
+  }
+  .archived-details[open] > summary .archived-chevron { transform: rotate(180deg); }
+  .archived-details > .mission-list { animation: fadeInUp 0.25s ease-out; }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">

@@ -50,7 +50,9 @@ ${HTMX_HEAD}
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
     max-height: 55vh; overflow-y: auto; padding: 0.25rem;
+    overflow-wrap: break-word; word-break: break-word;
   }
+  #chat-messages > * { min-width: 0; max-width: 100%; }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
@@ -270,7 +272,9 @@ ${HTMX_HEAD}
   #chat-messages {
     display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;
     max-height: 50vh; overflow-y: auto; padding: 0.25rem;
+    overflow-wrap: break-word; word-break: break-word;
   }
+  #chat-messages > * { min-width: 0; max-width: 100%; }
 
   .mode-select { display: flex; gap: 0.75rem; margin-bottom: 1.75rem; }
   .mode-option {
