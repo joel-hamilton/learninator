@@ -11,6 +11,8 @@ import type {
 export class FakeAiClient implements AiClient {
   private responses: AiMessage[]
   private callIndex = 0
+  /** The system prompt from the most recent chatWithTools call. */
+  lastSystemPrompt = ""
 
   constructor(responses: AiMessage[]) {
     this.responses = responses
@@ -32,11 +34,12 @@ export class FakeAiClient implements AiClient {
   }
 
   async chatWithTools(
-    _systemPrompt: string,
+    systemPrompt: string,
     _messages: AiMessageParam[],
     _tools: AiTool[],
     _options?: ToolCallOptions
   ): Promise<AiMessage> {
+    this.lastSystemPrompt = systemPrompt
     const response =
       this.responses[this.callIndex] ??
       FakeAiClient.textResponse("Fallback")

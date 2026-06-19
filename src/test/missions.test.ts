@@ -642,4 +642,40 @@ describe("missions", () => {
       expect(html2).toContain("M2");
     });
   });
+
+  describe("sidebar tabs (US3)", () => {
+    it("all remaining sidebar tab routes return 200 for an active mission", async () => {
+      const fakeAi = new FakeAiClient([
+        FakeAiClient.textResponse("chat reply"),
+      ]);
+      app = createTestApp(fakeAi, db);
+      await seedUser(db, "user@test.com", "password123");
+      const cookie = await login(app, "user@test.com", "password123");
+
+      const [mission] = await db
+        .insert(schema.missions)
+        .values({
+          userId: 1,
+          title: "Tab Test",
+          slug: "tab-test",
+          status: "active",
+          onboardingMode: "chat",
+        })
+        .returning();
+      const id = mission.id;
+
+      const tabPaths = [
+        `/missions/${id}`,           // lessons (base mission page)
+        `/missions/${id}/chat`,
+        `/missions/${id}/reference`,
+        `/missions/${id}/records`,   // learning records
+        `/missions/${id}/resources`,
+      ];
+
+      for (const path of tabPaths) {
+        const res = await authedReq(app, cookie, "GET", path);
+        expect(res.status, `${path} should return 200`).toBe(200);
+      }
+    });
+  });
 });

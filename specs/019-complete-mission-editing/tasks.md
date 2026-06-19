@@ -37,8 +37,8 @@
 
 **⚠️ CRITICAL**: No user story test can pass correctly until this injection is in place.
 
-- [ ] T001 Inject mission content into system prompt in `src/ai/mission-conversation.ts` — after the existing system prompt, if the mission is active and has stored `mission_content`, append the content as a `\n\nCurrent mission goals:\n<markdown>` block so the AI sees it without needing to call `read_mission_content` on every new session
-- [ ] T002 [P] Verify existing tests still pass after T001 — run `npx vitest run src/test/chat.test.ts` and fix any assertion mismatches (the AI now sees mission content in context, so some test expectations may need updating for the extra prompt text)
+- [X] T001 Inject mission content into system prompt in `src/ai/mission-conversation.ts` — after the existing system prompt, if the mission is active and has stored `mission_content`, append the content as a `\n\nCurrent mission goals:\n<markdown>` block so the AI sees it without needing to call `read_mission_content` on every new session
+- [X] T002 [P] Verify existing tests still pass after T001 — run `npx vitest run src/test/chat.test.ts` and fix any assertion mismatches (the AI now sees mission content in context, so some test expectations may need updating for the extra prompt text)
 
 **Checkpoint**: Mission content is injected into active-mission chat context. Existing tests pass (or are updated to match).
 
@@ -52,8 +52,8 @@
 
 ### Tests for User Story 1
 
-- [ ] T003 [P] [US1] Add test in `src/test/chat.test.ts`: seed `mission_content` via `store.upsertMissionContent(missionId, "mission", "Learn Rust by building a CLI tool")`, queue a `textResponse("Let's get started with Rust!")`, POST a chat message to `/missions/:id/chat`, and assert the system prompt passed to the FakeAiClient includes the seeded mission content text
-- [ ] T004 [P] [US1] Add test in `src/test/chat.test.ts`: seed a mission with NO stored mission_content, queue a `textResponse("What would you like to learn?")`, POST a chat message, and assert the AI operates normally without errors (no stale/empty content injection causes a crash or garbled prompt)
+- [X] T003 [P] [US1] Add test in `src/test/chat.test.ts`: seed `mission_content` via `store.upsertMissionContent(missionId, "mission", "Learn Rust by building a CLI tool")`, queue a `textResponse("Let's get started with Rust!")`, POST a chat message to `/missions/:id/chat`, and assert the system prompt passed to the FakeAiClient includes the seeded mission content text
+- [X] T004 [P] [US1] Add test in `src/test/chat.test.ts`: seed a mission with NO stored mission_content, queue a `textResponse("What would you like to learn?")`, POST a chat message, and assert the AI operates normally without errors (no stale/empty content injection causes a crash or garbled prompt)
 
 ### Implementation for User Story 1
 
@@ -71,8 +71,8 @@
 
 ### Tests for User Story 2
 
-- [ ] T005 [US2] Add test in `src/test/chat.test.ts`: seed user A with mission A, user B with mission B (each with distinct mission_content). Authenticate as user A. Create a tool-execution context for mission A's chat, then attempt to call `read_mission_content` targeting user B's mission ID. Assert the result is empty string or error — user A's session cannot read user B's content
-- [ ] T006 [US2] Add test in `src/test/chat.test.ts`: same two-user setup. Authenticate as user A, verify that calling `write_mission_content` on user A's own mission succeeds (scoping doesn't block legitimate writes)
+- [X] T005 [US2] Add test in `src/test/chat.test.ts`: seed user A with mission A, user B with mission B (each with distinct mission_content). Authenticate as user A. Create a tool-execution context for mission A's chat, then attempt to call `read_mission_content` targeting user B's mission ID. Assert the result is empty string or error — user A's session cannot read user B's content
+- [X] T006 [US2] Add test in `src/test/chat.test.ts`: same two-user setup. Authenticate as user A, verify that calling `write_mission_content` on user A's own mission succeeds (scoping doesn't block legitimate writes)
 
 ### Implementation for User Story 2
 
@@ -90,7 +90,7 @@
 
 ### Tests for User Story 3
 
-- [ ] T007 [US3] Add test in `src/test/missions.test.ts`: for an active mission, iterate over the five remaining sidebar tab URLs (`/missions/:id/lessons`, `/missions/:id/chat`, `/missions/:id/reference`, `/missions/:id/learning-records`, `/missions/:id/resources`), GET each with an authenticated session, and assert every response status is 200
+- [X] T007 [US3] Add test in `src/test/missions.test.ts`: for an active mission, iterate over the five remaining sidebar tab URLs (`/missions/:id/lessons`, `/missions/:id/chat`, `/missions/:id/reference`, `/missions/:id/learning-records`, `/missions/:id/resources`), GET each with an authenticated session, and assert every response status is 200
 
 ### Implementation for User Story 3
 
@@ -108,11 +108,11 @@
 
 ### Tests for User Story 4
 
-- [ ] T008 [P] [US4] Add test in `src/test/chat.test.ts` for **archived mission decline**: set mission status to `"archived"`, queue a text response where the AI declines ("This mission is archived and read-only."), POST a goal-change message, and assert the response indicates the mission cannot be edited
-- [ ] T009 [P] [US4] Add test in `src/test/chat.test.ts` for **tool error handling**: queue a `toolUseResponse("write_mission_content")` that returns an error string (`"Error: store unavailable"`) followed by a `textResponse("Sorry, I couldn't update the mission goals.")`), POST a goal-change message, assert the reply reports the failure and the previous mission_content is unchanged
-- [ ] T010 [P] [US4] Add test in `src/test/chat.test.ts` for **vague request handling**: queue a `textResponse("Could you be more specific about what you'd like to change?")`, POST a vague message like "make it better", assert the AI either asks for clarification or applies a reasonable interpretation with explicit confirmation
-- [ ] T011 [P] [US4] Add test in `src/test/chat.test.ts` for **fresh mission content creation**: create a mission with NO stored mission_content, queue `toolUseResponse("write_mission_content", { content_type: "mission", markdown_content: "Focus on practical Rust exercises" })` + `textResponse("I've set your mission goals.")`, POST a goal-change message, assert the store now has the new mission_content (upsert on empty works)
-- [ ] T012 [P] [US4] Add test in `src/test/chat.test.ts` for **contradictory change resolution**: queue a `textResponse("I'll focus on making the material more challenging.")`, POST "make it harder but also easier", assert the AI picks a coherent interpretation and confirms it (no error, no crash)
+- [X] T008 [P] [US4] Add test in `src/test/chat.test.ts` for **archived mission decline**: set mission status to `"archived"`, queue a text response where the AI declines ("This mission is archived and read-only."), POST a goal-change message, and assert the response indicates the mission cannot be edited
+- [X] T009 [P] [US4] Add test in `src/test/chat.test.ts` for **tool error handling**: queue a `toolUseResponse("write_mission_content")` that returns an error string (`"Error: store unavailable"`) followed by a `textResponse("Sorry, I couldn't update the mission goals.")`), POST a goal-change message, assert the reply reports the failure and the previous mission_content is unchanged
+- [X] T010 [P] [US4] Add test in `src/test/chat.test.ts` for **vague request handling**: queue a `textResponse("Could you be more specific about what you'd like to change?")`, POST a vague message like "make it better", assert the AI either asks for clarification or applies a reasonable interpretation with explicit confirmation
+- [X] T011 [P] [US4] Add test in `src/test/chat.test.ts` for **fresh mission content creation**: create a mission with NO stored mission_content, queue `toolUseResponse("write_mission_content", { content_type: "mission", markdown_content: "Focus on practical Rust exercises" })` + `textResponse("I've set your mission goals.")`, POST a goal-change message, assert the store now has the new mission_content (upsert on empty works)
+- [X] T012 [P] [US4] Add test in `src/test/chat.test.ts` for **contradictory change resolution**: queue a `textResponse("I'll focus on making the material more challenging.")`, POST "make it harder but also easier", assert the AI picks a coherent interpretation and confirms it (no error, no crash)
 
 ### Implementation for User Story 4
 
@@ -126,8 +126,8 @@
 
 **Purpose**: Final validation that all tests pass and nothing regressed.
 
-- [ ] T013 Run `npm test` and confirm all suites pass with zero failures
-- [ ] T014 Run quickstart.md validation scenarios from `specs/019-complete-mission-editing/quickstart.md`
+- [X] T013 Run `npm test` and confirm all suites pass with zero failures
+- [X] T014 Run quickstart.md validation scenarios from `specs/019-complete-mission-editing/quickstart.md`
 
 ---
 

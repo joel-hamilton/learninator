@@ -36,12 +36,18 @@ chatRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   const mission = await store.getMission(missionId, user.id);
   if (!mission) return c.text("Not found", 404);
 
+  let missionContentBlock = "";
+  const storedContent = await store.getMissionContent(missionId, "mission");
+  if (storedContent?.markdownContent) {
+    missionContentBlock = `\n\nCurrent mission goals:\n${storedContent.markdownContent}`;
+  }
+
   const systemPrompt = TEACHER_SYSTEM_PROMPT + `
 The current mission ID is ${missionId}.
 Mission title: ${mission.title}
 Mission status: ${mission.status}
 
-Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.`;
+Remember: read existing content before creating new material. Use list_lessons and list_learning_records to understand what the user has already learned.` + missionContentBlock;
 
   const messages = await loadMessages(store, missionId);
 
