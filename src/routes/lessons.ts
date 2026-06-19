@@ -85,7 +85,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
   const body = await c.req.parseBody();
   const rating = String(body.rating || "");
   const feedbackText = String(body.feedbackText || "").trim();
-  if (feedbackText.length > 2000) return c.text("Feedback too long", 400);
+  if (feedbackText.length > 2000) return c.text("Feedback too long (max 2,000 characters)", 400);
 
   const fbErr = validateFeedback(feedbackText);
   if (fbErr) return c.html(fbErr);

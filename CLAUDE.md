@@ -159,7 +159,8 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/004-fix-migration-snapshots/plan.md
-Feature: Fix Database Migration Snapshots — repair broken Drizzle snapshot chain so
-drizzle-kit generate produces correct incremental SQL, add CI schema check.
+Current plan: specs/009-fix-archive-ui/plan.md
+Feature: Fix Archive UI — fix archive/restore/delete to immediately update both
+sections via HTMX out-of-band swaps, and collapse the archived section by default
+using a native <details> element.
 <!-- SPECKIT END -->
