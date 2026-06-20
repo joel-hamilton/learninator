@@ -17,7 +17,7 @@ import {
   bridgingDoneBar,
   bridgingErrorBar,
 } from "../views/fragments.js";
-import { validateNotes, rateLimitedFragment } from "../security/index.js";
+import { validateNotes, rateLimit } from "../security/index.js";
 import { parseLessonParam } from "../shared/lesson-numbers.js";
 import { buildJobKey } from "../lessons/generator.js";
 
@@ -62,7 +62,7 @@ function renderJobStatus(
   return c.html(generationRunningBar(missionId, number, subNumber, isSub, status.message));
 }
 
-lessonGenerationRoutes.post("/:number/generate-next", auth.requireAuth, async (c: Ctx) => {
+lessonGenerationRoutes.post("/:number/generate-next", auth.requireAuth, rateLimit("lesson_gen", 10, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
@@ -73,11 +73,6 @@ lessonGenerationRoutes.post("/:number/generate-next", auth.requireAuth, async (c
 
   const notesErr = validateNotes(notes);
   if (notesErr) return c.html(notesErr);
-
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
 
   if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
   const mission = await store.getMission(missionId, user.id);
@@ -105,7 +100,7 @@ lessonGenerationRoutes.get("/:number/generate-next/status", auth.requireAuth, (c
   return renderJobStatus(c, "next");
 });
 
-lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, async (c: Ctx) => {
+lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, rateLimit("lesson_gen", 10, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
@@ -123,11 +118,6 @@ lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, as
   const lesson = await store.getLesson(missionId, number, subNumber);
   if (!lesson) return c.text("Lesson not found", 404);
 
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
-
   const generator = c.get("lessonGenerator");
   generator.generateSubLesson(
     missionId,
@@ -143,7 +133,7 @@ lessonGenerationRoutes.get("/:number/generate-sub-lesson/status", auth.requireAu
   return renderJobStatus(c, "sub");
 });
 
-lessonGenerationRoutes.post("/:number/regenerate", auth.requireAuth, async (c: Ctx) => {
+lessonGenerationRoutes.post("/:number/regenerate", auth.requireAuth, rateLimit("lesson_gen", 10, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
@@ -152,11 +142,6 @@ lessonGenerationRoutes.post("/:number/regenerate", auth.requireAuth, async (c: C
   const direction = String(body.direction || "");
   if (direction !== "harder" && direction !== "easier") {
     return c.text("Invalid direction", 400);
-  }
-
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
-    return c.html(rateLimitedFragment());
   }
 
   if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
@@ -181,16 +166,11 @@ lessonGenerationRoutes.get("/:number/regenerate/status", auth.requireAuth, (c: C
   return renderJobStatus(c, "regenerate");
 });
 
-lessonGenerationRoutes.post("/:number/generate-bridging", auth.requireAuth, async (c: Ctx) => {
+lessonGenerationRoutes.post("/:number/generate-bridging", auth.requireAuth, rateLimit("lesson_gen", 10, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
-
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "lesson_gen", 10, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
 
   if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
   const mission = await store.getMission(missionId, user.id);

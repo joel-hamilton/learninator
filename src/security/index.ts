@@ -1,5 +1,6 @@
 export type { RateLimiter } from "./rate-limiter.js";
 export { SlidingWindowRateLimiter } from "./rate-limiter.js";
+export { rateLimit } from "./rate-limit-middleware.js";
 export {
   // Constants
   MAX_CHAT_MESSAGE,

@@ -18,7 +18,7 @@ import { guidedOnboardingLayout, onboardingLayout, newMissionPage } from "../vie
 import { chatMessageBubble, generationProgressPanel, emptyLessonsMessage, lessonCard } from "../views/fragments.js";
 import { lessonGrouping } from "../view-models/lesson-grouping.js";
 import { renderChatMessages } from "../view-models/chat-messages.js";
-import { validateChatMessage, validateTitle, validateTopic, rateLimitedFragment } from "../security/index.js";
+import { validateChatMessage, validateTitle, validateTopic, rateLimit } from "../security/index.js";
 import { renderOobSections } from "./home.js";
 import { onboardingRoutes } from "./onboarding.js";
 import { missionTabRoutes } from "./mission-tabs.js";
@@ -57,7 +57,7 @@ missionRoutes.get("/new", auth.requireAuth, (c: Ctx) => {
 });
 
 // ── Create mission from first chat message (POST /missions) ──
-missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
+missionRoutes.post("/", auth.requireAuth, rateLimit("mission_create", 5, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const body = await c.req.parseBody();
@@ -69,11 +69,6 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
   }
   const topicErr = validateTopic(message);
   if (topicErr) return c.html(topicErr);
-
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "mission_create", 5, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
 
   const slug = generateSlug(message);
   const title = message.length > 80 ? message.slice(0, 80) + "…" : message;
@@ -109,7 +104,7 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
 });
 
 // ── Create mission from dashboard topic (POST /missions/new) ──
-missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
+missionRoutes.post("/new", auth.requireAuth, rateLimit("mission_create", 5, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const body = await c.req.parseBody();
@@ -117,11 +112,6 @@ missionRoutes.post("/new", auth.requireAuth, async (c: Ctx) => {
   if (!topic) return c.redirect("/missions/new");
   const topicErr = validateTopic(topic);
   if (topicErr) return c.html(topicErr);
-
-  const rateLimiter2 = c.get("rateLimiter");
-  if (rateLimiter2 && !rateLimiter2.check(user.id, "mission_create", 5, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
 
   const mode = (String(body.mode || "") === "chat" ? "chat" : "guided") as "guided" | "chat";
   const slug = generateSlug(topic);
@@ -281,7 +271,7 @@ missionRoutes.get("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
 });
 
 // ── Chat message handler (all missions) ──
-missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
+missionRoutes.post("/:missionId/chat", auth.requireAuth, rateLimit("chat", 20, 60_000), async (c: Ctx) => {
   const user = c.get("user")!;
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
@@ -290,11 +280,6 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
   if (!message) return c.text("");
   const chatErr = validateChatMessage(message);
   if (chatErr) return c.html(chatErr);
-
-  const rateLimiter = c.get("rateLimiter");
-  if (rateLimiter && !rateLimiter.check(user.id, "chat", 20, 60_000)) {
-    return c.html(rateLimitedFragment());
-  }
 
   if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
   const mission = await store.getMission(missionId, user.id);
