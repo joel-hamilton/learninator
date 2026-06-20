@@ -2,6 +2,7 @@ import {
   conversationLoop,
   getBridgingSystemPrompt,
   getRegenerateSystemPrompt,
+  REVIEWER_SYSTEM_PROMPT,
   TEACHER_SYSTEM_PROMPT,
   TEACHER_TOOLS,
   TOOL_DISPLAY_NAMES,
@@ -434,6 +435,9 @@ export class LessonGenerator {
         [{ role: "user" as const, content: userMessage }],
       );
       job.result = await config.findResult(missionId, lesson);
+      if (job.result) {
+        await this.runReview(missionId, job, job.result, mission);
+      }
       job.status = "done";
     } catch (err: unknown) {
       job.status = "error";
@@ -441,6 +445,76 @@ export class LessonGenerator {
       logger.error(`${config.errorLabel} failed:`, job.error);
     } finally {
       setTimeout(() => this.jobStore.deleteJob(key), 60_000);
+    }
+  }
+
+  /**
+   * Run the QA review pass on a freshly-generated lesson.
+   * Reads the lesson content, sends it to the reviewer AI, and updates
+   * the lesson if corrections were made. Falls back silently on any error.
+   */
+  private async runReview(
+    missionId: number,
+    job: InternalJob,
+    result: { lessonNumber: number; lessonSubNumber: number | null; lessonTitle: string },
+    mission: { title: string; status: string },
+  ): Promise<void> {
+    const { ai, logger, lessonStore } = this.deps;
+    const subLabel = result.lessonSubNumber ? `.${result.lessonSubNumber}` : "";
+
+    try {
+      const saved = await lessonStore.getLesson(
+        missionId,
+        result.lessonNumber,
+        result.lessonSubNumber,
+      );
+      if (!saved) return;
+
+      job.messages.push("Reviewing lesson…");
+
+      const reviewedHtml = await ai.chat(
+        REVIEWER_SYSTEM_PROMPT,
+        [
+          {
+            role: "user",
+            content: [
+              `Mission: ${mission.title}`,
+              `Lesson: ${result.lessonNumber}${subLabel} — "${result.lessonTitle}"`,
+              "",
+              "Review the following lesson HTML for clear-cut errors (typos, broken HTML, verifiably wrong facts). Return corrected HTML or the original if clean.",
+              "",
+              saved.htmlContent,
+            ].join("\n"),
+          },
+        ],
+        { model: "high" },
+      );
+
+      if (!reviewedHtml || reviewedHtml.trim() === "EMPTY_LESSON_DETECTED") {
+        logger.warn(`[lesson-qa] Review failed for ${result.lessonNumber}${subLabel}: empty response`);
+        return;
+      }
+
+      if (reviewedHtml === saved.htmlContent) {
+        logger.debug(`[lesson-qa] Lesson ${result.lessonNumber}${subLabel} passed review unchanged`);
+        return;
+      }
+
+      await lessonStore.updateLessonContent(
+        missionId,
+        saved.number,
+        saved.subNumber,
+        saved.title,
+        saved.slug,
+        reviewedHtml,
+      );
+
+      logger.info(`[lesson-qa] Corrected lesson ${result.lessonNumber}${subLabel}`);
+    } catch (err: unknown) {
+      logger.warn(
+        `[lesson-qa] Review failed for ${result.lessonNumber}${subLabel}, delivering original:`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 

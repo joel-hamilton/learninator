@@ -38,6 +38,7 @@ export type {
 export {
   TEACHER_SYSTEM_PROMPT,
   TEACHER_TOOLS,
+  REVIEWER_SYSTEM_PROMPT,
   getRegenerateSystemPrompt,
   getBridgingSystemPrompt,
 } from "./teacher.js"

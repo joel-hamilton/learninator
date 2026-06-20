@@ -163,6 +163,6 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/026-wired-feedback/plan.md
-Feature: Wired Feedback — inline textarea after rating + programmatic feedback injection into all generation paths so calibration doesn't depend on AI compliance.
+Current plan: specs/027-lesson-qa-review/plan.md
+Feature: Lesson QA Review — second AI pass that reviews generated lessons for clear-cut errors (typos, broken HTML, verifiably wrong facts) before delivery.
 <!-- SPECKIT END -->
