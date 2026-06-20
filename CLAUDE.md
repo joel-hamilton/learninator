@@ -12,6 +12,20 @@ Multi-user AI tutoring webapp based on mattpocock/skills teach skill. Uses Claud
 - **Test**: Vitest, in-memory SQLite, HTTP-level via `app.request()`
 - **Deploy**: Docker Compose (dev and prod)
 
+## Architecture decision records
+
+Domain vocabulary is defined in `CONTEXT.md`. Architectural decisions are
+recorded in `docs/adr/`. Before proposing an architectural change, check
+whether an existing ADR already covers the territory:
+
+- [ADR-0001](docs/adr/001-ai-client-seam.md) — AiClient interface with FakeAiClient for tests
+- [ADR-0002](docs/adr/002-store-interfaces-with-typed-adapters.md) — Store interfaces with typed InMemory adapters
+- [ADR-0003](docs/adr/003-polling-over-sse-for-workflow-progress.md) — Polling over SSE for workflow progress
+- [ADR-0004](docs/adr/004-htmx-server-rendered-html.md) — htmx with server-rendered HTML fragments
+- [ADR-0005](docs/adr/005-hono-factory-pattern-for-di.md) — Hono factory pattern for dependency injection
+- [ADR-0006](docs/adr/006-mission-chat-service-orchestrator.md) — MissionChatService as single conversation orchestrator
+- [ADR-0007](docs/adr/007-lesson-generator-fire-and-poll.md) — LessonGenerator as fire-and-poll background job manager
+
 ## Project structure
 
 ```
@@ -163,6 +177,6 @@ SESSION_SECRET=change-me
 **Never write temporary files into the repo root.** Screenshots, browser snapshots, console logs, and other verification artifacts must go to `/tmp/learninator/` (or `/tmp/` for one-offs). Create the directory first if needed. Never commit these — they're already gitignored via `*.png`, `*.jpg`, `*snapshot*`, and `*.yml` (except `compose.yml` and CI configs). The `.playwright-mcp/` directory is also gitignored — if Playwright MCP writes there, clean it up after.
 
 <!-- SPECKIT START -->
-Current plan: specs/027-lesson-qa-review/plan.md
-Feature: Lesson QA Review — second AI pass that reviews generated lessons for clear-cut errors (typos, broken HTML, verifiably wrong facts) before delivery.
+Current plan: specs/028-extract-shared-css/plan.md
+Feature: Extract Shared CSS from Views — Move the 490-line inlined HTMX_HEAD style block to a static base.css file, remove duplicated CSS from view files, and resolve conflicting loading bar height definitions.
 <!-- SPECKIT END -->
