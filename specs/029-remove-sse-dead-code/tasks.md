@@ -36,22 +36,22 @@ No tasks for this phase.
 
 **Purpose**: Simplify the event bus interfaces and implementation in `src/ai/events.ts`. This is the central change — all other files depend on having the simplified types available.
 
-- [ ] T001 Simplify `ToolEventBus` and `WorkflowEventBus` interfaces in `src/ai/events.ts`:
+- [X] T001 Simplify `ToolEventBus` and `WorkflowEventBus` interfaces in `src/ai/events.ts`:
   - Remove `subscribe(missionId, cb): () => void` from `ToolEventBus`
   - Remove `subscribeUser(userId, cb): () => void` from `WorkflowEventBus`
   - Remove `type ToolEventCallback`
   - Keep `WorkflowEventCallback` (still used by `userSubscribers`)
-- [ ] T002 [P] Simplify `createEventBus` implementation in `src/ai/events.ts`:
+- [X] T002 [P] Simplify `createEventBus` implementation in `src/ai/events.ts`:
   - Remove the `subscribers` Map (tool event subscribers — never populated)
   - Remove the `subscribe` function
   - Remove the `subscribeUser` function
   - Keep the `userSubscribers` Map and `emitUser` function
   - Keep the `emit` function (no-op body is fine; `ToolEvent` type stays)
   - Return only `{ emit, emitUser }`
-- [ ] T003 [P] Update `AppVariables.events` type in `src/types.ts`:
+- [X] T003 [P] Update `AppVariables.events` type in `src/types.ts`:
   - The import still references `ToolEventBus` and `WorkflowEventBus` from `src/ai/index.ts` — no import change needed
   - The `events` field type remains `ToolEventBus & WorkflowEventBus` — no type change needed (the interfaces were simplified in-place)
-- [ ] T004 Clean up re-exports in `src/ai/index.ts`:
+- [X] T004 Clean up re-exports in `src/ai/index.ts`:
   - Keep `export { createEventBus } from "./events.js"`
   - Keep `export type { ToolEventBus, WorkflowEventBus, ToolEvent, WorkflowEvent } from "./events.js"`
   - No export changes needed unless types were removed
@@ -66,11 +66,11 @@ No tasks for this phase.
 
 **Independent Test**: Grep the source tree for the removed symbols and confirm zero matches. The polling endpoint `GET /workflows/state` must still return 200.
 
-- [ ] T005 [US1] Remove the SSE endpoint handler at `src/routes/home.ts` lines 150-187:
+- [X] T005 [US1] Remove the SSE endpoint handler at `src/routes/home.ts` lines 150-187:
   - Remove the `homeRoutes.get("/workflows/events", ...)` route handler
   - This removes the only non-test caller of `WorkflowEventBus.subscribeUser`
   - Do NOT remove any other routes or imports that are still needed
-- [ ] T006 [US1] Remove the four no-op client stubs in `src/shared/sse-poller.ts` lines 83-95:
+- [X] T006 [US1] Remove the four no-op client stubs in `src/shared/sse-poller.ts` lines 83-95:
   - Remove the `addWorkflow` function (empty body, SSE leftover)
   - Remove the `updateStep` function (empty body, SSE leftover)
   - Remove the `markComplete` function (empty body, SSE leftover)
@@ -87,15 +87,15 @@ No tasks for this phase.
 
 **Independent Test**: `npm test` passes with zero failures and the same test count.
 
-- [ ] T007 [P] [US2] Update `src/test/conversation.test.ts`:
+- [X] T007 [P] [US2] Update `src/test/conversation.test.ts`:
   - Replace calls to `createEventBus()` with a simpler test construction (remove `subscribe` usage)
   - Update `ToolEvent[]` assertions if needed
   - The test currently subscribes to the event bus and collects events — adapt to use `emit` directly or use a spy
-- [ ] T008 [P] [US2] Update `src/test/generator.test.ts`:
+- [X] T008 [P] [US2] Update `src/test/generator.test.ts`:
   - `FakeEventBus` class implements `ToolEventBus` — remove the `subscribe` method implementation
   - Remove imports of removed symbols if any
   - Keep `emit` method
-- [ ] T009 [US2] Update `src/lessons/generator.test.ts`:
+- [X] T009 [US2] Update `src/lessons/generator.test.ts`:
   - Remove `createEventBus` import and usage if it only used subscribe
   - Or keep if it only uses `emit`
 
@@ -109,17 +109,17 @@ No tasks for this phase.
 
 **Independent Test**: Run `npx tsc --noEmit` + `npm test`. Then start the dev server and manually verify the progress indicator works during lesson generation.
 
-- [ ] T010 [P] [US3] Run TypeScript compilation check:
+- [X] T010 [P] [US3] Run TypeScript compilation check:
   ```bash
   npx tsc --noEmit
   ```
   Expected: zero compilation errors.
-- [ ] T011 [P] [US3] Run full test suite:
+- [X] T011 [P] [US3] Run full test suite:
   ```bash
   npm test
   ```
   Expected: all tests pass, same test count as before removal.
-- [ ] T012 [P] [US3] Grep verification — confirm no references to removed symbols remain in non-test source:
+- [X] T012 [P] [US3] Grep verification — confirm no references to removed symbols remain in non-test source:
   ```bash
   grep -rn "\.subscribe(" src/ --include="*.ts" | grep -v "\.test\." | grep -v node_modules
   grep -rn "subscribeUser" src/ --include="*.ts" | grep -v "\.test\." | grep -v node_modules
@@ -127,7 +127,7 @@ No tasks for this phase.
   grep -n "addWorkflow\|updateStep\|markComplete\|markError" src/shared/sse-poller.ts
   ```
   Expected: all return empty (no matches).
-- [ ] T013 [US3] Manual smoke test:
+- [X] T013 [US3] Manual smoke test:
   - Start the dev server (`npm run dev`)
   - Sign in as a user
   - Navigate to a mission

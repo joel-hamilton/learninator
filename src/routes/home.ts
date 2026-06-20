@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { streamSSE } from "hono/streaming";
 import type { Context } from "hono";
 import { auth } from "../auth/index.js";
 import type { AppVariables } from "../types.js";
@@ -147,41 +146,4 @@ homeRoutes.get("/workflows/state", auth.requireAuth, async (c: Ctx) => {
   return c.json({ workflows });
 });
 
-// ── Workflow events SSE endpoint (user-scoped, site-wide indicator) ──
-homeRoutes.get("/workflows/events", auth.requireAuth, async (c: Ctx) => {
-  const user = c.get("user")!;
-
-  return streamSSE(c, async (stream) => {
-    const log = c.get("logger");
-    const events = c.get("events");
-    log.debug("Workflow SSE client connected for user %d", user.id);
-
-    const unsub = events.subscribeUser(user.id, async (event) => {
-      try {
-        await stream.writeSSE({ data: JSON.stringify(event), event: event.event });
-      } catch (e) {
-        log.debug("Workflow SSE write error: %s", e);
-      }
-    });
-
-    // Keep-alive ping every 15s to prevent idle connection drops
-    const keepAlive = setInterval(async () => {
-      try {
-        await stream.writeSSE({ data: "", event: "ping" });
-      } catch {
-        clearInterval(keepAlive);
-      }
-    }, 15_000);
-
-    const done = new Promise<void>((resolve) => {
-      c.req.raw.signal.addEventListener("abort", () => {
-        log.debug("Workflow SSE client disconnected for user %d", user.id);
-        clearInterval(keepAlive);
-        unsub();
-        resolve();
-      });
-    });
-
-    await done;
-  });
-});
+// ── (SSE endpoint /workflows/events was removed — see ADR-0003) ──

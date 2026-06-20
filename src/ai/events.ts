@@ -14,56 +14,21 @@ export interface WorkflowEvent {
   error?: string;
 }
 
-type ToolEventCallback = (event: ToolEvent) => void | Promise<void>;
 type WorkflowEventCallback = (event: WorkflowEvent) => void | Promise<void>;
 
 export interface ToolEventBus {
-  subscribe(missionId: number, cb: ToolEventCallback): () => void;
   emit(missionId: number, event: ToolEvent): void;
 }
 
 export interface WorkflowEventBus {
-  subscribeUser(userId: number, cb: WorkflowEventCallback): () => void;
   emitUser(userId: number, event: WorkflowEvent): void;
 }
 
 export function createEventBus(): ToolEventBus & WorkflowEventBus {
-  const subscribers = new Map<number, Set<ToolEventCallback>>();
   const userSubscribers = new Map<number, Set<WorkflowEventCallback>>();
 
-  function subscribe(missionId: number, cb: ToolEventCallback): () => void {
-    if (!subscribers.has(missionId)) {
-      subscribers.set(missionId, new Set());
-    }
-    subscribers.get(missionId)!.add(cb);
-    return () => {
-      subscribers.get(missionId)?.delete(cb);
-    };
-  }
-
-  function emit(missionId: number, event: ToolEvent): void {
-    const subs = subscribers.get(missionId);
-    if (!subs || subs.size === 0) return;
-    subs.forEach((cb) => {
-      try {
-        const result = cb(event);
-        if (result instanceof Promise) {
-          result.catch(() => {}); // swallow subscriber errors
-        }
-      } catch {
-        // swallow subscriber errors
-      }
-    });
-  }
-
-  function subscribeUser(userId: number, cb: WorkflowEventCallback): () => void {
-    if (!userSubscribers.has(userId)) {
-      userSubscribers.set(userId, new Set());
-    }
-    userSubscribers.get(userId)!.add(cb);
-    return () => {
-      userSubscribers.get(userId)?.delete(cb);
-    };
+  function emit(_missionId: number, _event: ToolEvent): void {
+    // No-op — ToolEventBus.subscribe was removed; no subscribers remain.
   }
 
   function emitUser(userId: number, event: WorkflowEvent): void {
@@ -81,6 +46,6 @@ export function createEventBus(): ToolEventBus & WorkflowEventBus {
     });
   }
 
-  return { subscribe, emit, subscribeUser, emitUser };
+  return { emit, emitUser };
 }
 

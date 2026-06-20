@@ -15,7 +15,6 @@ import {
   DrizzleSessionAdapter,
   DrizzleStore,
 } from "../db/adapters/index.js";
-import { createEventBus } from "../ai/events.js";
 import type { ToolEventBus, ToolEvent } from "../ai/events.js";
 import { LessonGenerator, buildJobKey } from "./generator.js";
 import type { AiClient, AiMessage } from "../ai/index.js";
@@ -24,7 +23,11 @@ import { createLogger } from "../logger.js";
 // ── Helpers ──
 
 const logger = createLogger("test");
-const testEvents = createEventBus();
+
+/** Simple spy implementing ToolEventBus for tests that don't need assertions on emission. */
+const testEvents: ToolEventBus = {
+  emit() {},
+};
 
 /** An AI client that always throws an error. */
 class ThrowingAiClient implements AiClient {
@@ -663,10 +666,6 @@ describe("LessonGenerator", () => {
 /** Simple spy implementing ToolEventBus for tests. */
 class FakeEventBus implements ToolEventBus {
   emits: { missionId: number; event: ToolEvent }[] = [];
-
-  subscribe(_missionId: number, _cb: (event: ToolEvent) => void): () => void {
-    return () => {};
-  }
 
   emit(missionId: number, event: ToolEvent): void {
     this.emits.push({ missionId, event });

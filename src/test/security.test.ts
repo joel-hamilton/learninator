@@ -37,13 +37,12 @@ describe("US1 - Remove insecure SSE tool-events endpoint", () => {
     expect(res.status).toBe(404);
   });
 
-  it("T007: /workflows/events SSE endpoint still functional after tool-events removal", async () => {
+  it("T007: /workflows/events SSE endpoint returns 404 after removal", async () => {
     setupApp();
     await loginUser();
 
     const res = await authedReq(app, lr, "GET", "/workflows/events");
-    const contentType = res.headers.get("Content-Type") || res.headers.get("content-type");
-    expect(contentType).toBe("text/event-stream");
+    expect(res.status).toBe(404);
   });
 });
 

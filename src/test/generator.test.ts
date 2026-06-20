@@ -58,7 +58,6 @@ function spyEventBus(): { bus: ToolEventBus; events: Array<{ missionId: number; 
       emit(missionId, event) {
         events.push({ missionId, event });
       },
-      subscribe: () => () => {},
     },
   };
 }

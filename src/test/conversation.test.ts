@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { conversationLoop, createStandardHooks } from "../ai/conversation.js";
 import { FakeAiClient } from "../ai/fake.js";
-import { createEventBus } from "../ai/events.js";
 import { createToolExecutor } from "../ai/tools.js";
 import {
   InMemoryMissionStore,
@@ -11,8 +10,23 @@ import {
   InMemoryRefDocStore,
   InMemoryLearningRecordStore,
 } from "../db/store.js";
-import type { ToolEvent } from "../ai/events.js";
+import type { ToolEvent, ToolEventBus } from "../ai/events.js";
 import type { ToolStore } from "../ai/types.js";
+
+/**
+ * Creates a spy event bus that captures emitted events for assertions.
+ */
+function spyEventBus(): { bus: ToolEventBus; received: ToolEvent[] } {
+  const received: ToolEvent[] = [];
+  return {
+    received,
+    bus: {
+      emit(_missionId: number, event: ToolEvent): void {
+        received.push(event);
+      },
+    },
+  };
+}
 
 /**
  * Creates a combined store that satisfies the ToolStore intersection
@@ -45,9 +59,7 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
   it("emits tool_start before execution and tool_end after execution (T007 US1)", async () => {
     const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
-    const bus = createEventBus();
-    const received: ToolEvent[] = [];
-    const unsub = bus.subscribe(100, (event) => { received.push(event); });
+    const spy = spyEventBus();
 
     const ai = new FakeAiClient([
       FakeAiClient.toolUseResponse("list_lessons"),
@@ -61,15 +73,13 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
       systemPrompt: "You are a helpful assistant.",
       initialMessages: [],
       tools: [],
-      events: bus,
+      events: spy.bus,
     });
 
-    unsub();
-
-    expect(received.length).toBe(2);
-    expect(received[0].type).toBe("tool_start");
-    expect(received[0].names).toContain("Listing lessons");
-    expect(received[1].type).toBe("tool_end");
+    expect(spy.received.length).toBe(2);
+    expect(spy.received[0].type).toBe("tool_start");
+    expect(spy.received[0].names).toContain("Listing lessons");
+    expect(spy.received[1].type).toBe("tool_end");
   });
 
   // T008: conversationLoop without EventBus — no crash
@@ -99,9 +109,7 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
   it("does not emit events when AI returns no tool blocks (T009 US1)", async () => {
     const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
-    const bus = createEventBus();
-    const received: ToolEvent[] = [];
-    const unsub = bus.subscribe(100, (event) => { received.push(event); });
+    const spy = spyEventBus();
 
     const ai = new FakeAiClient([
       FakeAiClient.textResponse("Hello, how can I help?"),
@@ -114,12 +122,10 @@ describe("User Story 1 — conversationLoop emits events directly", () => {
       systemPrompt: "You are a helpful assistant.",
       initialMessages: [],
       tools: [],
-      events: bus,
+      events: spy.bus,
     });
 
-    unsub();
-
-    expect(received.length).toBe(0);
+    expect(spy.received.length).toBe(0);
   });
 });
 
@@ -158,9 +164,7 @@ describe("User Story 4 — new callers get event emission for free", () => {
   it("fires events without any event wiring in hooks (T020 US4)", async () => {
     const store = createCombinedStore();
     const toolExecutor = createToolExecutor(store);
-    const bus = createEventBus();
-    const received: ToolEvent[] = [];
-    const unsub = bus.subscribe(100, (event) => { received.push(event); });
+    const spy = spyEventBus();
 
     const ai = new FakeAiClient([
       FakeAiClient.toolUseResponse("list_lessons"),
@@ -175,7 +179,7 @@ describe("User Story 4 — new callers get event emission for free", () => {
       systemPrompt: "You are a helpful assistant.",
       initialMessages: [],
       tools: [],
-      events: bus,
+      events: spy.bus,
       hooks: {
         onBeforeToolExecution: async () => {
           // No event emission here
@@ -186,11 +190,9 @@ describe("User Story 4 — new callers get event emission for free", () => {
       },
     });
 
-    unsub();
-
     // Events still fired from conversationLoop
-    expect(received.length).toBe(2);
-    expect(received[0].type).toBe("tool_start");
-    expect(received[1].type).toBe("tool_end");
+    expect(spy.received.length).toBe(2);
+    expect(spy.received[0].type).toBe("tool_start");
+    expect(spy.received[1].type).toBe("tool_end");
   });
 });

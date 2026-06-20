@@ -45,12 +45,12 @@ describe("workflow visibility", () => {
     expect(body.workflows).toEqual([]);
   });
 
-  it("workflow events SSE endpoint returns event-stream", async () => {
+  it("workflow events SSE endpoint returns 404 after removal", async () => {
     setupApp();
     await loginUser();
 
     const res = await authedReq(app, lr, "GET", "/workflows/events");
-    expect(res.headers.get("Content-Type") || res.headers.get("content-type")).toBe("text/event-stream");
+    expect(res.status).toBe(404);
   });
 
   it("old tool-events endpoint returns 404 after removal", async () => {

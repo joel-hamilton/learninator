@@ -80,20 +80,6 @@ export function ssePollerScript(): string {
 
   window._wfState = { workflows: [] };
 
-  function addWorkflow(d) {
-    // Not called via SSE events anymore; state is fully replaced by renderAll
-  }
-
-  function updateStep(d) {}
-
-  function markComplete(id) {
-    // Handled by renderAll now; auto-dismiss is in render()
-  }
-
-  function markError(d) {
-    // Handled by renderAll now
-  }
-
   function renderAll(workflows) {
     window._wfState.workflows = workflows.map(function(w) {
       return { id: w.id, type: w.type, label: w.label, status: w.status, linkUrl: w.linkUrl, error: w.error };
