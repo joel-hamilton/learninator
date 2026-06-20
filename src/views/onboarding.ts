@@ -111,7 +111,6 @@ export function guidedOnboardingLayout(
 ${HTMX_HEAD}
 <style>
   :root { --bg: #fdfcf9; --surface: #ffffff; --border: #e8e4dc; --border-hover: #d4cdbc; --text: #2d2d2d; --text-secondary: #6b6b6b; --text-muted: #a3a3a3; --primary: #2d2d2d; --primary-hover: #444444; --primary-light: #f5f2eb; --warning: #8b6914; --warning-bg: #fef5e7; --radius: 8px; --radius-lg: 12px; --shadow-sm: 0 1px 2px rgba(0,0,0,0.04); --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); --transition: 150ms ease; --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1); }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
   .header { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; }
   .header .left { display: flex; align-items: center; gap: 1rem; }
@@ -155,11 +154,10 @@ ${HTMX_HEAD}
   @keyframes dotPulse { 0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
   @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .spinner { display: inline-block; width: 1em; height: 1em; border: 2px solid #ccc; border-top-color: #888; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.5rem; }
-  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body data-user-initial="${userInitial(user)}">
-<div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;height:3px;background:var(--primary);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
+<div id="htmx-loading-bar" class="htmx-indicator" style="position:fixed;top:0;left:0;background:var(--primary);z-index:9999;opacity:0;transition:opacity 150ms;width:0;"></div>
 <header class="header">
   <div class="left">
     <a href="/" class="back">${svgIcon("arrowLeft")} Dashboard</a>

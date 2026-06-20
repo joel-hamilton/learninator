@@ -2,6 +2,7 @@ import "./env.js";
 // ↑ must be first — walks up the directory tree to find .env before
 // other imports read process.env at module load time
 
+import { readFileSync } from "node:fs";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import type { AppVariables } from "./types.js";
@@ -118,6 +119,24 @@ export function createApp(opts?: {
     c.header("Content-Type", "image/svg+xml");
     c.header("Cache-Control", "public, max-age=86400");
     return c.body(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#2d2d2d"/><text x="16" y="22" text-anchor="middle" font-size="18" font-family="system-ui" fill="#fff">L</text></svg>`);
+  });
+
+  // Static files (registered before auth so CSS is accessible without auth)
+  app.get("/static/:file", (c) => {
+    const file = c.req.param("file");
+    if (!/^[\w.-]+\.css$/.test(file)) {
+      return c.notFound();
+    }
+    const cssPath = new URL("views/base.css", import.meta.url).pathname;
+    const css = readFileSync(cssPath, "utf-8");
+    c.header("Content-Type", "text/css");
+    c.header(
+      "Cache-Control",
+      process.env.NODE_ENV === "production"
+        ? "public, max-age=31536000, immutable"
+        : "no-cache, must-revalidate",
+    );
+    return c.body(css);
   });
 
   app.use("*", auth.sessionMiddleware);

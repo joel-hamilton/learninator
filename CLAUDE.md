@@ -71,6 +71,7 @@ src/
     markdown.ts         # Markdown formatting
     jobs.ts             # Generic async job tracker
   views/                # HTML rendering (template literals, no templating engine)
+    base.css            # Shared CSS: design tokens, reset, buttons, forms, chat messages, modals, etc.
     home.ts, mission.ts, onboarding.ts, lesson.ts,
     auth.ts, settings.ts, browse.ts, fragments.ts, shared.ts
   test/

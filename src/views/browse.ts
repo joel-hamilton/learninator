@@ -471,8 +471,6 @@ export const BROWSE_STYLES = `<style>
   .browse-hint a { color: var(--ink); text-decoration: underline; }
   .browse-hint a:hover { color: var(--note); }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
-
   @media (max-width: 640px) {
     .browse-options { grid-template-columns: 1fr; }
     .breadcrumbs { font-size: 0.75rem; }
