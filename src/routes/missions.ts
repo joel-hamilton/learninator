@@ -97,7 +97,6 @@ missionRoutes.post("/", auth.requireAuth, async (c: Ctx) => {
     });
 
     if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
       c.header("HX-Redirect", `/missions/${missionId}`);
       return c.body(null);
     }
@@ -315,7 +314,6 @@ missionRoutes.post("/:missionId/chat", auth.requireAuth, async (c: Ctx) => {
     });
 
     if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
       c.header("HX-Redirect", `/missions/${missionId}`);
       return c.body(null);
     }

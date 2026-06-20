@@ -36,7 +36,6 @@ onboardingRoutes.post("/:missionId/guided/start", auth.requireAuth, async (c: Ct
     });
 
     if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
       c.header("HX-Redirect", `/missions/${missionId}`);
       return c.body(null);
     }
@@ -94,7 +93,6 @@ onboardingRoutes.post("/:missionId/guided/answer", auth.requireAuth, async (c: C
     });
 
     if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
       c.header("HX-Redirect", `/missions/${missionId}`);
       return c.body(null);
     }
@@ -143,7 +141,6 @@ onboardingRoutes.post("/:missionId/guided/skip", auth.requireAuth, async (c: Ctx
     });
 
     if (result.didActivate) {
-      await missionChatService.generateTitle(missionId);
       c.header("HX-Redirect", `/missions/${missionId}`);
       return c.body(null);
     }
