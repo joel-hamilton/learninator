@@ -11,6 +11,7 @@ import type { MissionStore, LessonStore } from "../db/store.js";
 import type { ToolEventBus } from "../ai/events.js";
 import type { Logger } from "../logger.js";
 import { formatLessonNumber } from "../shared/lesson-numbers.js";
+import { buildFeedbackSummary } from "../shared/feedback-summary.js";
 import type { InternalJob, JobStore } from "./job-store.js";
 import { InMemoryJobStore } from "./job-store.js";
 
@@ -73,7 +74,7 @@ interface GenerationConfig {
     mission: MissionInfo,
     lesson: LessonInfo,
     direction?: "harder" | "easier",
-  ) => string;
+  ) => string | Promise<string>;
   buildUserMessage: (
     lesson: LessonInfo,
     opts?: GenerationOpts,
@@ -124,8 +125,9 @@ export class LessonGenerator {
       {
         jobKeyType: "next",
         errorLabel: "generate-next",
-        buildSystemPrompt: (mid, m, l) => {
+        buildSystemPrompt: async (mid, m, l) => {
           const displayNum = formatLessonNumber(l.number, l.subNumber);
+          const feedback = await buildFeedbackSummary(this.deps.lessonStore, mid);
           return (
             TEACHER_SYSTEM_PROMPT +
             [
@@ -134,7 +136,8 @@ export class LessonGenerator {
               `Mission title: ${m.title}`,
               `Mission status: ${m.status}`,
               "",
-              `You are creating the next main lesson after Lesson ${displayNum}: "${l.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what's been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. ALWAYS use create_lesson for a NEW main lesson. Do NOT use create_sub_lesson — this action is reserved for "Dive Deeper".`,
+              feedback,
+              `You are creating the next main lesson after Lesson ${displayNum}: "${l.title}". Review existing lessons to understand what's been covered. The feedback history above tells you how to calibrate difficulty. ALWAYS use create_lesson for a NEW main lesson. Do NOT use create_sub_lesson — this action is reserved for "Dive Deeper".`,
             ].join("\n")
           );
         },
@@ -181,28 +184,40 @@ export class LessonGenerator {
     missionId: number,
     lesson: { number: number; subNumber: number | null; title: string },
     mission: { title: string; status: string },
+    opts?: { notes?: string },
   ): string {
     return this.runGeneration(
       {
         jobKeyType: "sub",
         errorLabel: "generate-sub-lesson",
-        buildSystemPrompt: (mid, m, l) => {
+        buildSystemPrompt: async (mid, m, l) => {
           const displayNum = formatLessonNumber(l.number, l.subNumber);
-          return (
-            TEACHER_SYSTEM_PROMPT +
-            [
+          const feedback = await buildFeedbackSummary(this.deps.lessonStore, mid);
+          let systemExtra = [
+            "",
+            `The current mission ID is ${mid}.`,
+            `Mission title: ${m.title}`,
+            `Mission status: ${m.status}`,
+            "",
+            feedback,
+            `You are creating a sub-lesson of Lesson ${displayNum}: "${l.title}". Review existing lessons to understand what has been covered. The feedback history above tells you how to calibrate difficulty. Use create_sub_lesson.`,
+          ];
+          if (opts?.notes) {
+            systemExtra.push(
               "",
-              `The current mission ID is ${mid}.`,
-              `Mission title: ${m.title}`,
-              `Mission status: ${m.status}`,
-              "",
-              `You are creating a sub-lesson of Lesson ${displayNum}: "${l.title}". ALWAYS call list_feedback_history first to check past difficulty ratings — this is required. Then review existing lessons to understand what has been covered. Calibrate difficulty based on the student's feedback pattern: multiple "too_hard" ratings → use simpler language, more scaffolding, smaller steps; multiple "too_easy" ratings → increase depth, add advanced material; mixed ratings → maintain current difficulty. Use create_sub_lesson.`,
-            ].join("\n")
-          );
+              `The user specifically requested a lesson about: "${opts.notes}". Focus the sub-lesson on this topic.`,
+            );
+          }
+          return TEACHER_SYSTEM_PROMPT + systemExtra.join("\n");
         },
-        buildUserMessage: (l) => {
+        buildUserMessage: (l, opts) => {
           const displayNum = formatLessonNumber(l.number, l.subNumber);
-          return `The user wants to go deeper on Lesson ${displayNum}: "${l.title}". Please create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${l.number}.`;
+          let msg = `The user wants to go deeper on Lesson ${displayNum}: "${l.title}".`;
+          if (opts?.notes) {
+            msg += `\n\nThe user specifically requested: ${opts.notes}`;
+          }
+          msg += `\n\nPlease create a sub-lesson that covers related material, a deeper dive, or clarification on the same topic. Use create_sub_lesson with parent_lesson_number: ${l.number}.`;
+          return msg;
         },
         findResult: async (mid, l) => {
           const latest = await this.deps.lessonStore.getLatestLesson(mid);
@@ -223,6 +238,7 @@ export class LessonGenerator {
       missionId,
       lesson,
       mission,
+      opts,
     );
   }
 
@@ -234,22 +250,29 @@ export class LessonGenerator {
     lesson: { number: number; subNumber: number | null; title: string },
     mission: { title: string; status: string },
     direction: "harder" | "easier",
+    opts?: { feedback?: string },
   ): string {
     return this.runGeneration(
       {
         jobKeyType: "regenerate",
         errorLabel: "regenerate",
-        buildSystemPrompt: (mid, m, l, direction) =>
-          getRegenerateSystemPrompt({
+        buildSystemPrompt: async (mid, m, l, direction) => {
+          const feedback = await buildFeedbackSummary(this.deps.lessonStore, mid);
+          return getRegenerateSystemPrompt({
             missionId: mid,
             missionTitle: m.title,
             lessonNumber: l.number,
             lessonTitle: l.title,
             direction: direction!,
-          }),
-        buildUserMessage: (l, _opts, direction) => {
+          }) + "\n" + feedback;
+        },
+        buildUserMessage: (l, opts, direction) => {
           const displayNum = formatLessonNumber(l.number, l.subNumber);
-          return `Please regenerate Lesson ${displayNum}: "${l.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, check feedback history, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
+          let msg = `Please regenerate Lesson ${displayNum}: "${l.title}". The student rated it as ${direction === "harder" ? "too easy" : "too hard"}. Read the current lesson content, then use regenerate_lesson to rewrite it at an ${direction === "harder" ? "more challenging" : "easier"} level.`;
+          if (opts?.feedback) {
+            msg += `\n\nThe student explained: ${opts.feedback}`;
+          }
+          return msg;
         },
         findResult: async (mid, l) => {
           const found = await this.deps.lessonStore.getLesson(
@@ -270,7 +293,7 @@ export class LessonGenerator {
       missionId,
       lesson,
       mission,
-      undefined,
+      opts,
       direction,
     );
   }
@@ -282,21 +305,28 @@ export class LessonGenerator {
     missionId: number,
     lesson: { number: number; subNumber: number | null; title: string },
     mission: { title: string; status: string },
+    opts?: { feedback?: string },
   ): string {
     return this.runGeneration(
       {
         jobKeyType: "bridge",
         errorLabel: "generate-bridging",
-        buildSystemPrompt: (mid, m, l) =>
-          getBridgingSystemPrompt({
+        buildSystemPrompt: async (mid, m, l) => {
+          const feedback = await buildFeedbackSummary(this.deps.lessonStore, mid);
+          return getBridgingSystemPrompt({
             missionId: mid,
             missionTitle: m.title,
             lessonNumber: l.number,
             lessonTitle: l.title,
-          }),
-        buildUserMessage: (l) => {
+          }) + "\n" + feedback;
+        },
+        buildUserMessage: (l, opts) => {
           const displayNum = formatLessonNumber(l.number, l.subNumber);
-          return `Create a bridging sub-lesson for Lesson ${displayNum}: "${l.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.`;
+          let msg = `Create a bridging sub-lesson for Lesson ${displayNum}: "${l.title}". The student found it too hard and needs prerequisite content before they can succeed with the main lesson.`;
+          if (opts?.feedback) {
+            msg += `\n\nThe student explained: ${opts.feedback}`;
+          }
+          return msg;
         },
         findResult: async (mid, l) => {
           const latest = await this.deps.lessonStore.getLatestLesson(mid);
@@ -317,6 +347,7 @@ export class LessonGenerator {
       missionId,
       lesson,
       mission,
+      opts,
     );
   }
 
@@ -355,9 +386,9 @@ export class LessonGenerator {
    * Template method that captures the shared lesson generation lifecycle:
    * 1. Build job key from config.jobKeyType
    * 2. Dedup by job key
-   * 3. Build system prompt via config.buildSystemPrompt
-   * 4. Build user message via config.buildUserMessage
-   * 5. Run job via runGenerationJob with config.findResult
+   * 3. Register job synchronously (so polling returns "running" immediately)
+   * 4. Build system prompt + user message asynchronously (includes feedback summary)
+   * 5. Run conversation loop and capture result
    *
    * Returns the job key for polling via getJobStatus.
    */
@@ -372,58 +403,45 @@ export class LessonGenerator {
     const key = buildJobKey(missionId, lesson.number, lesson.subNumber, config.jobKeyType);
     if (this.jobStore.getJob(key) !== undefined) return key;
 
-    const systemPrompt = config.buildSystemPrompt(missionId, mission, lesson, direction);
-    const userMessage = config.buildUserMessage(lesson, opts, direction);
+    // Register job synchronously so polling returns "running" immediately
+    const job: InternalJob = { status: "running", messages: ["Starting…"], result: null, error: null };
+    this.jobStore.setJob(key, job);
 
-    this.runGenerationJob(
-      key,
-      missionId,
-      systemPrompt,
-      [{ role: "user" as const, content: userMessage }],
-      () => config.findResult(missionId, lesson),
-      config.errorLabel,
-    );
+    void this.startGeneration(job, key, config, missionId, lesson, mission, opts, direction);
 
     return key;
   }
 
-  /**
-   * Shared async job lifecycle: dedup is handled by callers.
-   * Encapsulates job creation, conversation loop, result-finding,
-   * error handling, and 60-second cleanup.
-   */
-  private runGenerationJob(
+  private async startGeneration(
+    job: InternalJob,
     key: string,
+    config: GenerationConfig,
     missionId: number,
-    systemPrompt: string,
-    initialMessages: AiMessageParam[],
-    findResult: FindResultFn,
-    errorLabel: string,
-  ): void {
-    const job: InternalJob = {
-      status: "running",
-      messages: ["Starting…"],
-      result: null,
-      error: null,
-    };
-    this.jobStore.setJob(key, job);
-
+    lesson: LessonInfo,
+    mission: MissionInfo,
+    opts?: GenerationOpts,
+    direction?: "harder" | "easier",
+  ): Promise<void> {
     const { logger } = this.deps;
+    try {
+      const systemPrompt = await config.buildSystemPrompt(missionId, mission, lesson, direction);
+      const userMessage = config.buildUserMessage(lesson, opts, direction);
 
-    (async () => {
-      try {
-        await this.runConversation(missionId, job, systemPrompt, initialMessages);
-        job.result = await findResult();
-        job.status = "done";
-      } catch (err: unknown) {
-        job.status = "error";
-        job.error =
-          err instanceof Error ? err.message : "Something went wrong.";
-        logger.error(`${errorLabel} failed:`, job.error);
-      } finally {
-        setTimeout(() => this.jobStore.deleteJob(key), 60_000);
-      }
-    })();
+      await this.runConversation(
+        missionId,
+        job,
+        systemPrompt,
+        [{ role: "user" as const, content: userMessage }],
+      );
+      job.result = await config.findResult(missionId, lesson);
+      job.status = "done";
+    } catch (err: unknown) {
+      job.status = "error";
+      job.error = err instanceof Error ? err.message : "Something went wrong.";
+      logger.error(`${config.errorLabel} failed:`, job.error);
+    } finally {
+      setTimeout(() => this.jobStore.deleteJob(key), 60_000);
+    }
   }
 
   /**

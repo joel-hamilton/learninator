@@ -585,7 +585,7 @@ export const HTMX_HEAD = `<script src="https://unpkg.com/htmx.org@2.0.10"></scri
 
 <script>
 // Inject CSRF token into all htmx requests
-document.body && document.body.addEventListener('htmx:configRequest', function(e) {
+document.addEventListener('htmx:configRequest', function(e) {
   var match = document.cookie.match(/learninator_csrf=([^;]+)/);
   if (match) e.detail.headers['X-CSRF-Token'] = match[1];
 });

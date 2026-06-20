@@ -14,37 +14,152 @@ export function chatMessageBubble(role: "user" | "assistant", content: string, u
 
 // ── Lesson action bars ──
 
-export function lessonActionBar(missionId: number, number: number, subNumber: number | null): string {
-  const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar" id="feedback-bar">
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
-      hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"too_easy"}'>Too Easy</button>
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
-      hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"just_right"}'>Just Right</button>
-    <button class="fb-btn" hx-post="/missions/${missionId}/lessons/${lid}/feedback"
-      hx-target="#feedback-bar" hx-swap="outerHTML"
-      hx-vals='{"rating":"too_hard"}'>Too Hard</button>
-    <span style="flex:1"></span>
-    <button class="btn btn-primary btn-sm"
-      hx-post="/missions/${missionId}/lessons/${lid}/complete"
-      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
+function actionButtons(missionId: number, lid: string): string {
+  const promptId = `gen-prompt-${lid}`;
+  return `<div class="la-actions">
+    <div class="la-action">
+      <button class="btn btn-primary btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/complete"
+        hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
+      <span class="la-hint">Finish this lesson and choose your next step</span>
+    </div>
+    <div class="la-gen-prompt">
+      <input type="text" id="${promptId}" name="notes"
+        placeholder="What should the next lesson cover? (optional)"
+        class="la-gen-input"
+        autocomplete="off" />
+    </div>
+    <div class="la-action">
+      <button class="btn btn-secondary btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
+        hx-include="#${promptId}"
+        hx-target="#feedback-bar" hx-swap="outerHTML">New Lesson</button>
+      <span class="la-hint">Creates the next main lesson in sequence</span>
+    </div>
+    <div class="la-action">
+      <button class="btn btn-secondary btn-sm"
+        hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
+        hx-include="#${promptId}"
+        hx-target="#feedback-bar" hx-swap="outerHTML">More Like This</button>
+      <span class="la-hint">Creates a sub-lesson nested under this lesson</span>
+    </div>
   </div>`;
 }
 
-export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null): string {
+export function lessonActionBar(missionId: number, number: number, subNumber: number | null): string {
+  const lid = lessonIdStr(number, subNumber);
+  return `<div class="lesson-actions" id="feedback-bar">
+    <div class="la-feedback">
+      <div class="la-fb-ratings" id="la-fb-ratings">
+        <span class="la-label">How was this lesson?</span>
+        <div class="la-fb-buttons">
+          <button class="fb-btn" data-rating="too_easy">Too easy</button>
+          <button class="fb-btn" data-rating="just_right">Just right</button>
+          <button class="fb-btn" data-rating="too_hard">Too hard</button>
+        </div>
+      </div>
+      <div class="la-fb-textarea" id="la-fb-textarea" style="display:none;">
+        <span class="la-fb-textarea-label" id="la-fb-textarea-label"></span>
+        <div class="la-fb-input-row">
+          <textarea class="la-fb-input" id="la-fb-input" rows="2"></textarea>
+          <button class="btn btn-primary btn-sm la-fb-submit" id="la-fb-submit">Send</button>
+        </div>
+        <button class="fb-btn la-fb-change" id="la-fb-change">Change rating</button>
+      </div>
+    </div>
+    <div class="la-divider"></div>
+    ${actionButtons(missionId, lid)}
+  </div>
+  <script>
+  (function() {
+    var bar = document.getElementById("feedback-bar");
+    if (!bar || bar._laWired) return;
+    bar._laWired = true;
+    var ratings = document.getElementById("la-fb-ratings");
+    var textareaWrap = document.getElementById("la-fb-textarea");
+    var label = document.getElementById("la-fb-textarea-label");
+    var input = document.getElementById("la-fb-input");
+    var submitBtn = document.getElementById("la-fb-submit");
+    var changeBtn = document.getElementById("la-fb-change");
+    var selectedRating = "";
+
+    function ratingLabel(r) {
+      if (r === "too_easy") return "What made it too easy?";
+      if (r === "too_hard") return "What made it too hard?";
+      return "What worked well?";
+    }
+
+    function showTextarea(rating) {
+      selectedRating = rating;
+      label.textContent = ratingLabel(rating);
+      ratings.style.display = "none";
+      textareaWrap.style.display = "block";
+      input.focus();
+    }
+
+    function submitFeedback() {
+      var text = input.value.trim();
+      var body = "rating=" + encodeURIComponent(selectedRating);
+      if (text) body += "&feedbackText=" + encodeURIComponent(text);
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "/missions/${missionId}/lessons/${lid}/feedback");
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      xhr.setRequestHeader("X-CSRF-Token", (document.cookie.match(/learninator_csrf=([^;]+)/) || [])[1] || "");
+      xhr.setRequestHeader("HX-Request", "true");
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          var tmp = document.createElement("div");
+          tmp.innerHTML = xhr.responseText;
+          var newBar = tmp.querySelector("#feedback-bar");
+          if (newBar) bar.parentNode.replaceChild(newBar, bar);
+        }
+      };
+      xhr.send(body);
+    }
+
+    ratings.querySelectorAll(".fb-btn").forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        showTextarea(btn.dataset.rating);
+      });
+    });
+
+    submitBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      submitFeedback();
+    });
+
+    input.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submitFeedback();
+      }
+    });
+
+    changeBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      ratings.style.display = "";
+      textareaWrap.style.display = "none";
+    });
+  })();
+  </script>`;
+}
+
+export function feedbackThanksBar(rating: string, missionId: number, number: number, subNumber: number | null, feedbackText?: string): string {
   const lid = lessonIdStr(number, subNumber);
   const ratingLabel = rating.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
-  let extraButtons = "";
+  const escapedText = feedbackText ? feedbackText.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : "";
+  const textSnippet = escapedText.length > 120 ? escapedText.slice(0, 120) + "…" : escapedText;
+
+  let adjustmentButtons = "";
   if (rating === "too_easy") {
-    extraButtons = `<button class="btn btn-secondary btn-sm"
+    adjustmentButtons = `<button class="btn btn-secondary btn-sm"
       hx-post="/missions/${missionId}/lessons/${lid}/regenerate"
       hx-target="#feedback-bar" hx-swap="outerHTML"
       hx-vals='{"direction":"harder"}'>Make Harder</button>`;
   } else if (rating === "too_hard") {
-    extraButtons = `<button class="btn btn-secondary btn-sm"
+    adjustmentButtons = `<button class="btn btn-secondary btn-sm"
       hx-post="/missions/${missionId}/lessons/${lid}/regenerate"
       hx-target="#feedback-bar" hx-swap="outerHTML"
       hx-vals='{"direction":"easier"}'>Make Easier</button>
@@ -53,35 +168,55 @@ export function feedbackThanksBar(rating: string, missionId: number, number: num
       hx-target="#feedback-bar" hx-swap="outerHTML">Bridge First</button>`;
   }
 
-  return `<div class="feedback-bar" id="feedback-bar">
-    <span class="label">Thanks! You rated this: <strong>${ratingLabel}</strong></span>
-    ${extraButtons}
-    <span style="flex:1"></span>
-    <button class="done-btn"
-      hx-post="/missions/${missionId}/lessons/${lid}/complete"
-      hx-target="#feedback-bar" hx-swap="outerHTML">Mark Complete</button>
+  return `<div class="lesson-actions" id="feedback-bar">
+    <div class="la-feedback">
+      <span class="la-label">Thanks! You rated this <strong>${ratingLabel}</strong>.</span>
+      ${escapedText ? `<span class="la-fb-text-preview">"${textSnippet}"</span>` : ""}
+      ${adjustmentButtons ? `<div class="la-fb-buttons">${adjustmentButtons}</div>` : ""}
+    </div>
+    <div class="la-divider"></div>
+    ${actionButtons(missionId, lid)}
   </div>`;
 }
 
 export function completedLessonBar(missionId: number, number: number, subNumber: number | null): string {
   const lid = lessonIdStr(number, subNumber);
-  return `<div class="feedback-bar post-completion-bar" id="feedback-bar" style="flex-direction:column;align-items:stretch;gap:0.75rem;">
-    <div style="display:flex;align-items:center;gap:0.5rem;">
+  const promptId = `gen-prompt-${lid}`;
+  return `<div class="lesson-actions" id="feedback-bar">
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
       <span class="badge badge-completed">Completed</span>
-      <strong style="margin-left:0.25rem;">What's next?</strong>
+      <strong>What's next?</strong>
       <span style="flex:1"></span>
       <button class="btn btn-ghost btn-sm"
         hx-post="/missions/${missionId}/lessons/${lid}/incomplete"
         hx-target="#feedback-bar" hx-swap="outerHTML">Mark Incomplete</button>
     </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <button class="btn btn-primary btn-sm"
-        hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
-        hx-target="#feedback-bar" hx-swap="outerHTML">Continue Learning</button>
-      <button class="btn btn-secondary btn-sm"
-        hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
-        hx-target="#feedback-bar" hx-swap="outerHTML">Dive Deeper</button>
-      <a class="btn btn-secondary btn-sm" href="/browse">Explore Something New</a>
+    <div class="la-divider"></div>
+    <div class="la-gen-prompt">
+      <input type="text" id="${promptId}" name="notes"
+        placeholder="What should the next lesson cover? (optional)"
+        class="la-gen-input"
+        autocomplete="off" />
+    </div>
+    <div class="la-actions">
+      <div class="la-action">
+        <button class="btn btn-primary btn-sm"
+          hx-post="/missions/${missionId}/lessons/${lid}/generate-next"
+          hx-include="#${promptId}"
+          hx-target="#feedback-bar" hx-swap="outerHTML">Continue Learning</button>
+        <span class="la-hint">Creates the next main lesson in sequence</span>
+      </div>
+      <div class="la-action">
+        <button class="btn btn-secondary btn-sm"
+          hx-post="/missions/${missionId}/lessons/${lid}/generate-sub-lesson"
+          hx-include="#${promptId}"
+          hx-target="#feedback-bar" hx-swap="outerHTML">Dive Deeper</button>
+        <span class="la-hint">Creates a sub-lesson nested under this lesson</span>
+      </div>
+      <div class="la-action">
+        <a class="btn btn-secondary btn-sm" href="/browse">Explore Something New</a>
+        <span class="la-hint">Browse topics to find a new direction</span>
+      </div>
     </div>
   </div>`;
 }

@@ -16,13 +16,22 @@ import {
   chatMessageBubble,
   feedbackThanksBar,
   feedbackModal,
+  generationRunningBar,
+  generationDoneBar,
+  generationErrorBar,
+  regenerationRunningBar,
+  regenerationDoneBar,
+  regenerationErrorBar,
+  bridgingRunningBar,
+  bridgingDoneBar,
+  bridgingErrorBar,
 } from "../views/fragments.js";
 import { userInitial } from "../views/shared.js";
 import { formatMarkdown } from "../shared/markdown.js";
 import { parseLessonParam } from "../shared/lesson-numbers.js";
 import { computeLessonNavigation } from "../view-models/lesson-navigation.js";
 import { validateFeedback, validateNotes, rateLimitedFragment } from "../security/index.js";
-import { buildJobKey } from "../lessons/generator.js";
+import { buildJobKey, type LessonGenerator } from "../lessons/generator.js";
 import { lessonGenerationRoutes } from "./lesson-generation.js";
 
 type Ctx = Context<{ Variables: AppVariables }>;
@@ -32,6 +41,44 @@ export const lessonRoutes = new Hono<{ Variables: AppVariables }>();
 lessonRoutes.route("/", lessonGenerationRoutes);
 
 // ── GET lesson ──
+
+/** Check for a running/done/errored generation job so the bar survives page reload. */
+function resolveGenerationBar(
+  generator: LessonGenerator,
+  missionId: number,
+  number: number,
+  subNumber: number | null,
+): string | null {
+  const checks = [
+    { kind: "next" as const, isSub: false },
+    { kind: "sub" as const, isSub: true },
+    { kind: "regenerate" as const },
+    { kind: "bridge" as const },
+  ];
+
+  for (const { kind, isSub } of checks) {
+    const key = buildJobKey(missionId, number, subNumber, kind);
+    const status = generator.getJobStatus(key);
+    if (status.status === "not_found") continue;
+
+    if (kind === "regenerate") {
+      if (status.status === "running") return regenerationRunningBar(missionId, number, subNumber, status.message);
+      if (status.status === "done") return regenerationDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle);
+      return regenerationErrorBar(missionId, status.error);
+    }
+    if (kind === "bridge") {
+      if (status.status === "running") return bridgingRunningBar(missionId, number, subNumber, status.message);
+      if (status.status === "done") return bridgingDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle);
+      return bridgingErrorBar(missionId, status.error);
+    }
+    // next or sub
+    if (status.status === "running") return generationRunningBar(missionId, number, subNumber, !!isSub, status.message);
+    if (status.status === "done") return generationDoneBar(missionId, status.lessonNumber, status.lessonSubNumber, status.lessonTitle);
+    return generationErrorBar(missionId, status.error);
+  }
+
+  return null;
+}
 
 lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
   const user = c.get("user")!;
@@ -54,6 +101,9 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
 
   const { prevLesson, nextLesson } = computeLessonNavigation(allLessons, number, subNumber);
 
+  const generator = c.get("lessonGenerator");
+  const generationBarHtml = resolveGenerationBar(generator, missionId, number, subNumber);
+
   return c.html(lessonPage({
     missionId,
     missionTitle: mission.title,
@@ -64,6 +114,7 @@ lessonRoutes.get("/:number", auth.requireAuth, async (c: Ctx) => {
     lessonHtmlContent: lesson.htmlContent,
     prevLesson,
     nextLesson,
+    generationBarHtml,
   }));
 });
 
@@ -88,7 +139,7 @@ lessonRoutes.post("/:number/feedback", auth.requireAuth, async (c: Ctx) => {
 
   await store.updateLessonFeedback(missionId, number, subNumber, rating, feedbackText || undefined);
 
-  return c.html(feedbackThanksBar(rating, missionId, number, subNumber));
+  return c.html(feedbackThanksBar(rating, missionId, number, subNumber, feedbackText || undefined));
 });
 
 // ── Mark incomplete ──

@@ -13,8 +13,9 @@ export function lessonPage(params: {
   lessonHtmlContent: string;
   prevLesson: { number: number; subNumber: number | null } | undefined;
   nextLesson: { number: number; subNumber: number | null } | undefined;
+  generationBarHtml?: string | null;
 }): string {
-  const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, prevLesson, nextLesson } = params;
+  const { missionId, missionTitle, lessonNumber, lessonSubNumber, lessonTitle, lessonStatus, lessonHtmlContent, prevLesson, nextLesson, generationBarHtml } = params;
 
   const displayNum = formatLessonNumber(lessonNumber, lessonSubNumber);
   const lid = lessonIdStr(lessonNumber, lessonSubNumber);
@@ -93,28 +94,54 @@ ${HTMX_HEAD}
   }
   #lesson-frame { width: 100%; border: none; display: block; }
 
-  /* Feedback Bar */
+  /* Lesson Actions (two-zone bar: feedback + actions) */
+  .lesson-actions {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 1rem 1.2rem; margin-bottom: 1.25rem;
+    animation: fadeInUp 0.3s ease-out;
+    box-shadow: var(--shadow-sm);
+  }
+  .la-feedback { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; padding-bottom: 0.6rem; }
+  .la-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+  .la-fb-buttons { display: flex; gap: 0.4rem; }
+  .la-fb-textarea { flex: 1 1 100%; min-width: 0; }
+  .la-fb-textarea-label { display: block; font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.35rem; font-weight: 500; }
+  .la-fb-input-row { display: flex; gap: 0.4rem; align-items: flex-start; }
+  .la-fb-input { flex: 1; padding: 0.4rem 0.6rem; font-size: 0.8rem; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); resize: vertical; min-height: 48px; outline: none; }
+  .la-fb-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
+  .la-fb-submit { flex-shrink: 0; }
+  .la-fb-change { margin-top: 0.3rem; font-size: 0.7rem; }
+  .la-fb-text-preview { font-size: 0.75rem; color: var(--text-muted); font-style: italic; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .la-divider { height: 1px; background: var(--border); margin: 0.6rem 0; }
+  .la-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .la-action { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-start; }
+  .la-hint { font-size: 0.7rem; color: var(--text-muted); line-height: 1.3; max-width: 160px; }
+  .la-gen-prompt { flex-basis: 100%; }
+  .la-gen-input { width: 100%; padding: 0.4rem 0.6rem; font-size: 0.8rem; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); outline: none; box-sizing: border-box; }
+  .la-gen-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
+  .la-gen-input::placeholder { color: var(--text-muted); }
+
+  /* Legacy feedback bar (generation progress) */
   .feedback-bar {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
     padding: 1rem 1.2rem; margin-bottom: 1.25rem; display: flex; align-items: center;
     gap: 0.6rem; flex-wrap: wrap;
-    animation: fadeInUp 0.3s ease-out;
     box-shadow: var(--shadow-sm);
   }
   .feedback-bar .label { font-size: 0.82rem; color: var(--text-secondary); font-weight: 500; }
-  .feedback-bar .fb-btn {
-    padding: 0.35rem 0.85rem; border: 1px solid var(--border); border-radius: 999px;
-    background: var(--surface); cursor: pointer; font-size: 0.8rem;
-    transition: all var(--transition); color: var(--text-secondary); font-family: inherit;
+  .fb-btn {
+    padding: 0.3rem 0.75rem; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); cursor: pointer; font-size: 0.78rem;
+    transition: all var(--transition); color: var(--text-muted); font-family: inherit;
   }
-  .feedback-bar .fb-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
-  .feedback-bar .done-btn {
+  .fb-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .done-btn {
     padding: 0.5rem 1.2rem; background: var(--accent);
     color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer;
     font-size: 0.82rem; font-weight: 600; transition: all var(--transition); font-family: inherit;
     box-shadow: 0 1px 3px rgba(79,70,229,0.2);
   }
-  .feedback-bar .done-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+  .done-btn:hover { background: var(--accent-hover); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
 
   /* Generation bars (yellow warning style) */
   .generation-bar .thinking-dots span { background: var(--warning); }
@@ -239,9 +266,11 @@ ${siteWideIndicator()}
     <iframe id="lesson-frame" scrolling="no" srcdoc="${lessonHtmlContent.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/<\/body>/i, `<script>function r(){const h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);parent.postMessage({type:'lessonResize',height:h},'*');}new ResizeObserver(r).observe(document.body);r();<\/script></body>`)}"></iframe>
   </div>
 
-  ${lessonStatus === "completed"
-    ? completedLessonBar(missionId, lessonNumber, lessonSubNumber)
-    : lessonActionBar(missionId, lessonNumber, lessonSubNumber)
+  ${generationBarHtml
+    ? generationBarHtml
+    : lessonStatus === "completed"
+      ? completedLessonBar(missionId, lessonNumber, lessonSubNumber)
+      : lessonActionBar(missionId, lessonNumber, lessonSubNumber)
   }
 
   <!-- FAB -->

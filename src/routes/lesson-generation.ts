@@ -110,6 +110,11 @@ lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, as
   const store = c.get("store");
   const missionId = parseInt(c.req.param("missionId")!);
   const { number, subNumber } = parseLessonParam(c.req.param("number")!);
+  const body = await c.req.parseBody();
+  const notes = String(body.notes || "").trim();
+
+  const notesErr = validateNotes(notes);
+  if (notesErr) return c.html(notesErr);
 
   if (Number.isNaN(missionId) || missionId < 1) return c.text("Not found", 404);
   const mission = await store.getMission(missionId, user.id);
@@ -128,6 +133,7 @@ lessonGenerationRoutes.post("/:number/generate-sub-lesson", auth.requireAuth, as
     missionId,
     { number, subNumber, title: lesson.title },
     { title: mission.title, status: mission.status },
+    { notes: notes || undefined },
   );
 
   return c.html(generationPollingBar(missionId, number, subNumber, true));
@@ -165,6 +171,7 @@ lessonGenerationRoutes.post("/:number/regenerate", auth.requireAuth, async (c: C
     { number, subNumber, title: lesson.title },
     { title: mission.title, status: mission.status },
     direction,
+    { feedback: lesson.feedbackText || undefined },
   );
 
   return c.html(regenerationPollingBar(missionId, number, subNumber));
@@ -196,6 +203,7 @@ lessonGenerationRoutes.post("/:number/generate-bridging", auth.requireAuth, asyn
     missionId,
     { number, subNumber, title: lesson.title },
     { title: mission.title, status: mission.status },
+    { feedback: lesson.feedbackText || undefined },
   );
 
   return c.html(bridgingPollingBar(missionId, number, subNumber));

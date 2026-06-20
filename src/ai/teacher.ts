@@ -80,11 +80,7 @@ Lesson HTML should be self-contained with inline CSS and JS. Style it beautifull
 
 ## Zone of Proximal Development
 
-Each lesson should challenge the user 'just enough'. To find their zone:
-- Call **list_feedback_history** to see how past lessons were rated
-- Read their learning records
-- Figure out the right thing to teach based on their mission
-- Teach the most relevant thing that fits
+Each lesson should challenge the user 'just enough'. The system prompt includes the student's feedback history — use it to calibrate difficulty. For deeper analysis, call **list_feedback_history** to read specific feedback text. Also read their learning records and figure out the right thing to teach based on their mission.
 
 Use feedback patterns to calibrate difficulty:
 - Multiple "too_easy" ratings → increase challenge, add depth, pick harder topics
@@ -428,7 +424,7 @@ CRITICAL RULES:
 - Use regenerate_lesson with number: ${lessonNumber} to update the lesson in-place. Do NOT use create_lesson.
 - Keep the same core topic — do not change what the lesson teaches, only how it teaches it.
 - Read the current lesson content with read_lesson first so you know what to improve.
-- Use list_feedback_history to understand the student's overall difficulty pattern.
+- The system prompt includes the student's full feedback history — use it to understand difficulty patterns.
 - Make the title reflect the adjusted difficulty if appropriate.
 - Write self-contained HTML with inline CSS and JS, following the same design guidelines as all lessons.
 - After regenerating, the student will reload the lesson page to see your changes.`;
@@ -462,5 +458,5 @@ Create a sub-lesson (use create_sub_lesson with parent_lesson_number: ${lessonNu
 
 This is a SUB-LESSON — it displays as ${displayNum}.1 under the main lesson card. The student will study it and then return to the main lesson.
 
-Read the parent lesson content first with read_lesson so you understand what prerequisites are needed. Use list_feedback_history to understand the student's overall pattern.`;
+Read the parent lesson content first with read_lesson so you understand what prerequisites are needed. The system prompt includes the student's feedback history — use it to calibrate the bridge.`;
 }
